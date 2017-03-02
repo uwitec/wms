@@ -1,0 +1,26 @@
+/* $Id: default.css 6768 2007-03-27 08:31:54Z slip $ */
+.zpModalDefault, .zpModalOperaDefault {
+	  overflow : hidden;
+}
+
+.zpModalDefault {
+	  background-color : black;
+	  opacity : 0.60;
+	  filter : alpha(opacity:60);
+	  -moz-opacity: 0.60;
+}
+
+.zpModalOperaDefault {
+	background-image : url('transp.png');
+}
+
+.zpModalDefault .zpIndicator, .zpModalOperaDefault .zpIndicator {
+	-moz-box-sizing : border-box;
+	height : 30px;
+	background-image : url('progressbar.gif');
+	background-repeat : no-repeat;
+	background-position : 10px center;
+	background-color : #aaa;
+	border : solid 1px #999;
+	padding : 3px 20px 3px 120px;
+}

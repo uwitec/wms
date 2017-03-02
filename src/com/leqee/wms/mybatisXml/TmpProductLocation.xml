@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.TmpProductLocationDao">
+	<insert id="insert" parameterType="com.leqee.wms.entity.TmpProductLocation" >
+		<selectKey resultType="java.lang.Integer" keyProperty="tmp_pl_id" order="AFTER" >
+	      SELECT LAST_INSERT_ID()
+	    </selectKey>
+		insert into wms.tmp_product_location(
+			tmp_pl_id,customer_id,physical_warehouse_id,product_barcode,product_id,
+			location_barcode,location_id,quantity,status,validity,serial_number,
+			transfer_status,created_user,created_time,last_updated_user,last_updated_time
+		)values(
+			#{tmp_pl_id},#{customer_id},#{physical_warehouse_id},#{product_barcode},#{product_id},
+			#{location_barcode},#{location_id},#{quantity},#{status},#{validity},#{serial_number},
+			#{transfer_status},#{created_user},now(),#{last_updated_user},now()
+		)
+	</insert>
+	
+	<insert id="insertList"  parameterType="java.util.List" >
+		insert into wms.tmp_product_location (
+			tmp_pl_id,customer_id,physical_warehouse_id,product_barcode,product_id,
+			location_barcode,location_id,quantity,status,validity,serial_number,
+			transfer_status,created_user,created_time,last_updated_user,last_updated_time
+		)values
+			<foreach collection="list" item="item" index="index" separator="," >
+			(#{item.tmp_pl_id},#{item.customer_id},#{item.physical_warehouse_id},#{item.product_barcode},#{item.product_id},
+			#{item.location_barcode},#{item.location_id},#{item.quantity},#{item.status},#{item.validity},#{item.serial_number},
+			#{item.transfer_status},#{item.created_user},now(),#{item.last_updated_user},now())
+		</foreach>
+	</insert>
+	
+	<update id="update">
+		update wms.tmp_product_location set transfer_status = #{transferStatus},
+		last_updated_user = #{actionUser},last_updated_time = now()
+		<if test="transferNote != '' and transferNote !=null">
+			,transfer_note = #{transferNote}
+		</if>
+		where customer_id = #{customerId} and physical_warehouse_id = #{physicalWarehouseId} and tmp_pl_id = #{tmpPlId}
+	</update>
+</mapper>

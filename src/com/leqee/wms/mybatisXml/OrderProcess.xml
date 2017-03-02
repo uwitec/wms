@@ -1,0 +1,703 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderProcessDao">
+  
+  <select id="selectOrderProcessListForBatchPick" parameterType="map"  resultType="com.leqee.wms.entity.OrderProcess">
+	SELECT 
+		* 
+	FROM 
+		wms.order_process 
+    WHERE 
+    	order_type = #{orderType} 
+    AND customer_id = #{customerId}
+    AND warehouse_id = #{warehouseId}
+    AND status = #{status}
+    AND reserve_status = #{reserveStatus}
+    FOR UPDATE
+  </select>
+  <select id="getAllHasProductOrdersInBatchPick" resultType="int">
+  		SELECT og.order_id
+        FROM wms.order_process op
+		INNER JOIN wms.order_goods og ON op.order_id=og.order_id
+		WHERE  op.batch_pick_id=#{batch_pick_id}
+          AND og.product_id in
+          <foreach collection="list" item="product_id"  index="index" open="("
+				separator="," close=")">
+				#{product_id}
+	      </foreach>
+  </select>
+  <select id="getAllCancelOrderByList" resultType="int">
+	select order_id from wms.order_process where order_id in 
+  	<foreach collection="list" item="orderId"  index="index" open="("
+		separator="," close=")">
+		#{orderId}
+     </foreach> and status='CANCEL' 
+  </select>
+  <select id="getAllCancelOrderByBatchPickId" resultType="int">
+      select order_id from wms.order_process where batch_pick_id = #{batch_pick_id}   and status='CANCEL'
+  </select>
+  <select id="getAllCancelForFirstShipmentOrderByBatchPickId" resultType="Integer">
+  	select order_id from wms.order_process where batch_pick_id = #{batch_pick_id}   and status='CANCEL' and is_first_shipment = 0
+  </select>
+  <select  id="getAllCancelOrderByBatchPickSn" resultType="int">
+	  select op.order_id from wms.order_process op 
+	  inner join wms.batch_pick bp on op.batch_pick_id=bp.batch_pick_id
+	  where bp.batch_pick_sn = #{batch_pick_sn}   and op.status='CANCEL'
+  </select>
+  <update id="updateForKickOutOrdersStatus">
+		UPDATE wms.order_process 
+		SET STATUS=  CASE  STATUS WHEN 'CANCEL' THEN 'CANCEL' ELSE 'ACCEPT' END,
+		batch_pick_id = 0,
+		in_batchpick_task=0,
+		order_batch_sequence_number=0 
+		WHERE order_id IN
+		<foreach collection="list" item="order_id"  index="index" open="("
+				separator="," close=")">
+				#{order_id}
+	    </foreach>
+	</update>
+	
+	<update id="updateForKickOutOrdersStatusV2">
+		UPDATE wms.order_process 
+		SET STATUS=  CASE  STATUS WHEN 'CANCEL' THEN 'CANCEL' ELSE 'ACCEPT' END,
+		batch_pick_id = 0,
+		in_batchpick_task=0,
+		mark = case is2B when 'N' then 1 when 'W' then 1 else 0 end,
+		order_batch_sequence_number=0
+		WHERE order_id IN
+		<foreach collection="list" item="order_id"  index="index" open="("
+				separator="," close=")">
+				#{order_id}
+	    </foreach>
+	</update>
+  <select id="selectOrderGoodsListForBatchPick" parameterType="map"  resultType="com.leqee.wms.entity.OrderGoods">
+	select 
+	    order_goods.order_id,product_id,sum(goods_number) as goods_number,goods_name 
+	from 
+	    order_goods, order_process 
+	WHERE order_process.order_type = #{orderType} 
+    AND order_process.customer_id = #{customerId}
+    AND order_process.warehouse_id = #{warehouseId}
+    AND order_process.status = #{status}
+    AND order_process.reserve_status = #{reserveStatus}  AND order_goods.order_id=order_process.order_id 
+    GROUP BY order_goods.product_id,order_goods.order_id  
+    ORDER BY order_goods.order_id,order_goods.product_id 
+	FOR UPDATE  
+  </select>
+  
+  <update id="updateBatchPickInfoByOrderId" parameterType="map" >
+    UPDATE 
+    	wms.order_process
+    set 
+      batch_pick_id = #{batchPickId},
+      order_batch_group = #{orderBatchGroup},
+      order_batch_sequence_number = #{orderBatchSequenceNumber},
+      status = #{status}
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="updateOrderStatusByOrderId" parameterType="map" >
+    UPDATE 
+    	wms.order_process
+    set 
+      status = #{status}
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="updateOrderStatusForFulfilledByOrderId" parameterType="map">
+  	UPDATE 
+    	wms.order_process
+    set 
+      status = #{status},inventory_out_time=now()
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="updateShippingMark">
+  	update wms.order_process set shipping_mark=#{1} where order_id = #{0}
+  </update>
+  
+  <sql id="Base_Column_List" >
+    order_id, oms_order_sn, customer_id, warehouse_id, reserve_status, reserve_time, 
+    inventory_out_status, inventory_out_time, batch_pick_id, order_batch_group, order_batch_sequence_number, 
+    recheck_status, recheck_time, shipping_time, order_type, status, created_user, created_time
+  </sql>
+
+  <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.OrderProcess" parameterType="java.lang.Integer" >
+    select 
+   *
+    from order_process
+    where order_id = #{order_id,jdbcType=INTEGER}
+  </select>
+  
+  <select id="selectByPrimaryKeyForUpdate" resultType="com.leqee.wms.entity.OrderProcess" parameterType="java.lang.Integer" >
+    select 
+   *
+    from order_process
+    where order_id = #{order_id,jdbcType=INTEGER} for update
+  </select>
+  
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from order_process
+    where order_id = #{order_id,jdbcType=INTEGER}
+  </delete>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.OrderProcess" >
+    insert into order_process (order_id, oms_order_sn, customer_id, 
+      warehouse_id, reserve_status, reserve_time, 
+      inventory_out_status, inventory_out_time, 
+      batch_pick_id, order_batch_group, order_batch_sequence_number, 
+      recheck_status, recheck_time, shipping_time, 
+      order_type, status, created_user, 
+      created_time , product_key, product_num , has_serial_goods , issf , is2B )
+    values (#{order_id,jdbcType=INTEGER}, #{oms_order_sn,jdbcType=VARCHAR}, #{customer_id,jdbcType=INTEGER}, 
+      #{warehouse_id,jdbcType=INTEGER}, #{reserve_status,jdbcType=CHAR}, #{reserve_time,jdbcType=TIMESTAMP}, 
+      #{inventory_out_status,jdbcType=CHAR}, #{inventory_out_time,jdbcType=TIMESTAMP}, 
+      #{batch_pick_id,jdbcType=INTEGER}, #{order_batch_group,jdbcType=CHAR}, #{order_batch_sequence_number,jdbcType=INTEGER}, 
+      #{recheck_status,jdbcType=CHAR}, #{recheck_time,jdbcType=TIMESTAMP}, #{shipping_time,jdbcType=TIMESTAMP}, 
+      #{order_type,jdbcType=VARCHAR}, #{status,jdbcType=CHAR}, #{created_user,jdbcType=VARCHAR}, 
+      #{created_time,jdbcType=TIMESTAMP} , #{product_key}, #{product_num} , #{has_serial_goods} , #{issf},#{is2B} )
+  </insert>
+  <insert id="insertSelective" parameterType="com.leqee.wms.entity.OrderProcess" >
+    insert into order_process
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="order_id != null" >
+        order_id,
+      </if>
+      <if test="oms_order_sn != null" >
+        oms_order_sn,
+      </if>
+      <if test="customer_id != null" >
+        customer_id,
+      </if>
+      <if test="warehouse_id != null" >
+        warehouse_id,
+      </if>
+      <if test="reserve_status != null" >
+        reserve_status,
+      </if>
+      <if test="reserve_time != null" >
+        reserve_time,
+      </if>
+      <if test="inventory_out_status != null" >
+        inventory_out_status,
+      </if>
+      <if test="inventory_out_time != null" >
+        inventory_out_time,
+      </if>
+      <if test="batch_pick_id != null" >
+        batch_pick_id,
+      </if>
+      <if test="order_batch_group != null" >
+        order_batch_group,
+      </if>
+      <if test="order_batch_sequence_number != null" >
+        order_batch_sequence_number,
+      </if>
+      <if test="recheck_status != null" >
+        recheck_status,
+      </if>
+      <if test="recheck_time != null" >
+        recheck_time,
+      </if>
+      <if test="shipping_time != null" >
+        shipping_time,
+      </if>
+      <if test="order_type != null" >
+        order_type,
+      </if>
+      <if test="status != null" >
+        status,
+      </if>
+      <if test="created_user != null" >
+        created_user,
+      </if>
+      <if test="created_time != null" >
+        created_time,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="order_id != null" >
+        #{order_id,jdbcType=INTEGER},
+      </if>
+      <if test="oms_order_sn != null" >
+        #{oms_order_sn,jdbcType=VARCHAR},
+      </if>
+      <if test="customer_id != null" >
+        #{customer_id,jdbcType=INTEGER},
+      </if>
+      <if test="warehouse_id != null" >
+        #{warehouse_id,jdbcType=INTEGER},
+      </if>
+      <if test="reserve_status != null" >
+        #{reserve_status,jdbcType=CHAR},
+      </if>
+      <if test="reserve_time != null" >
+        #{reserve_time,jdbcType=TIMESTAMP},
+      </if>
+      <if test="inventory_out_status != null" >
+        #{inventory_out_status,jdbcType=CHAR},
+      </if>
+      <if test="inventory_out_time != null" >
+        #{inventory_out_time,jdbcType=TIMESTAMP},
+      </if>
+      <if test="batch_pick_id != null" >
+        #{batch_pick_id,jdbcType=INTEGER},
+      </if>
+      <if test="order_batch_group != null" >
+        #{order_batch_group,jdbcType=CHAR},
+      </if>
+      <if test="order_batch_sequence_number != null" >
+        #{order_batch_sequence_number,jdbcType=INTEGER},
+      </if>
+      <if test="recheck_status != null" >
+        #{recheck_status,jdbcType=CHAR},
+      </if>
+      <if test="recheck_time != null" >
+        #{recheck_time,jdbcType=TIMESTAMP},
+      </if>
+      <if test="shipping_time != null" >
+        #{shipping_time,jdbcType=TIMESTAMP},
+      </if>
+      <if test="order_type != null" >
+        #{order_type,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null" >
+        #{status,jdbcType=CHAR},
+      </if>
+      <if test="created_user != null" >
+        #{created_user,jdbcType=VARCHAR},
+      </if>
+      <if test="created_time != null" >
+        #{created_time,jdbcType=TIMESTAMP},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKey" parameterType="com.leqee.wms.entity.OrderProcess" >
+    update order_process
+    set oms_order_sn = #{oms_order_sn,jdbcType=VARCHAR},
+      customer_id = #{customer_id,jdbcType=INTEGER},
+      warehouse_id = #{warehouse_id,jdbcType=INTEGER},
+      reserve_status = #{reserve_status,jdbcType=CHAR},
+      reserve_time = #{reserve_time,jdbcType=TIMESTAMP},
+      inventory_out_status = #{inventory_out_status,jdbcType=CHAR},
+      inventory_out_time = #{inventory_out_time,jdbcType=TIMESTAMP},
+      batch_pick_id = #{batch_pick_id,jdbcType=INTEGER},
+      order_batch_group = #{order_batch_group,jdbcType=CHAR},
+      order_batch_sequence_number = #{order_batch_sequence_number,jdbcType=INTEGER},
+      recheck_status = #{recheck_status,jdbcType=CHAR},
+      recheck_time = #{recheck_time,jdbcType=TIMESTAMP},
+      shipping_time = #{shipping_time,jdbcType=TIMESTAMP},
+      order_type = #{order_type,jdbcType=VARCHAR},
+      status = #{status,jdbcType=CHAR},
+      created_user = #{created_user,jdbcType=VARCHAR},
+      created_time = #{created_time,jdbcType=TIMESTAMP}
+    where order_id = #{order_id,jdbcType=INTEGER}
+  </update>
+  
+  <update id="updateReserveStatus" parameterType="com.leqee.wms.entity.OrderProcess" >
+    update order_process
+    set 
+      reserve_status = #{0},
+      reserve_time = now()
+    where order_id = #{1}
+    limit 1
+  </update>
+  
+  <update id="setSaleOrderStatusFulfilled" parameterType="java.lang.Integer" >
+    UPDATE wms.order_process
+    SET 
+      inventory_out_status = 'Y',
+      inventory_out_time = now(),
+      status = 'FULFILLED'
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="updateProcessByOrders2Task" parameterType="java.util.List">
+    UPDATE wms.order_process
+    SET 
+      in_batchpick_task=1 
+      where order_id in 
+      <foreach collection="list" item="orderIds" open="(" separator="," close=")">
+			#{orderIds}
+	  </foreach>
+  </update>
+  
+  <update id="updateOrderProcessForBatchPick" parameterType="map">
+    UPDATE wms.order_process
+    SET 
+      status= #{status}, batch_pick_id = #{batch_pick_id}, order_batch_sequence_number= #{order_batch_sequence_number}
+      where order_id = #{order_id} 
+  </update>
+  
+    <update id="updateOrderProcessForBatchPick2" parameterType="map">
+    UPDATE wms.order_process
+    SET 
+      status= #{status}, batch_pick_id = #{batch_pick_id}, order_batch_sequence_number= #{order_batch_sequence_number},in_batchpick_task=1
+      where order_id = #{order_id} 
+  </update>
+  <select id="selectOrdersForLock2Task" parameterType="Integer"  resultType="com.leqee.wms.entity.OrderProcess">
+			select * from wms.order_process where order_id in 
+			<foreach collection="list" item="orderIds" open="(" separator="," close=")">
+				#{orderIds}
+			</foreach> for update
+  </select>
+  
+    <select id="selectUnCancelOrdersForLock2Task" parameterType="Integer"  resultType="com.leqee.wms.entity.OrderProcess">
+			select * from wms.order_process where status='ACCEPT' and order_id in 
+			<foreach collection="list" item="orderIds" open="(" separator="," close=")">
+				#{orderIds}
+			</foreach> for update
+  </select>
+  
+   <update id="updateOrderProcessListForBatchPick" parameterType="map">
+    UPDATE wms.order_process
+    SET 
+      status= #{status}, batch_pick_id = #{batch_pick_id},in_batchpick_task=1
+      where order_id in 
+      <foreach collection="order_id" item="order_id"  index="index" open="("
+				separator="," close=")">
+				#{order_id}
+	</foreach>
+  </update>
+  
+  <update id="updateOrderProcessListForBatchPick2" parameterType="map">
+    UPDATE wms.order_process
+    SET order_batch_sequence_number = CASE order_id  
+    <foreach collection="list" item="order_id"  index="index" open=" when "
+				separator="when " close="  ">
+				${order_id}  then   ${index+1} 
+	</foreach>
+    END, 
+    status='BATCH_PICK', batch_pick_id = #{batch_pick_id},in_batchpick_task=1
+    where order_id in 
+      <foreach collection="list" item="order_id"  index="index" open="("
+				separator="," close=")">
+				#{order_id}
+	</foreach>
+  </update>
+  
+  
+  <update id="setStatusPick">
+  	UPDATE wms.order_process
+    SET 
+      recheck_status = 'N',
+      recheck_time = '1970-01-01 08:00:00',
+      status = 'PICKING'
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="setStatusRecheckedByOrderId">
+  	UPDATE wms.order_process
+    SET 
+      recheck_status = 'Y',
+      recheck_time = now(),
+      status = 'RECHECKED'
+    where order_id = #{orderId}
+  </update>
+  
+  <update id="setStatusWeigt">
+  	UPDATE wms.order_process
+    SET weighed_status = 'Y',weighed_time = now(),status = 'WEIGHED'
+    where order_id = #{orderId}
+  </update>
+  <update id="batchSetStatusRecheckedByOrderId">
+  	UPDATE wms.order_process
+    SET 
+      recheck_status = 'Y',
+      recheck_time = now(),
+      status = 'RECHECKED'
+    where order_id in  <foreach collection="orderIdList" item="order_id"  index="index" open="("
+				separator="," close=")">#{order_id}</foreach>
+  </update>
+  
+  <select id="getOrderStatusList" resultType="String">
+  	select distinct op.status from wms.order_process op inner join wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id where bp.batch_pick_sn = #{0}
+  </select>
+  <select id="batchSelectPrintInfo" resultType="map">
+  	SELECT op.order_id,s.shipment_id,s.tracking_number,s.shipment_order_sequence_number as pm,oi.order_status,oi.customer_id,ws.shipping_code,
+  		if(shipping_code='SF','顺丰次日',if(shipping_code='SFLY','顺丰隔日','')) as alias,
+		ws.is_cod,wc.name as send_name,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,w.address as send_address,
+		IFNULL(oi.aftersale_phone,wc.aftersale_phone) as aftersale_phone,IFNULL(oi.shipment_category,wc.shipment_category) as shipment_category,
+		oi.receive_name,oi.mobile_number as receive_mobile, oi.phone_number as receive_phone,oi.province_name as receive_province,
+		oi.city_name as receive_city,oi.district_name as receive_district,oi.shipping_address as receive_address,
+		oi.shop_order_sn,s.mark,s.sf_destcode,s.sf_origincode,swm.sf_monthly_balance_account,swm.sf_payment_method,swm.sf_tp_areacode,
+		yd.sender_branch,yd.package_position,yd.package_no,yd.lattice_mouth_no,yd.station,yd.station_no,0 as insurance,0 as sf_cod_note
+	from wms.order_process op
+	INNER JOIN wms.shipment s on s.order_id = op.order_id
+	INNER JOIN wms.order_info oi on oi.order_id = op.order_id
+	INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+	INNER JOIN wms.warehouse w on w.warehouse_id = op.warehouse_id
+	INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id 
+	INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id and swm.warehouse_id = op.warehouse_id and swm.paper_type = 'electronic'
+	LEFT JOIN wms.shipping_yunda_tracking_number yd on yd.tracking_number = s.tracking_number
+	WHERE op.batch_pick_id = #{0}
+	ORDER BY s.shipment_order_sequence_number,oi.shipping_id,s.tracking_number
+  </select>
+  
+  <select id="batchSelectGoodsBarcodeList" resultType="map">
+	  	select p.barcode,sum(og.goods_number) as goods_number from wms.order_goods og
+		INNER JOIN wms.product p on p.product_id = og.product_id,(
+			select order_id from wms.order_process where batch_pick_id = #{0} limit 1
+		)  as temp
+		where og.order_id = temp.order_id and (og.order_goods_type is null or og.order_goods_type != 'PACKBOX')
+		GROUP BY og.product_id
+  </select>
+  
+  <select id="selectPrintInfo" resultType="map">
+  	SELECT op.order_id,s.shipment_id,s.tracking_number,s.shipment_order_sequence_number as pm,oi.order_status,oi.shipping_id,oi.customer_id,ws.shipping_code,
+  		if(shipping_code='SF','顺丰次日',if(shipping_code='SFLY','顺丰隔日','')) as alias,
+		ws.is_cod,wc.name as send_name,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,w.address as send_address,
+		IFNULL(oi.aftersale_phone,wc.aftersale_phone) as aftersale_phone,IFNULL(oi.shipment_category,wc.shipment_category) as shipment_category,
+		oi.receive_name,oi.mobile_number as receive_mobile, oi.phone_number as receive_phone,oi.province_name as receive_province,
+		oi.city_name as receive_city,oi.district_name as receive_district,oi.shipping_address as receive_address,
+		oi.shop_order_sn,s.mark,s.sf_destcode,s.sf_origincode,swm.sf_monthly_balance_account,swm.sf_payment_method,swm.sf_tp_areacode,
+		yd.sender_branch,yd.package_position,yd.package_no,yd.lattice_mouth_no,yd.station,yd.station_no,0 as insurance,0 as sf_cod_note
+	from wms.order_process op
+	INNER JOIN wms.shipment s on s.order_id = op.order_id
+	INNER JOIN wms.order_info oi on oi.order_id = op.order_id
+	INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+	INNER JOIN wms.warehouse w on w.warehouse_id = op.warehouse_id
+	INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id 
+	INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id and swm.warehouse_id = op.warehouse_id and swm.paper_type = 'electronic'
+	LEFT JOIN wms.shipping_yunda_tracking_number yd on yd.tracking_number = s.tracking_number
+	WHERE 1 
+	<if test="orderId != ''"> 
+		and op.order_id = #{orderId} 
+	</if>
+	<if test="trackingNumber != ''"> and s.tracking_number = #{trackingNumber}</if>
+	ORDER BY s.shipment_order_sequence_number
+  </select>
+  
+  <select id="selectBatchOrderCount" resultType="Integer">
+  	select count(order_id) from wms.order_process where batch_pick_id = #{0}
+  </select>
+  
+  <select id="selectSingleOrderForMark" resultType="map">
+  	SELECT swm.ht_express_code,oi.order_id,r1.region_name as receive_province,r2.region_name as receive_city,r3.region_name as receive_district,oi.shipping_address as receive_address,
+	sa.app_key,sa.app_secret,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,w.address as send_address
+	from wms.order_info oi
+	INNER JOIN wms.order_process op on op.order_id = oi.order_id
+	INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id
+	INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id and swm.warehouse_id = oi.warehouse_id
+	INNER JOIN wms.shipping_app sa on sa.app_id = swm.shipping_app_id
+	INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id  
+	LEFT JOIN wms.region r1 on r1.region_id = oi.province_id
+	LEFT JOIN wms.region r2 on r2.region_id = oi.city_id
+	LEFT JOIN wms.region r3 on r3.region_id = oi.district_id
+	WHERE op.shipping_mark is NULL and ws.shipping_code =#{shippingCode} 
+	and op.`status` not in ('DELIVERED','FULFILLED') and op.order_type='SALE' 
+	and oi.created_time > date_sub(NOW(),interval 2 day) 
+	<if test="shippingCode=='HT'">
+		and swm.ht_express_code != ''
+	</if>
+	LIMIT 2000
+  </select>
+  
+  <select id="getSingleOrder" resultType="map">
+  	select swm.ht_express_code,oi.order_id,r1.region_name as receive_province,r2.region_name as receive_city,r3.region_name as receive_district,oi.shipping_address as receive_address,
+	sa.app_key,sa.app_secret,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,w.address as send_address
+	from wms.order_info oi
+	INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id
+	INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id and swm.warehouse_id = oi.warehouse_id
+	INNER JOIN wms.shipping_app sa on sa.app_id = swm.shipping_app_id
+	INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id  
+	LEFT JOIN wms.region r1 on r1.region_id = oi.province_id
+	LEFT JOIN wms.region r2 on r2.region_id = oi.city_id
+	LEFT JOIN wms.region r3 on r3.region_id = oi.district_id
+	where oi.order_id=#{0}
+  </select>
+  
+  <select id="getShippingMark" resultType="String">
+  	select shipping_mark from wms.order_process where order_id = #{0}
+  </select>
+  
+  <update id="updateStatusToReserved">
+		UPDATE
+		wms.order_process
+		set
+		status = #{status} 
+		where order_id in 
+		<foreach collection="gtYList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+	
+	
+	<select id="getGoodsReturnInfo" resultType="map">
+		SELECT oi.order_id,oi.oms_order_sn,oi.receive_name,w.warehouse_name,oi.brand_name as customer_name,p.barcode,p.product_name,og.batch_sn,l.location_barcode,t.task_id,
+		CONVERT(pl.validity,char(64)) as validity,t.quantity,pl.pl_id,l.location_id,if(og.status_id='NORMAL','良品','不良品') as goods_status
+		from wms.order_info oi
+		INNER JOIN wms.task t on oi.order_id = t.order_id and t.created_time > oi.order_time and 
+		t.physical_warehouse_id = oi.physical_warehouse_id and t.task_type='PICK' 
+		INNER JOIN wms.order_goods og on og.order_id = oi.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id and p.customer_id = oi.customer_id and p.is_delete = 'N'
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id and w.is_delete = 'N'
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id and pl.product_id = og.product_id and pl.`status` = og.status_id
+		INNER JOIN wms.location l on l.location_id = pl.location_id and l.is_delete = 'N' 
+		where t.order_id = #{0}
+		order by l.location_barcode
+	</select>
+	
+	<select id="getshipmentStatusListByPage" parameterType="map" resultType="map">
+		SELECT wc.`name`,CONVERT(oi.order_time,char(64)) as order_time,oi.order_id,s.tracking_number,ws.shipping_name,IFNULL(psm.pallet_no,'') as pallet_no,
+		if(s.`status` = 'RECHECKED' ,'已复核，待称重',if(s.`status`='WEIGHED' and (psm.pallet_no is null or psm.pallet_no = ''),'已称重，待码托','已码托，待发货') ) as status,
+		if(psm.pallet_no is not null,CONVERT(psm.bind_time,char(64)),CONVERT(s.last_updated_time,char(64))) as do_time
+		from wms.order_info oi 
+		INNER JOIN wms.shipment s on oi.order_id = s.order_id
+		INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		LEFT JOIN wms.pallet_shipment_mapping psm on psm.shipment_id = s.shipment_id and psm.bind_status = 'BINDED'
+		where oi.created_time >= #{startTime} AND oi.order_status != 'CANCEL' AND s.status in ('RECHECKED','WEIGHED')
+		and w.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and oi.customer_id = #{customer_id}
+		</if>
+		<if test="shipping_code != '' and shipping_code != null">
+			and ws.shipping_code = #{shipping_code}
+		</if>
+		<if test="endTime != '' and endTime != null">
+			and oi.created_time <![CDATA[ <= ]]> #{endTime}
+		</if>
+		<if test="status != '' and status != null">
+			<if test="status=='UN_WEIGH'"> and s.status = 'RECHECKED'</if>
+			<if test="status=='UN_MT'"> and s.status = 'WEIGHED' and psm.pallet_no is null </if>
+			<if test="status=='UN_SHIP'"> and s.status = 'WEIGHED' and psm.pallet_no is not null</if>
+		</if>
+		<if test="order_id != '' and order_id != null">
+			and oi.order_id = #{order_id}
+		</if>
+		<if test="tracking_number != '' and tracking_number != null">
+			and s.tracking_number = #{tracking_number}
+		</if>
+		<if test="pallet_no != '' and pallet_no != null">
+			and psm.pallet_no = #{pallet_no}
+		</if>
+	</select>
+	
+	<select id="getShipmentStatusNum" parameterType="map" resultType="Integer">
+		SELECT count(distinct s.tracking_number) as cou 
+		from wms.order_info oi 
+		INNER JOIN wms.shipment s on oi.order_id = s.order_id
+		INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		LEFT JOIN wms.pallet_shipment_mapping psm on psm.shipment_id = s.shipment_id and psm.bind_status = 'BINDED'
+		where oi.created_time >= #{startTime} AND oi.order_status != 'CANCEL' AND s.status in ('RECHECKED','WEIGHED')
+		and w.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and oi.customer_id = #{customer_id}
+		</if>
+		<if test="shipping_code != '' and shipping_code != null">
+			and ws.shipping_code = #{shipping_code}
+		</if>
+		<if test="endTime != '' and endTime != null">
+			and oi.created_time <![CDATA[ <= ]]> #{endTime}
+		</if>
+		<if test="status != '' and status != null">
+			<if test="status=='UN_WEIGH'"> and s.status = 'RECHECKED'</if>
+			<if test="status=='UN_MT'"> and s.status = 'WEIGHED' and psm.pallet_no is null </if>
+			<if test="status=='UN_SHIP'"> and s.status = 'WEIGHED' and psm.pallet_no is not null</if>
+		</if>
+		<if test="order_id != '' and order_id != null">
+			and oi.order_id = #{order_id}
+		</if>
+		<if test="tracking_number != '' and tracking_number != null">
+			and s.tracking_number = #{tracking_number}
+		</if>
+		<if test="pallet_no != '' and pallet_no != null">
+			and psm.pallet_no = #{pallet_no}
+		</if>
+	</select>
+	<update id="updateBatchOrderProcess">
+	    UPDATE
+		wms.order_process
+		set
+		status = #{status} ,inventory_out_time=now()
+		where order_id in 
+		<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+	<update id="updateReserveResultList">
+		update wms.order_process 
+		set reserve_status=#{reserve_status}
+		where order_id in 
+		<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+	
+	<select id="checkOrderForRecheck" resultType="string">
+		select batch_process_type from wms.batch_pick bp 
+		inner join wms.order_process op on op.batch_pick_id = bp.batch_pick_id 
+		where op.order_id = #{0} and op.order_type='SALE'
+	</select>
+	
+	<select id="checkOrderByBatchPickIdForRecheck" resultType="map">
+		SELECT op.order_id,op.`status`,COUNT(sd.shipment_id) as count_shipment from wms.order_process op
+		LEFT JOIN wms.shipment s on s.order_id = op.order_id
+		LEFT JOIN wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		where op.batch_pick_id = #{0}
+		GROUP BY op.order_id
+		HAVING (`status` not in ('CANCEL','PICKING') OR count_shipment !=0)
+	</select>
+	
+	<update id="updateBatchTrickStatus">
+		update wms.order_process set batch_trick_status = #{toStatus} 
+		where batch_trick_status =#{fromStatus} and batch_pick_id = #{batchPickId}
+	</update>
+	
+	<update id="updateRecheckType">
+		update wms.order_process set recheck_type=#{toRecheckType} where recheck_type=#{fromRecheckType} and order_id =#{orderId}
+	</update>
+	
+	<update id="updateIsFirstShipment">
+		update wms.order_process set is_first_shipment=#{toIsFirstShipment} where is_first_shipment=#{fromIsFirstShipment} and order_id =#{orderId}
+	</update>
+	
+	<select id="getToApplyFirstShipmentOrderIdListByBatchPickId" resultType="java.lang.Integer">
+		select order_id from wms.order_process where batch_pick_id = #{batchPickId} and is_first_shipment = 0
+	</select>
+	
+	<update id="updateOrderProcessBatchTrickStatus">
+		update wms.order_process set batch_trick_status = #{status} where order_id = #{orderId} limit 1
+	</update>
+	
+	<update id="deleteOrderProcessBatchPickId">
+		update wms.order_process set batch_pick_id =0 where order_id = #{orderId} limiit 1
+	</update>
+	<update id="batchUpdateIsfirstShipment">
+		update wms.order_process set is_first_shipment=#{is} where is_first_shipment!=#{is}
+		and order_id in
+		<foreach collection="updatelist" open="(" close=")" separator="," item="item">
+		#{item}
+		</foreach>
+	</update>
+	
+	<select id="selectOrderIdsByBatchPickId" resultType="Integer">
+		select order_id from wms.order_process where batch_pick_id = #{0}
+	</select>
+	
+	<select id="getOrderGoodsListByOrderIdList" resultType="com.leqee.wms.entity.OrderGoods">
+	    select * from wms.order_goods where order_id in 
+		<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</select>
+	
+	<select id="getShippingList" resultType="String">
+		SELECT DISTINCT(sp.shipping_name) as shipping_name
+		 from wms.batch_pick bp   
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id
+		INNER JOIN wms.order_info oi on op.order_id =oi.order_id 
+		INNER JOIN wms.shipping sp  on oi.shipping_id = sp.shipping_id
+		where bp.batch_pick_sn =#{batchPickSn};
+	</select>
+</mapper>

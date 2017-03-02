@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.KeyInfoDao">
+	<select id="selectKeyValueByKeyName" parameterType="map"
+		resultType="Long">
+		select key_value from wms.key_info where
+		key_name=#{keyName}
+		<if test="keyDate != '' and keyDate != null">
+			and key_date >= #{keyDate}
+		</if>
+	</select>
+	
+	<insert id="insertKeyName" parameterType="string">
+		insert into wms.key_info(key_name,key_value,key_date)
+		values(
+			#{keyName},0,now()
+		)
+	</insert>
+	
+	<update id="updateKeyValueByKeyName" parameterType="map">
+		update
+		wms.key_info set
+		key_value= key_value + #{poolSize}
+		where key_name=#{keyName}
+	</update>	
+</mapper>

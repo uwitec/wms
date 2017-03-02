@@ -1,0 +1,2338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderInfoDao">
+
+	<sql id="Base_Column_List">
+		order_id, order_status, customer_id, physical_warehouse_id,
+		warehouse_id,
+		order_type,
+		oms_order_sn, oms_order_type, order_time,
+		pay_time, is_reserved, reserved_time,
+		shipping_time,
+		goods_amount,
+		shipping_amount, discount_amount, pay_amount, buyer_note,
+		seller_note,
+		note, receive_name, postal_code, phone_number, mobile_number,
+		province_id,
+		province_name,
+		city_id, city_name, district_id,
+		district_name, shipping_address, email, sex,
+		invoice_title,
+		invoice_note, invoice_amount, is_value_declared,
+		declaring_value_amount,
+		is_payment_collected,
+		collecting_payment_amount, priority_code, order_source,
+		parent_order_id, root_order_id,
+		parent_oms_order_sn, root_oms_order_sn,
+		brand_name, shop_name,
+		shop_order_sn, buyer_name,
+		buyer_phone,
+		nick_name, shipping_id, tracking_number, provider_code,
+		provider_order_type,
+		provider_name, tms_company, tms_contact,
+		tms_mobile, tms_shipping_no, currency,
+		created_user,
+		created_time,
+		last_updated_user, last_updated_time
+	</sql>
+
+	<select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.OrderInfo"
+		parameterType="java.lang.Integer">
+		select
+		<include refid="Base_Column_List" />
+		from order_info
+		where order_id = #{0}
+	</select>
+
+    <select id="getShopListFromTableOrderInfo" resultType="com.leqee.wms.entity.Shop">
+        select customer_id,shop_name,oms_shop_id
+        from wms.order_info
+        where order_time>#{start} and oms_shop_id !='' and order_type='sale'
+        group by oms_shop_id
+    </select>
+    
+	<select id="selectByBatchOrderSn" parameterType="map"
+		resultType="map">
+		SELECT
+		o.oms_order_sn,o.order_id,
+		o.arrival_time,o.order_time,o.order_status,o.provider_code,o.provider_name,o.note,o.last_updated_user,o.customer_id,o.currency,
+		og.order_goods_id,og.goods_name, og.goods_number,
+		og.product_id,og.batch_sn,og.goods_price,
+		p.barcode,p.is_serial,p.is_maintain_warranty,p.is_maintain_batch_sn,
+		o.batch_order_sn,o.warehouse_id, w.warehouse_name,wc.name
+		FROM
+		wms.order_info AS o
+		inner join wms.order_goods AS og ON og.order_id = o.order_id
+		inner join wms.product p on og.product_id = p.product_id
+		inner join wms.warehouse w on w.warehouse_id = o.warehouse_id
+		inner join wms.warehouse_customer wc on o.customer_id = wc.customer_id
+		WHERE
+		o.order_type = 'PURCHASE' and o.physical_warehouse_id = #{physicalWarehouseId} and
+		o.batch_order_sn = #{batchOrderSn}
+		GROUP BY og.order_goods_id
+	</select>
+
+	<select id="getShippingAppOrders" resultType="map">
+		select
+		oi.warehouse_id,oi.order_id,op.shipping_mark as
+		mark,oi.shipping_id,oi.order_status,oi.province_id,oi.province_name,oi.city_name,oi.district_name
+		from wms.order_info oi
+		inner join wms.order_process op on op.order_id = oi.order_id
+		where
+		oi.order_id in
+		<foreach collection="orderIdList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach> and oi.order_status !='CANCEL'
+		and oi.warehouse_id = #{warehouseId} and oi.shipping_id =
+		#{shippingId}
+	</select>
+	<select id="getShippingAppIdList" resultType="map">
+		select swm.shipping_app_id, swm.warehouse_id,swm.shipping_id
+		from
+		wms.shipping_warehouse_mapping swm
+		INNER JOIN wms.order_info oi on oi.warehouse_id = swm.warehouse_id and
+		oi.shipping_id = swm.shipping_id
+		INNER JOIN wms.shipping s on
+		s.shipping_id = swm.shipping_id
+		where s.shipping_code = #{1} and
+		swm.paper_type='electronic' and oi.order_id in
+		<foreach collection="orderIdList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+		group by swm.shipping_app_id
+	</select>
+	<select id="getSingleOrderIdByOrderIds" resultType="Integer">
+		select DISTINCT oi.order_id
+		from wms.order_info oi 
+		INNER JOIN wms.shipping_warehouse_mapping m on m.shipping_id = oi.shipping_id
+		INNER JOIN wms.shipping_app sa on sa.app_id = m.shipping_app_id and sa.apply_type = 'SINGLE'
+		where
+		  oi.order_id in
+		<foreach collection="orderIdList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>  and oi.order_status !='CANCEL'
+	</select>
+
+	<select id="selectByPrimaryKeyForUpdate" resultType="com.leqee.wms.entity.OrderInfo"
+		parameterType="java.lang.Integer">
+		select
+		<include refid="Base_Column_List" />
+		from order_info
+		where order_id = #{0} for update
+	</select>
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.OrderInfo">
+		<selectKey keyProperty="order_id" resultType="java.lang.Integer">
+			select
+			LAST_INSERT_ID()
+		</selectKey>
+		insert into order_info (order_id, order_status, customer_id,
+		physical_warehouse_id, warehouse_id, order_type,
+		oms_order_sn,
+		oms_order_type, order_time,
+		pay_time, is_reserved, reserved_time,
+		shipping_time, goods_amount, shipping_amount,
+		discount_amount,
+		pay_amount, buyer_note,
+		seller_note, note, receive_name,
+		postal_code,
+		phone_number, mobile_number,
+		province_id, province_name, city_id,
+		city_name, district_id, district_name,
+		shipping_address, email, sex,
+		invoice_title, invoice_note, invoice_amount,
+		is_value_declared,
+		declaring_value_amount,oms_shop_id,
+		is_payment_collected,
+		collecting_payment_amount,
+		priority_code, order_source,
+		parent_order_id,
+		root_order_id, parent_oms_order_sn, root_oms_order_sn,
+		brand_name, shop_name, shop_order_sn,
+		buyer_name, buyer_phone,
+		nick_name,
+		shipping_id, tracking_number, provider_code,
+		provider_order_type, provider_name, tms_company,
+		tms_contact,
+		tms_mobile, tms_shipping_no,
+		currency, created_user, created_time,
+		last_updated_user, last_updated_time , arrival_time,batch_order_sn
+		,oms_shipment_sn
+		,is_merge_order, slave_oms_order_sns, order_level, aftersale_phone)
+		values (#{order_id,jdbcType=INTEGER}, #{order_status,jdbcType=CHAR},
+		#{customer_id,jdbcType=INTEGER},
+		#{physical_warehouse_id,jdbcType=INTEGER},
+		#{warehouse_id,jdbcType=INTEGER}, #{order_type,jdbcType=VARCHAR},
+		#{oms_order_sn,jdbcType=VARCHAR}, #{oms_order_type,jdbcType=VARCHAR},
+		#{order_time,jdbcType=TIMESTAMP},
+		#{pay_time,jdbcType=TIMESTAMP},
+		#{is_reserved,jdbcType=CHAR}, #{reserved_time,jdbcType=TIMESTAMP},
+		#{shipping_time,jdbcType=TIMESTAMP}, #{goods_amount,jdbcType=DECIMAL},
+		#{shipping_amount,jdbcType=DECIMAL},
+		#{discount_amount,jdbcType=DECIMAL}, #{pay_amount,jdbcType=DECIMAL},
+		#{buyer_note,jdbcType=VARCHAR},
+		#{seller_note,jdbcType=VARCHAR},
+		#{note,jdbcType=VARCHAR}, #{receive_name,jdbcType=VARCHAR},
+		#{postal_code,jdbcType=VARCHAR}, #{phone_number,jdbcType=VARCHAR},
+		#{mobile_number,jdbcType=VARCHAR},
+		#{province_id,jdbcType=INTEGER},
+		#{province_name,jdbcType=VARCHAR}, #{city_id,jdbcType=INTEGER},
+		#{city_name,jdbcType=VARCHAR}, #{district_id,jdbcType=INTEGER},
+		#{district_name,jdbcType=VARCHAR},
+		#{shipping_address,jdbcType=VARCHAR}, #{email,jdbcType=VARCHAR},
+		#{sex,jdbcType=CHAR},
+		#{invoice_title,jdbcType=VARCHAR},
+		#{invoice_note,jdbcType=VARCHAR}, #{invoice_amount,jdbcType=DECIMAL},
+		#{is_value_declared,jdbcType=CHAR},
+		#{declaring_value_amount,jdbcType=DECIMAL},#{oms_shop_id,jdbcType=VARCHAR},
+		#{is_payment_collected,jdbcType=CHAR},
+		#{collecting_payment_amount,jdbcType=DECIMAL},
+		#{priority_code,jdbcType=VARCHAR}, #{order_source,jdbcType=VARCHAR},
+		#{parent_order_id,jdbcType=INTEGER},
+		#{root_order_id,jdbcType=INTEGER},
+		#{parent_oms_order_sn,jdbcType=VARCHAR},
+		#{root_oms_order_sn,jdbcType=VARCHAR},
+		#{brand_name,jdbcType=VARCHAR},
+		#{shop_name,jdbcType=VARCHAR}, #{shop_order_sn,jdbcType=VARCHAR},
+		#{buyer_name,jdbcType=VARCHAR}, #{buyer_phone,jdbcType=VARCHAR},
+		#{nick_name,jdbcType=VARCHAR},
+		#{shipping_id,jdbcType=INTEGER},
+		#{tracking_number,jdbcType=VARCHAR},
+		#{provider_code,jdbcType=VARCHAR},
+		#{provider_order_type,jdbcType=VARCHAR},
+		#{provider_name,jdbcType=VARCHAR}, #{tms_company,jdbcType=VARCHAR},
+		#{tms_contact,jdbcType=VARCHAR}, #{tms_mobile,jdbcType=VARCHAR},
+		#{tms_shipping_no,jdbcType=VARCHAR},
+		#{currency,jdbcType=VARCHAR},
+		#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP},
+		#{last_updated_user,jdbcType=VARCHAR},
+		#{last_updated_time,jdbcType=TIMESTAMP} ,
+		#{arrival_time,jdbcType=TIMESTAMP}
+		,#{batch_order_sn,jdbcType=VARCHAR}
+		, #{oms_shipment_sn,jdbcType=VARCHAR}
+		,#{is_merge_order,jdbcType=CHAR}
+		,
+		#{slave_oms_order_sns,jdbcType=VARCHAR} ,
+		#{order_level,jdbcType=SMALLINT},
+		#{aftersale_phone,jdbcType=VARCHAR}
+		 )
+	</insert>
+
+	<select id="selectOrderInfoListByIdForUpdate" parameterType="list"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT
+		*
+		FROM
+		wms.order_info
+		WHERE
+		order_id IN
+		<foreach collection="list" item="orderIdList" open="("
+			separator="," close=")">
+			#{orderIdList}
+		</foreach>
+		for update
+	</select>
+
+
+	<update id="updateOrderStatusByOrderId" parameterType="map">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{orderStatus},
+		last_updated_user =
+		#{lastUpdatedUser},
+		last_updated_time = #{lastUpdatedTime}
+		where
+		order_id = #{orderId}
+	</update>
+
+	<update id="updateOrderStatusShippingByOrderId" parameterType="map">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{orderStatus},
+		last_updated_user = #{lastUpdatedUser},
+		shipping_time =
+		#{lastUpdatedTime},
+		last_updated_time = #{lastUpdatedTime}
+		where
+		order_id = #{orderId}
+	</update>
+
+	<update id="updateOrderProcessStatusByOrderId" parameterType="map">
+		UPDATE
+		wms.order_process
+		set
+		shipping_time = #{lastUpdatedTime},
+		status =
+		#{orderStatus},batch_trick_status='DELIVERED'
+		where order_id = #{orderId}
+	</update>
+
+	<select id="selectByOmsOrderSn" parameterType="string"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		select * from order_info where oms_order_sn =
+		#{oms_order_sn,jdbcType=VARCHAR}
+	</select>
+
+	<select id="selectTerminalOrderByOmsOrderSn" parameterType="string"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		select * from order_info where oms_order_sn =
+		#{oms_order_sn,jdbcType=VARCHAR} for update
+	</select>
+
+	<select id="selectReturnOrderInfoListByPage" parameterType="map"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT
+		oi.*, c.name AS customer_name, w.warehouse_name,
+		pw.warehouse_name AS
+		physical_warehouse_name
+		FROM
+		wms.order_info oi
+		LEFT
+		JOIN wms.warehouse_customer c ON c.customer_id =
+		oi.customer_id
+		LEFT
+		JOIN wms.warehouse w ON w.warehouse_id =
+		oi.warehouse_id
+		LEFT JOIN
+		wms.warehouse pw ON pw.warehouse_id =
+		oi.physical_warehouse_id
+		WHERE
+		oi.order_type = 'RETURN' and oi.order_status not in ('CANCEL')
+		and oi.customer_id in ${customerString}
+		<if test="warehouseIds != null and warehouseIds.size() != 0">
+			AND oi.warehouse_id IN
+			<foreach collection="warehouseIds" item="item" open="("
+				separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="customer_id != '' and customer_id != null">
+			AND oi.customer_id = #{customer_id}
+		</if>
+		<if test="order_status != '' and order_status != null">
+			AND oi.order_status = #{order_status}
+		</if>
+		<if test="order_id != '' and order_id != null">
+			AND oi.order_id = #{order_id}
+		</if>
+		<if test="oms_order_sn != '' and oms_order_sn != null">
+			AND oi.oms_order_sn = #{oms_order_sn}
+		</if>
+		<if test="receive_name != '' and receive_name != null">
+			AND oi.receive_name = #{receive_name}
+		</if>
+		<if test="phone_number != '' and phone_number != null">
+			AND oi.phone_number = #{phone_number}
+		</if>
+		<if test="tms_shipping_no != '' and tms_shipping_no != null">
+			AND oi.tms_shipping_no = #{tms_shipping_no}
+		</if>
+	</select>
+
+	<select id="selectCountUnfulfilledReturnOrderInfo"
+		parameterType="list" resultType="java.lang.Integer">
+		SELECT
+		COUNT(1)
+		FROM
+		wms.order_info
+		WHERE
+		order_type = 'RETURN'
+		AND
+		order_status = 'ACCEPT'
+		and customer_id in ${customerString}
+		<if test="list != null and list.size() != 0">
+			AND warehouse_id IN
+			<foreach collection="list" item="item" open="(" separator=","
+				close=")">
+				#{item}
+			</foreach>
+		</if>
+	</select>
+
+	<select id="selectReturnOrderListByParentOrderId" parameterType="java.lang.Integer"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT
+		*
+		FROM
+		wms.order_info
+		WHERE
+		order_type = 'RETURN'
+		AND
+		parent_order_id = #{parentOrderId}
+	</select>
+
+	<update id="updateOrderInfoForReserve">
+		UPDATE
+		wms.order_info
+		set
+		is_reserved = #{1},
+		reserved_time = now(),
+		last_updated_time = now()
+		where order_id = #{0}
+		limit 1
+	</update>
+
+	<!-- API获取OrderInfoResDomain -->
+	<select id="selectOrderInfoResDomainList" parameterType="map"
+		resultType="com.leqee.wms.api.response.domain.OrderInfoResDomain">
+		SELECT
+		order_id as wms_order_id ,
+		order_status as wms_order_status,
+		warehouse_id ,
+		oms_order_sn ,
+		last_updated_time as modified_time
+		FROM
+		wms.order_info
+		WHERE
+		order_type = #{orderType}
+		AND customer_id =
+		#{customerId}
+		<if test="orderStatus != null">
+			AND order_status = #{orderStatus}
+		</if>
+
+		AND last_updated_time <![CDATA[ >= ]]>
+		#{startModifiedTime}
+		AND last_updated_time <![CDATA[ < ]]>
+		#{endModifiedTime}
+		limit #{offset}, #{rows}
+
+	</select>
+
+	<!-- 查询指定时间段内，已出库，指定ordertype，orderstatus的耗材信息， -->
+	<select id="selectOrderShipmentList" parameterType="map"
+		resultType="com.leqee.wms.entity.Shipment">
+		select sh.* from wms.shipment sh inner join wms.order_info oi
+		on oi.order_id=sh.order_id
+		where
+		packbox_is_out = #{isInOut}
+		and oi.order_type = #{orderType}
+		AND oi.customer_id =
+		#{customerId}
+		AND oi.order_status = #{orderStatus}
+		AND
+		sh.last_updated_time <![CDATA[ >= ]]>
+		#{startModifiedTime}
+		AND sh.last_updated_time <![CDATA[ < ]]>
+		#{endModifiedTime}
+		limit #{offset}, #{rows}
+	</select>
+
+	<select id="selectVarianceOrderByPage" parameterType="map"
+		resultType="map">
+		select
+		oi.order_id,og.order_goods_id,og.goods_name,p.sku_code,og.status_id,w.warehouse_name,og.goods_number,og.batch_sn,oi.oms_order_sn,oi.order_time,
+		oi.order_type,ifnull(sum(iid.change_quantity),0) as
+		out_num,oi.order_status
+		from wms.order_info oi
+		inner join
+		wms.order_goods og on oi.order_id = og.order_id
+		inner join
+		wms.product p
+		on og.product_id = p.product_id
+		inner join wms.warehouse
+		w on
+		oi.warehouse_id = w.warehouse_id
+		left join
+		wms.inventory_item_detail iid
+		on iid.order_goods_id =
+		og.order_goods_id
+		where (oi.order_type =
+		'VARIANCE_ADD' or
+		(oi.order_type = 'VARIANCE_MINUS' and oi.is_reserved
+		= 'Y')) and oi.physical_warehouse_id =
+		#{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and oi.customer_id = #{customer_id}
+		</if>
+		<if test="warehouseIdList != null and warehouseIdList.size() != 0">
+			and oi.warehouse_id in
+			<foreach collection="warehouseIdList" item="item" open="("
+				separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="order_sn != '' and order_sn != null">
+			and oi.oms_order_sn = #{order_sn}
+		</if>
+		<if test="sku_code != '' and sku_code != null">
+			and p.sku_code = #{sku_code}
+		</if>
+		<if test="start_time != null">
+			and oi.order_time > #{start_time}
+		</if>
+		<if test="end_time != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end_time}
+		</if>
+		group by og.order_goods_id,oi.order_type
+		order by oi.order_time desc
+	</select>
+
+	<select id="selectVarianceOrderByOrderGoodsId" parameterType="int"
+		resultType="map">
+		select
+		oi.customer_id,oi.order_id,oi.warehouse_id,oi.provider_code,og.status_id,og.product_id,og.goods_number,
+		og.goods_price,oi.note,oi.order_type,og.batch_sn,oi.provider_code
+		from
+		wms.order_goods og
+		inner join wms.order_info oi on og.order_id =
+		oi.order_id
+		where og.order_goods_id = #{orderGoodsId}
+	</select>
+
+	<select id="selectInventoryItemType" parameterType="map"
+		resultType="map">
+		select inventory_item_acct_type_id,serial_number
+		from
+		wms.inventory_item
+		where product_id = #{productId} and warehouse_id =
+		#{warehouseId}
+		<if test="batch_sn != '' and batch_sn != null">
+			and batch_sn = #{batch_sn}
+		</if>
+		limit 1
+	</select>
+
+	<select id="selectOrderGoodsByOmsOrderSn" parameterType="string"
+		resultType="map">
+		select
+		oi.provider_code,oi.provider_name,oi.order_status,oi.oms_order_sn,oi.order_id,
+		p.barcode,og.order_goods_id,og.goods_name,p.length,p.width,p.height,og.goods_number,
+		p.product_id,p.sku_code,p.is_serial,p.is_maintain_warranty,p.customer_id,p.is_maintain_batch_sn,p.ti,p.hi,
+		og.order_goods_id,w.warehouse_id,w.physical_warehouse_id
+		from
+		wms.order_info oi
+		inner join wms.order_goods og on oi.order_id =
+		og.order_id
+		inner join wms.product p on og.product_id = p.product_id
+		inner join wms.warehouse w on oi.warehouse_id = w.warehouse_id
+		where
+		oi.oms_order_sn = #{omsOrderSn}
+	</select>
+
+	<select id="selectOrderGoodsByOmsOrderSnV2" parameterType="string"
+		resultType="map">
+		select
+		oi.provider_code,oi.provider_name,oi.order_status,oi.oms_order_sn,oi.order_id,
+		p.barcode,og.goods_name,p.length,p.width,p.height,og.order_goods_id,og.goods_number,il.ti,il.hi,
+		w.warehouse_id,w.physical_warehouse_id,p.is_maintain_batch_sn,p.spec,
+		p.product_id,p.sku_code,p.is_serial,p.is_maintain_warranty,p.customer_id,il.*
+		from wms.label_accept il
+		INNER JOIN wms.order_info oi on il.order_id =
+		oi.order_id
+		inner join wms.order_goods og on il.order_goods_id =
+		og.order_goods_id
+		inner join wms.product p on og.product_id =
+		p.product_id
+		inner join wms.warehouse w on oi.warehouse_id =
+		w.warehouse_id
+		where oi.oms_order_sn = #{omsOrderSn}
+		order by
+		il.location_id
+	</select>
+	<!-- INNER JOIN wms.label_accept_detail d on il.label_accept_id = d.label_accept_id -->
+	<!-- 销售订单查询 -->
+	<select id="selectSaleOrderListByPage" parameterType="map"
+		resultType="map">
+		select
+		oi.order_id,oi.shop_order_sn,oi.oms_order_sn,CONVERT(oi.order_time,char(64))
+		as order_time,CONVERT(oi.last_updated_time,char(64)) as last_updated_time,wc.name,oi.order_status ,
+		oi.last_updated_user,oi.shipping_id,w.warehouse_name,oi.warehouse_id
+		from wms.order_info oi
+		FORCE index(multi_order_info_key)
+		inner join wms.warehouse_customer wc on oi.customer_id = wc.customer_id
+		inner join wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		where 1
+		<if test="start_time != null and start_time != ''">
+			and oi.order_time > #{start_time}
+		</if>
+		and oi.physical_warehouse_id = #{physical_warehouse_id} and oi.order_type = "SALE"
+		<if test="is_reserved != '' and is_reserved != null">
+			and oi.is_reserved in ('Y','F')
+		</if>
+		<if test="is_reserved_n != '' and is_reserved_n != null">
+			and oi.is_reserved in ('N','E')
+		</if>
+		<if test="customer_id != '' and customer_id != null">
+			and oi.customer_id = #{customer_id}
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+			and oi.warehouse_id = #{warehouse_id}
+		</if>
+		<if test="customers != null and customers.size() != 0">
+			and oi.customer_id in
+			<foreach collection="customers" item="item" open="("
+				separator="," close=")">
+				#{item.customer_id}
+			</foreach>
+		</if>
+		<if test="end_time != null and end_time != ''">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end_time}
+		</if>
+		<if test="oms_shop_id != '' and oms_shop_id != null">
+			and oi.oms_shop_id = #{oms_shop_id}
+		</if>
+		<if test="orderStatusList != null and orderStatusList.size() != 0">
+			and oi.order_status in
+			<foreach collection="orderStatusList" item="item" open="("
+				separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		order by oi.order_time desc
+	</select>
+
+	<select id="selectSaleOrderListByOrderIdByPage" parameterType="map" resultType="map">
+		select
+		oi.order_id,oi.shop_order_sn,oi.oms_order_sn,CONVERT(oi.order_time,char(64))
+		as order_time,CONVERT(oi.last_updated_time,char(64)) as last_updated_time,wc.name, oi.order_status ,
+		oi.last_updated_user,oi.shipping_id,oi.warehouse_id,w.warehouse_name
+		from wms.order_info oi
+		inner join wms.warehouse_customer wc
+		on oi.customer_id = wc.customer_id
+		inner join wms.warehouse w on w.warehouse_id = oi.warehouse_id 
+		where oi.order_type = "SALE" and oi.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="order_id != '' and order_id != null">
+			and oi.order_id = #{order_id}
+		</if>
+		<if test="shop_order_sn != '' and shop_order_sn != null">
+			and oi.oms_order_sn = #{shop_order_sn}
+		</if>
+		order by oi.order_time desc
+	</select>
+	
+	
+	<select id="selectSaleOrderListByBatchPickSnByPage" parameterType="map" resultType="map">
+		select oi.order_id,oi.shop_order_sn,oi.oms_order_sn,CONVERT(oi.order_time,char(64))
+		as order_time,CONVERT(oi.last_updated_time,char(64)) as last_updated_time,wc.name,bp.batch_pick_sn, oi.order_status ,
+		oi.last_updated_user,oi.shipping_id ,bp.warehouse_id,w.warehouse_name
+		from wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.order_info oi on oi.order_id = op.order_id
+		inner join wms.warehouse_customer wc on oi.customer_id = wc.customer_id
+		inner join wms.warehouse w on w.warehouse_id = bp.warehouse_id
+		where oi.order_type = "SALE" and bp.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="batch_pick_sn != '' and batch_pick_sn != null">
+			and bp.batch_pick_sn = #{batch_pick_sn}
+		</if>
+	</select>
+	
+	
+	<select id="selectSaleOrderIdBatchPickSnMap"  resultType="map">
+		select op.order_id,bp.batch_pick_sn from wms.order_process op 
+		inner join wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		where 1
+		<if test="saleOrderList != null and saleOrderList.size() != 0">
+			and op.order_id in
+			<foreach collection="saleOrderList" item="item" open="("
+				separator="," close=")">
+				#{item.order_id}
+			</foreach>
+		</if>
+		
+	</select>
+	
+	<!-- 销售订单导出（带商品） -->
+	<select id="selectSaleOrderListForExport" parameterType="map"
+		resultType="map">
+		select
+		w.warehouse_name,oi.order_id,oi.shop_order_sn,oi.oms_order_sn,CONVERT(oi.order_time,char(64))
+		as order_time,CONVERT(oi.last_updated_time,char(64)) as
+		last_updated_time,wc.name,bp.batch_pick_sn, oi.order_status ,
+		oi.last_updated_user,oi.shipping_id,s.shipping_name,og.goods_name,og.goods_number,p.barcode,op.order_batch_sequence_number,
+		oi.order_level,CONVERT(oi.pay_time,char(64)) as pay_time
+		from
+		wms.order_info oi
+		inner join wms.order_goods og on oi.order_id =
+		og.order_id
+		inner join wms.product p on p.product_id = og.product_id
+		inner join wms.order_process op on op.order_id = oi.order_id
+		left join
+		wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN
+		wms.warehouse w on
+		oi.warehouse_id = w.warehouse_id
+		inner join
+		wms.warehouse_customer wc
+		on oi.customer_id = wc.customer_id
+		inner join
+		wms.shipping s on s.shipping_id = oi.shipping_id
+		where oi.order_type =
+		"SALE" and oi.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and oi.customer_id = #{customer_id}
+		</if>
+		<if test="batch_pick_sn != '' and batch_pick_sn != null">
+			and bp.batch_pick_sn = #{batch_pick_sn}
+		</if>
+		<if test="order_id != '' and order_id != null">
+			and oi.order_id = #{order_id}
+		</if>
+		<if test="oms_shop_id != '' and oms_shop_id != null">
+			and oi.oms_shop_id = #{oms_shop_id}
+		</if>
+		<if test="start_time != null">
+			and oi.order_time > #{start_time}
+		</if>
+		<if test="end_time != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end_time}
+		</if>
+		<if test="shop_name != '' and shop_name != null">
+			and oi.shop_name = #{shop_name}
+		</if>
+		<if test="is_reserved != '' and is_reserved != null">
+			and oi.is_reserved in ('Y','F')
+		</if>
+		<if test="is_reserved_n != '' and is_reserved_n != null">
+			and oi.is_reserved = 'N'
+		</if>
+		<if test="orderStatusList != null and orderStatusList.size() != 0">
+			and oi.order_status in
+			<foreach collection="orderStatusList" item="item" open="("
+				separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		order by oi.order_time,oi.order_id desc
+	</select>
+
+	<!-- 销售订单详情页信息 -->
+	<select id="selectSaleOrderById" parameterType="map" resultType="map">
+		select
+		oi.order_source,oi.order_id,oi.shop_order_sn,oi.oms_order_sn,oi.shop_name,oi.is_reserved,case
+		oi.order_status
+		when 'ACCEPT' then '未处理'
+		when 'BATCH_PICK' then '已分配'
+		when 'PICKING' then '拣货中'
+		when 'RECHECKED' then '已复核'
+		when 'WEIGHED'
+		then '已称重'
+		when 'DELIVERED' then '已发货'
+		when 'IN_PROCESS' then '处理中'
+		when
+		'ON_SHIP' then '待上架'
+		when 'FULFILLED' then '已发货'
+		when 'EXCEPTION' then
+		'异常'
+		when 'CANCEL' then '取消'
+		else '状态有误' end
+		as order_status,
+		sp.shipping_name,w.warehouse_name,oi.receive_name,
+		oi.phone_number,oi.mobile_number,oi.province_name,oi.city_name,oi.district_name,oi.shipping_address,op.is2B
+		from
+		wms.order_info oi
+		inner join wms.order_process op on op.order_id = oi.order_id
+		left join wms.shipment s on oi.order_id =
+		s.order_id
+		left join
+		wms.shipping sp on sp.shipping_id = oi.shipping_id
+		INNER JOIN
+		wms.warehouse w on oi.warehouse_id = w.warehouse_id
+		where
+		oi.order_id =
+		#{orderId} and oi.order_type = "SALE" limit 1
+	</select>
+
+	<select id="selectSaleOrderGoodsById" parameterType="map"
+		resultType="map">
+		select
+		og.order_goods_id,og.goods_number,og.goods_name,og.warehouse_id,og.product_id,og.goods_price,p.barcode
+		as goods_barcode
+		from
+		wms.order_info oi
+		inner join wms.order_goods og on
+		oi.order_id = og.order_id
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where
+		oi.order_id = #{orderId}
+		and oi.order_type = "SALE"
+	</select>
+
+
+	<select id="selectSaleOrderGoodsGroupByProductId" parameterType="map"
+		resultType="map">
+		select
+		sum(og.goods_number) as
+		goods_number,og.goods_name,oi.warehouse_id,og.product_id,og.goods_price,p.barcode
+		as goods_barcode
+		from
+		wms.order_info oi
+		inner join wms.order_goods og on
+		oi.order_id = og.order_id
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where
+		oi.order_id = #{orderId}
+		and oi.order_type = "SALE"
+		GROUP BY og.product_id
+	</select>
+
+	<select id="selectSaleOrderGoodsByIdV2" parameterType="map"
+		resultType="map">
+		select sd.goods_number,og.*,IFNULL(s.tracking_number,"") as
+		tracking_number,
+		IFNULL(s.shipping_wms_weight,0) as
+		shipping_wms_weight,p.barcode as goods_barcode
+		from
+		wms.order_info oi
+		inner join wms.shipment s on oi.order_id = s.order_id
+		left join
+		wms.shipment_detail sd on s.shipment_id = sd.shipment_id
+		left join
+		wms.order_goods og on sd.order_goods_id = og.order_goods_id
+		inner join
+		wms.product p on og.product_id = p.product_id
+		where
+		oi.order_id =
+		#{orderId}
+		and oi.order_type = "SALE"
+		order by
+		s.tracking_number
+	</select>
+	<!-- select IFNULL(s.tracking_number,"") as tracking_number, IFNULL(s.shipping_wms_weight,0) 
+		as shipping_wms_weight , sd.goods_name,sd.goods_number,og.goods_price,og.warehouse_id,og.product_id 
+		FROM wms.shipment s left join wms.shipment_detail sd on s.shipment_id = sd.shipment_id 
+		left JOIN wms.order_goods og on sd.order_goods_id = og.order_goods_id where 
+		s.order_id = #{orderId} order by s.tracking_number desc -->
+
+	<select id="selectSaleOrderActionById" parameterType="int"
+		resultType="map">
+		select case order_status
+		when 'ACCEPT' then '未处理'
+		when
+		'BATCH_PICK' then '已分配'
+		when 'PICKING' then '拣货中'
+		when 'RECHECKED' then
+		'已复核'
+		when 'WEIGHED' then '已称重'
+		when 'DELIVERED' then '已发货'
+		when
+		'IN_PROCESS' then '处理中'
+		when 'ON_SHIP' then '待上架'
+		when 'FULFILLED' then
+		'已发货'
+		when 'EXCEPTION' then '异常'
+		when 'CANCEL' then '取消'
+		else '状态有误' end
+		as order_status,
+		created_user,created_time,action_note
+		from
+		wms.user_action_order where order_id = #{orderId}
+	</select>
+
+	<!-- 查询某个订单的所有商品 -->
+	<select id="selectOrderGoodsByOrderId" parameterType="int"
+		resultType="map">
+		SELECT product_id,goods_name,SUM(goods_number) FROM
+		wms.order_goods WHERE order_id= #{orderId} GROUP BY product_id
+	</select>
+
+
+	<!-- 查询与某个订单具有完全相同的商品订单的订单编号 -->
+	<select id="selectOrderIdWithSameOrderGoods" parameterType="int"
+		resultType="Integer">
+		select c.order_id
+		from
+		(select a.order_id,count(a.order_id)
+		as count
+		from
+		(select order_id,product_id,goods_name,sum(goods_number)
+		as sum from
+		wms.order_goods group BY product_id,order_id ) as a ,
+		(select order_id,product_id,goods_name,sum(goods_number) as sum from
+		wms.order_goods WHERE order_id=#{orderId} group by product_id) as b
+		where
+		(a.product_id=b.product_id and a.sum=b.sum)
+		group by a.order_id )
+		as c ,
+		(select count(1) as count from (select order_id from
+		wms.order_goods where
+		order_id=#{orderId} group by product_id) as d )
+		as e
+		where c.count=e.count;
+	</select>
+
+
+	<!-- add by dlyao -->
+	<!-- 查询与某个订单具有完全相同的商品订单的订单编号 -->
+	<select id="selectOrderInfoListForBatchPick_old" parameterType="map"
+		resultType="com.leqee.wms.entity.SameDetails">
+		SELECT
+		res.goods_name,res.product_key,res.product_num,COUNT(res.order_id) AS
+		sku_sum
+		FROM
+		(SELECT
+		GROUP_CONCAT(DISTINCT(og.goods_name) ORDER BY
+		og.product_id SEPARATOR '/') AS goods_name,
+		oi.order_id,
+		GROUP_CONCAT(DISTINCT(og.product_id) ORDER BY og.product_id +'') AS
+		product_key,
+		GROUP_CONCAT(og.goods_number ORDER BY og.product_id +'')
+		AS product_num
+
+		FROM
+		wms.order_info oi
+		inner join wms.order_process op ON
+		op.order_id = oi.order_id
+		INNER JOIN
+		wms.order_goods og
+		<!-- (SELECT order_id,product_id,SUM(goods_number) AS goods_number,goods_name,warehouse_id 
+			FROM wms.order_goods GROUP BY order_id,product_id ) AS og -->
+		<!-- ON oi.order_id = og.order_id and op.reserve_status='Y' and op.status='ACCEPT' 
+			and op.in_batchpick_task=0 -->
+		ON oi.order_id = og.order_id and oi.customer_id = #{customer_id} and
+		op.reserve_status='Y' and op.status='ACCEPT' and
+		op.in_batchpick_task=0 and oi.order_type="SALE"
+
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+
+		<if test="shop_name != null and shop_name.size() != 0">
+			and oi.shop_name in
+			<foreach collection="shop_name" item="shop_name" open="("
+				separator="," close=")">
+				#{shop_name}
+			</foreach>
+		</if>
+
+		<if test="region_id != '' and region_id != null">
+			and oi.province_id = #{region_id}
+		</if>
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+
+		GROUP BY order_id
+		) AS res
+		GROUP BY res.product_key,res.product_num
+		ORDER BY sku_sum DESC
+	</select>
+	<select id="batchPickAllOrderListByParm_old" parameterType="map"
+		resultType="int">
+		SELECT
+		res.order_id
+		FROM
+		(SELECT
+		oi.order_id,
+		GROUP_CONCAT(DISTINCT(og.product_id) ORDER BY og.product_id+'') AS
+		product_key,
+		GROUP_CONCAT(og.goods_number ORDER BY og.product_id+'') AS
+		product_num
+
+		FROM
+		wms.order_info oi
+		inner join wms.order_process op ON
+		op.order_id = oi.order_id
+		INNER JOIN
+		wms.order_goods og
+		<!-- (SELECT order_id,product_id,SUM(goods_number) AS goods_number,goods_name,warehouse_id 
+			FROM wms.order_goods GROUP BY order_id,product_id ) AS og -->
+		<!-- ON oi.order_id = og.order_id and op.reserve_status='Y' and op.status='ACCEPT' 
+			and op.in_batchpick_task=0 -->
+		ON oi.customer_id = #{customer_id} and oi.order_id = og.order_id and
+		op.reserve_status='Y' and op.status='ACCEPT' and
+		op.in_batchpick_task=0 and oi.order_type="SALE"
+
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+
+		<if test="shop_name != null and shop_name.size() != 0">
+			and oi.shop_name in
+			<foreach collection="shop_name" item="shop_name" open="("
+				separator="," close=")">
+				#{shop_name}
+			</foreach>
+		</if>
+		<if test="region_id != '' and region_id != null">
+			and oi.province_id = #{region_id}
+		</if>
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+
+		GROUP BY order_id
+		) AS res
+		where res.product_key= #{product_key}
+		<if test="type != 'list2'">
+			and res.product_num = #{product_num}
+		</if>
+		<if test="order_num != '' and order_num != null">
+			limit 0,#{order_num}
+		</if>
+	</select>
+	<!--@20160517 add by dlyao by oderprocess add product_key and product_num 
+		start -->
+	<select id="selectOrderInfoListForBatchPick" parameterType="map"
+		resultType="com.leqee.wms.entity.SameDetails">
+		SELECT
+		op.product_key,
+		op.product_num,
+		COUNT(op.order_id) AS sku_sum,
+		sum(op.has_serial_goods) AS serial_nums
+		FROM wms.order_info oi  FORCE INDEX (multi_order_info_key)
+		INNER
+		JOIN wms.order_process op
+		ON op.order_id = oi.order_id
+        where 1
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+        AND oi.order_type="SALE"
+		AND oi.is_reserved='Y'
+		AND oi.customer_id = #{customer_id}
+		AND oi.order_status='ACCEPT' 
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+        and oi.warehouse_id=#{warehouse_id}
+        </if>
+		and op.is2B='N' 
+		and op.mark=0
+		AND op.in_batchpick_task=0 
+		GROUP BY product_key,product_num
+		ORDER BY sku_sum DESC
+	</select>
+	
+	<select id="selectOrderInfoListForBatchPickByShipment" parameterType="map"
+		resultType="com.leqee.wms.entity.SameDetails">
+		SELECT
+		op.product_key,
+		op.product_num,
+		oi.shipping_id,
+		COUNT(op.order_id) AS sku_sum,
+		sum(op.has_serial_goods) AS serial_nums
+		FROM wms.order_info oi  FORCE INDEX (multi_order_info_key)
+		INNER
+		JOIN wms.order_process op
+		ON op.order_id = oi.order_id
+        where 1
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+        AND oi.order_type="SALE"
+		AND oi.is_reserved='Y'
+		AND oi.customer_id = #{customer_id}
+		AND oi.order_status='ACCEPT' 
+		<if test="warehouse_id != '' and warehouse_id != null">
+            and oi.warehouse_id=#{warehouse_id}
+        </if>
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+
+		and op.is2B='N' 
+		and op.mark=0
+		AND op.in_batchpick_task=0 
+		GROUP BY product_key,product_num,shipping_id
+		having sku_sum>=#{size}
+		ORDER BY sku_sum DESC
+		limit 2000
+	</select>
+	
+	<select id="selectOrderInfoListForBatchPickV3" parameterType="map"
+		resultType="com.leqee.wms.entity.SameDetails">
+		SELECT
+		op.product_key,
+		COUNT(op.order_id) AS sku_sum,
+		sum(op.has_serial_goods) AS serial_nums
+		FROM wms.order_info oi FORCE INDEX (multi_order_info_key)
+		INNER
+		JOIN wms.order_process op
+		ON op.order_id = oi.order_id
+		where 1
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+        AND oi.order_type="SALE"
+        AND oi.is_reserved='Y'
+		AND oi.customer_id = #{customer_id}
+		AND oi.order_status='ACCEPT' 
+		<if test="warehouse_id != '' and warehouse_id != null">
+            and oi.warehouse_id=#{warehouse_id}
+        </if>
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+		and op.is2B in ('N','W')
+		and op.mark=0
+		AND op.in_batchpick_task=0 
+		GROUP BY product_key
+		ORDER BY sku_sum DESC
+	</select>
+
+	<!--获取杂单的订单号 -->
+	<select id="batchPickAllLastOrderListByParm" parameterType="map"
+		resultType="int">
+		SELECT op.order_id
+		FROM order_info oi   FORCE INDEX (multi_order_info_key)
+		INNER JOIN order_process op ON oi.order_id=op.order_id				
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>		
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>		
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		AND oi.order_type="SALE"
+        AND oi.is_reserved='Y'
+		AND oi.customer_id = #{customer_id}
+		AND oi.order_status='ACCEPT' 
+		<if test="warehouse_id != '' and warehouse_id != null">
+            and oi.warehouse_id=#{warehouse_id}
+        </if>
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+	     and op.in_batchpick_task=0 
+	     and op.mark=0
+		<if test="is2B != null and is2B != ''">
+			and op.is2B in ${is2B}
+		</if>
+		<if test="order_num != '' and order_num != null">
+			limit 0,#{order_num}
+		</if>
+	</select>
+	<!-- 根据指定规律集 获取对应的订单号 -->
+	<select id="batchPickAllOrderListByParmV3" parameterType="map"
+		resultType="int">
+		SELECT op.order_id
+		FROM order_info oi   FORCE INDEX (multi_order_info_key)
+		INNER JOIN order_process op
+		ON oi.order_id=op.order_id		
+		 where 1
+		 <if test="start != null">
+			and oi.order_time > #{start}
+		 </if>
+		 <if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		 </if>
+		 <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		 </if>
+
+		  AND oi.order_type="SALE"
+		  AND oi.is_reserved = 'Y' 
+		  and oi.customer_id = #{customer_id} 
+		  AND oi.order_status = 'ACCEPT' 
+		<if test="warehouse_id != '' and warehouse_id != null">
+            and oi.warehouse_id=#{warehouse_id}
+        </if>		
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+		and op.product_key= #{product_key}
+		and op.in_batchpick_task=0  
+		and op.is2B in ('N','W') 
+		and op.mark=0
+		<if test="type != 'list2'">
+			and op.product_num = #{product_num}
+			<if test="issf != 'sf'">
+				and op.issf = 0
+			</if>
+			<if test="issf != 'notsf'">
+				and op.issf = 1
+			</if>
+		</if>
+		<if test="order_num != '' and order_num != null">
+			limit 0,#{order_num}
+		</if>
+	</select>
+	<select id="batchPickAllOrderListByParm" parameterType="map"
+		resultType="int">
+		SELECT op.order_id
+		FROM order_info oi   FORCE INDEX (multi_order_info_key)
+		INNER JOIN order_process op ON oi.order_id=op.order_id
+		where 1 
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		  AND oi.order_type="SALE"
+		  AND oi.is_reserved = 'Y' 
+		  and oi.customer_id = #{customer_id} 
+		  AND oi.order_status = 'ACCEPT' 
+		<if test="warehouse_id != '' and warehouse_id != null">
+       		 and oi.warehouse_id=#{warehouse_id}
+        </if>
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>		
+		and op.in_batchpick_task=0
+		and op.is2B='N' 
+		and op.mark=0
+		and op.product_key= #{product_key}
+		<if test="type != 'list2'">
+			and op.product_num = #{product_num}
+			<if test="issf != 'sf'">
+				and op.issf = 0
+			</if>
+			<if test="issf != 'notsf'">
+				and op.issf = 1
+			</if>
+		</if>
+		<if test="order_num != '' and order_num != null">
+			limit 0,#{order_num}
+		</if>
+	</select>
+	
+	<select id="batchPickAllOrderListByParmByShipment" parameterType="map"
+		resultType="int">
+		SELECT op.order_id
+		FROM order_info oi   FORCE INDEX (multi_order_info_key)
+		INNER JOIN order_process op ON oi.order_id=op.order_id
+		where 1 
+		<if test="start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != null">
+			and oi.order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		  AND oi.order_type="SALE"
+		  AND oi.is_reserved = 'Y' 
+		  and oi.customer_id = #{customer_id} 
+		  AND oi.order_status = 'ACCEPT' 
+		<if test="oms_shop_id != null and oms_shop_id.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="oms_shop_id" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+        and oi.warehouse_id=#{warehouse_id}
+        </if>
+		and op.in_batchpick_task=0
+		and op.is2B='N' 
+		and op.mark=0
+		and op.product_key= #{product_key}
+		and oi.shipping_id=#{shipping_id}
+		<if test="order_num != '' and order_num != null">
+			limit 0,#{order_num}
+		</if>
+	</select>
+	
+	<!--@20160517 add by dlyao by oderprocess add product_key and product_num 
+		end -->
+	<select id="selectAllShopName" parameterType="int" resultType="string">
+		SELECT DISTINCT(shop_name) FROM wms.order_info WHERE customer_id =
+		#{customer_id} and order_type='sale'
+	</select>
+
+    <!-- dlyao  need change -->
+	<select id="selectShopNameNullCache" parameterType="map"
+		resultType="string">
+		SELECT DISTINCT(shop_name) FROM wms.order_info WHERE
+		customer_id =
+		#{customer_id} and order_time > #{time} and
+		order_type='sale'
+	</select>
+
+     <!-- dlyao  need change -->
+	<select id="selectShopNameNullCacheV2" parameterType="map"
+		resultType="com.leqee.wms.entity.Shop">
+		SELECT oi.shop_name, template_file_name as file_name,oi.customer_id FROM wms.order_info oi
+		LEFT JOIN wms.`config_print_dispatch_bill` cp ON cp.shop_name=oi.shop_name
+		WHERE
+		oi.customer_id =
+		#{customer_id}  and order_time > #{time} AND oi.order_type='sale'
+		GROUP BY shop_name
+	</select>
+
+	<select id="selectShopNameNullCacheV3" parameterType="map"
+		resultType="com.leqee.wms.entity.Shop">
+		SELECT s.shop_name, template_file_name as file_name,s.customer_id,s.oms_shop_id
+		FROM wms.shop s
+		LEFT JOIN wms.`config_print_dispatch_bill` cp ON cp.oms_shop_id=s.oms_shop_id
+		where s.customer_id = #{customer_id} 
+		GROUP BY shop_name
+	</select>
+
+	<select id="selectBatchPickBySn" parameterType="String"
+		resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_sn =
+		#{batchPickSn} limit 1
+	</select>
+
+	<!-- 打印波次单相关SQL by hzhang1 -->
+	<select id="selectPickOrderListByPage" parameterType="map"
+		resultType="map">
+		select bp.batch_pick_id,bp.batch_pick_sn,bp.status
+		,bp.batch_process_type,
+		count(op.order_id) as
+		order_num,bp.created_time,w.warehouse_id,w.warehouse_name,bp.print_count,bp.first_print_time,wc.name,
+		oi.customer_id,oi.oms_shop_id
+		from
+		wms.batch_pick bp
+		STRAIGHT_JOIN wms.order_process op on bp.batch_pick_id =
+		op.batch_pick_id
+		inner join wms.order_info oi on op.order_id = oi.order_id
+		inner join wms.warehouse w on op.warehouse_id =
+		w.warehouse_id
+		inner join
+		wms.warehouse_customer wc on op.customer_id =
+		wc.customer_id
+		where
+		bp.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and op.customer_id = #{customer_id}
+		</if>
+		<if test="customers != null and customers.size() != 0">
+			and op.customer_id in
+			<foreach collection="customers" item="item" open="("
+				separator="," close=")">
+				#{item.customer_id}
+			</foreach>
+		</if>
+		<if test="batchPickSn != '' and batchPickSn != null">
+			and bp.batch_pick_sn = #{batchPickSn}
+		</if>
+		<if test="pickStatus != '' and pickStatus != null">
+			and bp.status = #{pickStatus}
+		</if>
+		<if test="printStatus_Y != '' and printStatus_Y != null ">
+			and bp.print_count > 0
+		</if>
+		<if test="printStatus_N != '' and printStatus_N != null ">
+			and bp.print_count = 0
+		</if>
+		<if test="reserveStatus != '' and reserveStatus != null ">
+			and bp.reserve_status = #{reserveStatus}
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null ">
+			and op.warehouse_id = #{warehouse_id}
+		</if>
+		<if
+			test="is_batch != '' and is_batch != null and is_batch == 'Y'.toString() ">
+			and bp.batch_process_type = 'BATCH'
+		</if>
+		<if
+			test="is_batch != '' and is_batch != null and is_batch == 'N'.toString() ">
+			and bp.batch_process_type not in ('BATCH')
+		</if>
+		<if test="startTime != null">
+			and bp.created_time > #{startTime}
+		</if>
+		<if test="endTime != null">
+			and bp.created_time <![CDATA[ < ]]>
+			#{endTime}
+		</if>
+		group by bp.batch_pick_id
+		order by bp.created_time desc
+	</select>
+
+	<select id="selectBatchPickOrderListV2" parameterType="int"
+		resultType="map">
+		select
+		oi.order_status,og.order_goods_id,og.order_id,op.order_batch_sequence_number,og.goods_name,og.product_id,sum(og.goods_number)
+		as
+		goods_number,og.order_goods_type,w.warehouse_name
+		from
+		wms.order_info oi
+		INNER JOIN
+		wms.order_goods og on oi.order_id = og.order_id
+		INNER
+		join
+		wms.order_process op on op.order_id = oi.order_id
+		inner join wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		where
+		oi.order_id in (
+		select op.order_id
+		from wms.batch_pick bp
+		INNER JOIN wms.order_process
+		op on bp.batch_pick_id = op.batch_pick_id
+		where bp.batch_pick_id =
+		#{batchPickId}
+		)
+		GROUP BY
+		op.order_batch_sequence_number,og.product_id
+		ORDER BY op.order_batch_sequence_number
+	</select>
+
+	<select id="selectPickOrderGoodsList" parameterType="int"
+		resultType="map">
+		select
+		p.customer_id,t.task_id,bp.batch_process_type,t.product_id,p.product_name as
+		goods_name,p.barcode,p.volume,p.spec,sum(t.quantity)
+		as
+		goods_number,l.location_barcode as
+		location_kw_barcode,ifnull(l.pick_seq,0) as pick_seq,pl.pl_id,pl.validity,pl.serial_number,pl.batch_sn,pl.warehouse_id
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.task t on t.batch_pick_id =
+		bp.batch_pick_id
+		inner join wms.product_location pl on pl.pl_id = t.from_pl_id
+		inner join
+		wms.location l on l.location_id = pl.location_id
+		inner join wms.product
+		p on t.product_id = p.product_id
+		where bp.batch_pick_id = #{batchPickId}
+		group by t.product_id,t.task_id
+		having  goods_number > 0
+	</select>
+
+	<select id="selectPickOrderGoodsList2" resultType="map">
+		select
+		p.customer_id,t.task_id,bp.batch_process_type,t.product_id,p.product_name as
+		goods_name,p.barcode,p.volume,p.spec,sum(t.quantity)
+		as
+		goods_number,l.location_barcode as
+		location_kw_barcode,pl.pl_id,pl.validity,pl.serial_number,pl.qty_total,pl.qty_available
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.task t on t.batch_pick_id =
+		bp.batch_pick_id
+		inner join wms.product_location pl on pl.pl_id = t.from_pl_id
+		inner join
+		wms.location l on l.location_id = pl.location_id
+		inner join wms.product
+		p on t.product_id = p.product_id
+		where bp.batch_pick_sn = #{batchPickSn} and bp.print_count = 0
+		group by
+		t.product_id,t.task_id
+	</select>
+
+	<select id="selectPickOrdersList2" resultType="map">
+		select
+			op.order_id,op.status,op.batch_pick_id
+		from
+		wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		where bp.batch_pick_sn = #{batchPickSn} and bp.print_count = 0
+	</select>
+
+	<select id="selectPickOrderGoodsListByBatchPickSn" resultType="map">
+		select
+		bp.batch_pick_id,bp.batch_process_type,og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.order_process op on
+		bp.batch_pick_id =
+		op.batch_pick_id
+		INNER JOIN wms.order_goods og on
+		op.order_id = og.order_id
+		inner join
+		wms.product p on og.product_id =
+		p.product_id
+		where bp.batch_pick_sn = #{batch_pick_sn}
+		group by og.product_id
+	</select>
+
+	<select id="selectPickOrderGoodsListByBatchPickId" resultType="map">
+		select
+		bp.batch_pick_id,bp.batch_process_type,og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.order_process op on
+		bp.batch_pick_id =
+		op.batch_pick_id
+		INNER JOIN wms.order_goods og on
+		op.order_id = og.order_id
+		inner join
+		wms.product p on og.product_id =
+		p.product_id
+		where bp.batch_pick_id = #{batch_pick_id}
+		group by og.product_id
+	</select>
+
+	<select id="selectGtOrderGoodsListByOmsOrderSn" resultType="map">
+		select
+		og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from
+		wms.order_process op
+		INNER JOIN wms.order_goods og on op.order_id = og.order_id
+		inner join
+		wms.product p on og.product_id = p.product_id
+		where op.oms_order_sn = #{oms_order_sn}
+		group by og.product_id
+	</select>
+	<update id="updateForKickOutOrdersStatus">
+		UPDATE wms.order_info
+		SET order_status='ACCEPT'
+		WHERE order_id IN
+		<foreach collection="list" item="order_id" index="index" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+		and order_status!='CANCEL'
+	</update>
+
+	<select id="selectPickOrderGoodsListByList" resultType="map">
+		select
+		bp.batch_pick_id,bp.batch_process_type,og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.order_process op on
+		bp.batch_pick_id =
+		op.batch_pick_id
+		INNER JOIN wms.order_goods og on
+		op.order_id = og.order_id
+		inner join
+		wms.product p on og.product_id =
+		p.product_id
+		where bp.batch_pick_id in
+		<foreach collection="batchPickList" item="bp" open="("
+			separator="," close=")">
+			#{bp}
+		</foreach>
+		group by bp.batch_pick_id,og.product_id
+	</select>
+	<!-- 要不要去掉波此单单中的 取消订单 -->
+	<select id="selectPickOrderGoodsListSum" resultType="map">
+		select
+		bp.batch_process_type,og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.order_process op on
+		bp.batch_pick_id =
+		op.batch_pick_id
+		INNER JOIN wms.order_goods og on
+		op.order_id = og.order_id
+		inner join
+		wms.product p on og.product_id =
+		p.product_id
+		where bp.batch_pick_id in
+		<foreach collection="batchPickList" item="bp" open="("
+			separator="," close=")">
+			#{bp}
+		</foreach>
+		group by og.product_id
+	</select>
+
+	<update id="updateBatchPickPrintCount" parameterType="int">
+		update
+		wms.batch_pick set print_count = print_count+1,
+		first_print_time = now() 
+		where batch_pick_id =
+		#{batchPickId} and print_count = 0
+	</update>
+	
+	<update id="updateBatchPickRePrintCount" parameterType="int">
+		update
+		wms.batch_pick set print_count = print_count+1 
+		where batch_pick_id =
+		#{batchPickId} and print_count > 0
+	</update>
+
+	<!-- 打印发货单相关SQL by hzhang1 -->
+	<select id="selectBatchPickOrderList" parameterType="map"
+		resultType="map">
+		select op.order_id,op.order_batch_sequence_number as
+		sequence_num,bp.print_count,bp.batch_pick_sn,bp.batch_pick_id,oi.order_status
+		from
+		wms.batch_pick bp
+		INNER JOIN wms.order_process op on
+		bp.batch_pick_id =
+		op.batch_pick_id
+		inner join wms.order_info oi on
+		op.order_id = oi.order_id
+		where 1
+		<if test="batchPickId != '' and batchPickId != null">
+			and bp.batch_pick_id = #{batchPickId}
+		</if>
+		<if test="batchPickSn != '' and batchPickSn != null">
+			and bp.batch_pick_sn = #{batchPickSn}
+		</if>
+		<if test="orderId != '' and orderId != null">
+			and op.order_id = #{orderId}
+		</if>
+		order by op.order_batch_sequence_number
+	</select>
+
+	<select id="selectBatchPickOrderGoodsList" parameterType="int"
+		resultType="map">
+		select
+		og.warehouse_id,og.customer_id,og.product_id,og.goods_name,sum(og.goods_number)
+		as goods_number,og.goods_price,p.barcode,p.sku_code
+		from
+		wms.order_goods og
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where og.order_id = #{orderId} and (og.order_goods_type is
+		null or og.order_goods_type != 'PACKBOX')
+		GROUP BY og.product_id
+	</select>
+
+	<select id="selectDispatchBillByShop" parameterType="map"
+		resultType="map">
+		select shop_name,template_file_name,shop_logo_filename,page_line from
+		wms.config_print_dispatch_bill where oms_shop_id = #{shopId} and
+		customer_id = #{customerId}
+	</select>
+
+	<select id="selectDispatchBillByCustomer" parameterType="int"
+		resultType="map">
+		select name,dispatch_bill_file_name from wms.warehouse_customer
+		where customer_id = #{customerId}
+	</select>
+
+	<update id="updateOrderInfoForBatchPick" parameterType="map">
+		UPDATE
+		wms.order_info
+		SET
+		order_status= #{status}, last_updated_time =
+		#{created_time}, last_updated_user=
+		#{created_user}
+		where order_id =
+		#{order_id}
+	</update>
+
+	<update id="updateTrackingNumber">
+		update wms.order_info set tracking_number = #{1}
+		where order_id = #{0}
+	</update>
+
+
+
+	<!-- add by dlyao for hardware -->
+	<select id="selectOrderBatchSnBarCode" parameterType="map"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT oi.* FROM wms.order_info oi
+		INNER JOIN
+		wms.order_goods og on oi.order_id=og.order_id
+		INNER JOIN
+		product p ON
+		og.product_id=p.product_id
+		where oi.batch_order_sn=#{batch_sn}
+		AND
+		p.barcode=#{barcode}
+	</select>
+
+	<select id="selectOrderGoodsBatchSnBarCode" parameterType="map"
+		resultType="com.leqee.wms.entity.OrderGoods">
+		SELECT og.* FROM wms.order_info oi
+		INNER JOIN
+		wms.order_goods og on oi.order_id=og.order_id
+		INNER JOIN
+		product p ON
+		og.product_id=p.product_id
+		where oi.batch_order_sn=#{batch_sn}
+		AND
+		p.barcode=#{barcode}
+	</select>
+
+	<select id="getIsSerialAndWarranty" resultType="map">
+		SELECT
+		p.is_serial,p.is_maintain_warranty,p.is_maintain_batch_sn FROM
+		wms.order_info oi
+		INNER JOIN
+		wms.order_goods og on
+		oi.order_id=og.order_id
+		INNER JOIN
+		product p ON
+		og.product_id=p.product_id
+		where oi.batch_order_sn=#{batch_sn}
+		AND
+		p.barcode=#{barcode}
+	</select>
+
+	<select id="getCountOrdersByBatchSnBarCode" resultType="int">
+		SELECT
+		count(oi.order_id)
+		FROM wms.order_info oi
+		INNER JOIN
+		wms.order_goods og
+		on oi.order_id=og.order_id
+		INNER JOIN
+		product p ON
+		og.product_id=p.product_id
+		where oi.batch_order_sn=#{batch_sn}
+		AND
+		p.barcode=#{barcode}
+		and oi.order_status in
+		('ACCEPT','IN_PROCESS','ON_SHELF')
+	</select>
+
+	<select id="selectProductIdBatchSnBarCode" parameterType="map"
+		resultType="int">
+		SELECT p.product_id FROM wms.order_info oi
+		INNER JOIN
+		wms.order_goods og on oi.order_id=og.order_id
+		INNER JOIN
+		product p ON
+		og.product_id=p.product_id
+		where oi.batch_order_sn=#{batch_sn}
+		AND
+		p.barcode=#{barcode}
+	</select>
+
+	<select id="selectCountNumsHasInwareHouse" parameterType="string"
+		resultType="int">
+		SELECT COUNT(il.quantity)
+		FROM wms.label_accept il
+		INNER JOIN
+		wms.order_info
+		oi ON il.order_id = oi.order_id
+		INNER JOIN
+		wms.order_goods og ON
+		il.order_goods_id = og.order_goods_id
+		INNER JOIN
+		wms.product p ON
+		og.product_id = p.product_id
+		INNER JOIN wms.warehouse w
+		ON
+		oi.warehouse_id = w.warehouse_id
+		WHERE oi.oms_order_sn =
+		#{oms_order_sn}
+	</select>
+
+	<select id="selectSumNumsHasInwareHouse" parameterType="string"
+		resultType="int">
+		SELECT sum(il.quantity)
+		FROM wms.label_accept il
+		INNER JOIN
+		wms.order_info oi
+		ON il.order_id = oi.order_id
+		INNER JOIN
+		wms.order_goods og ON
+		il.order_goods_id = og.order_goods_id
+		INNER JOIN
+		wms.product p ON
+		og.product_id = p.product_id
+		INNER JOIN wms.warehouse w
+		ON
+		oi.warehouse_id = w.warehouse_id
+		WHERE oi.oms_order_sn =
+		#{oms_order_sn}
+	</select>
+
+	<select id="getShipmentOrderAmount" resultType="java.math.BigDecimal">
+		select
+		cast(pay_amount as decimal(10,2)) from wms.order_info where order_id =
+		#{orderId}
+	</select>
+
+	<select id="getLeqeeElecEduInsurance" resultType="string">
+		select barcode
+		from wms.order_goods g
+		INNER JOIN wms.product p on p.product_id =
+		g.product_id
+		where order_id = #{orderId}
+	</select>
+
+	<update id="updateOrderInfo24Hours" parameterType="string">
+		update wms.order_info set order_level = 2 where order_time <![CDATA[ < ]]>
+		#{time24String} and order_type='SALE' and order_status='ACCEPT' and
+		order_level = 1
+	</update>
+	<update id="updateOrderInfo36Hours" parameterType="string">
+		update wms.order_info set order_level = 3 where order_time <![CDATA[ < ]]>
+		#{time36String} and order_type='SALE' and order_status='ACCEPT' and
+		order_level <![CDATA[ < ]]> 3
+	</update>
+
+	<select id="getOrderLevel3" resultType="string">
+		select oi.order_id from wms.order_info oi inner join order_process op
+		on oi.order_id=op.order_id
+		where oi.physical_warehouse_id =
+		#{physical_warehouse_id} and
+		oi.customer_id = #{customer_id} and
+		op.reserve_status='Y' and
+		op.status='ACCEPT' and op.in_batchpick_task=0
+		and oi.order_type="SALE" and op.mark=0
+		and oi.order_level=3 and op.is2B
+		in ('N','W','Y')
+		<if test="shop_name != null and shop_name.size() != 0">
+			and oi.shop_name in
+			<foreach collection="shop_name" item="shop_name" open="("
+				separator="," close=")">
+				#{shop_name}
+			</foreach>
+		</if>
+		limit 0,100000
+	</select>
+	
+	<select id="getOrderLevel3New" resultType="Integer">
+		select oi.order_id from wms.order_info oi inner join order_process op
+		on oi.order_id=op.order_id
+		where oi.physical_warehouse_id =
+		#{physical_warehouse_id} and
+		oi.customer_id = #{customer_id} and
+		op.reserve_status='Y' and oi.warehouse_id=#{warehouse_id} and
+		op.status='ACCEPT' and op.in_batchpick_task=0
+		and oi.order_type="SALE" and op.mark=0
+		and oi.order_level=3 and op.is2B
+		in ('N','W','Y')
+		<if test="list != null and list.size() != 0">
+			and oi.oms_shop_id in
+			<foreach collection="list" item="oms_shop_id" open="("
+				separator="," close=")">
+				#{oms_shop_id}
+			</foreach>
+		</if>
+		limit 0,100000
+	</select>
+	<!-- getSingleOrderByShopByPage no ever used -->
+	<select id="getSingleOrderByShopByPage" parameterType="map"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		select oi.*
+		from
+		wms.order_info oi
+		inner join wms.order_process op ON
+		oi.customer_id = #{customer_id} and
+		oi.order_id = op.order_id and
+		op.reserve_status='Y' and
+		op.status='ACCEPT' and op.in_batchpick_task=0
+		and oi.order_type="SALE" and op.is2B in ('N','W') AND op.mark =
+		#{mark}
+		and oi.order_level >= #{level}
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+			and oi.warehouse_id = #{warehouse_id}
+		</if>
+		<if test="shop_name != null and shop_name != '' ">
+			and oi.shop_name = #{shop_name}
+		</if>
+		<if test="region_id != '' and region_id != null">
+			and oi.province_id = #{region_id}
+		</if>
+		<if test="shipping_id != '' and shipping_id != null">
+			AND oi.shipping_id = #{shipping_id}
+		</if>
+		<if test="sort != '' and sort != null">
+			order by ${sort}
+		</if>
+		<if test="sort2 != '' and sort2 != null">
+
+			${sort2}
+		</if>
+	</select>
+	
+	<select id="getSingleOrderByShopV2ByPage" parameterType="map"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		select oi.*
+		from
+		wms.order_info oi
+		inner join wms.order_process op ON
+		oi.order_id = op.order_id and
+		op.reserve_status='Y' and
+		op.status='ACCEPT' and op.in_batchpick_task=0
+		and oi.order_type="SALE" and op.is2B in ('N','W') 
+		<if test="start != '' and start != null">
+			and oi.order_time > #{start}
+		</if>
+		<if test="end != '' and end != null">
+			and oi.order_time <![CDATA[ < ]]> #{end}
+		</if>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+			and oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			and oi.customer_id = #{customer_id} 
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+			AND oi.warehouse_id = #{warehouse_id}
+		</if>
+		<if test="oms_shop_id != null and oms_shop_id != '' ">
+			and oi.oms_shop_id = #{oms_shop_id}
+		</if>
+		<if test="region_id != '' and region_id != null">
+			and oi.province_id = #{region_id}
+		</if>
+		<if test="shipping_id != '' and shipping_id != null">
+			AND oi.shipping_id = #{shipping_id}
+		</if>
+		<if test="mark != null and mark != 10">
+			AND op.mark = #{mark}
+		</if>
+		<if test="level != null and level != 0">
+			and oi.order_level = #{level}
+		</if>
+	</select>
+	
+	<update id="updateOrderInfoListForBatchPick" parameterType="map">
+		UPDATE wms.order_info
+		SET
+		order_status= #{status}, last_updated_time =
+		#{created_time}, last_updated_user=
+		#{created_user}
+		where order_id in
+		<foreach collection="order_id" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+	</update>
+
+	<select id="getUnbindGoodsInfo" parameterType="Integer"
+		resultType="map">
+		select og.order_goods_id,og.goods_name,
+		(
+		og.goods_number- (
+		select if(sum(sd.goods_number) is null,0,sum(sd.goods_number)) from
+		wms.shipment_detail sd
+		INNER JOIN wms.shipment s on s.shipment_id = sd.shipment_id
+		where
+		sd.order_goods_id = og.order_goods_id and s.order_id = og.order_id
+		)
+		)
+		as
+		unbind_number,p.barcode,p.product_type,p.is_serial,p.is_need_transfer_code, p.is_maintain_batch_sn
+		from wms.order_goods og
+		inner join wms.product p on p.product_id =
+		og.product_id
+		where og.order_id = #{orderId}
+		having unbind_number >0
+	</select>
+	<select id="queryBatchPickByOrder_id" parameterType="Integer"
+		resultType="map">
+		SELECT
+		op.batch_pick_id,bp.batch_pick_sn,bp.status,bp.created_time
+		FROM wms.batch_pick bp
+		INNER JOIN wms.order_process op ON op.batch_pick_id = bp.batch_pick_id
+		WHERE op.order_id= #{order_id}
+	</select>
+
+	<select id="getCountOrdersByBatchPickId" parameterType="int"
+		resultType="int">
+		SELECT count(order_id)
+		FROM wms.order_process
+		where batch_pick_id = #{batch_pick_id}
+	</select>
+
+	<select id="getUserNameByBP" parameterType="int" resultType="string">
+		SELECT su.username
+		FROM wms.batch_pick bp
+		INNER JOIN wms.sys_user su ON bp.bind_user_id = su.id
+		WHERE bp.batch_pick_id
+		= #{batch_pick_id}
+	</select>
+
+
+	<select id="getOrderUnbindGoodsInfoByBatchPickSn" parameterType="string"
+		resultType="map">
+		select bp.batch_pick_id,og.order_goods_id,og.goods_name,
+		(
+		og.goods_number- (
+		select if(sum(sd.goods_number) is
+		null,0,sum(sd.goods_number)) from
+		wms.shipment_detail sd
+		INNER JOIN wms.shipment s on s.shipment_id = sd.shipment_id
+		where
+		sd.order_goods_id = og.order_goods_id and s.order_id = og.order_id
+		)
+		)
+		as unbind_number,p.barcode,p.product_type,p.is_serial
+		from
+		wms.order_goods og
+		inner join wms.product p on p.product_id =
+		og.product_id
+		INNER JOIN wms.order_process op on op.order_id =
+		og.order_id
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id and
+		op.order_batch_sequence_number = 1
+		where bp.batch_pick_sn = #{0}
+		having
+		unbind_number >0
+	</select>
+
+	
+	
+
+
+	<update id="batchUpdateOrderStatusByOrderId">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{orderStatus},
+		last_updated_user = #{lastUpdatedUser},
+		last_updated_time = now()
+		where
+		order_id in
+		<foreach collection="orderIdList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+
+	<update id="updateOrderInfoInProcess">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{status},
+		last_updated_user = #{action_user},
+		last_updated_time = now()
+		where
+		oms_order_sn=#{oms_order_sn}
+	</update>
+
+
+
+	<update id="updateOrderInfo2InProcess">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{status},
+		last_updated_user = #{action_user},
+		last_updated_time = now()
+		where
+		oms_order_sn=#{oms_order_sn} and order_status="ACCEPT"
+	</update>
+	<select id="getGtOrderIdList" resultType="int">
+		SELECT oi.order_id
+		FROM wms.order_info oi
+		INNER JOIN wms.order_goods og ON
+		oi.order_id=og.order_id
+		WHERE oi.order_type = 'SUPPLIER_RETURN' and
+		oi.physical_warehouse_id=#{physical_warehouse_id} 
+		and oi.customer_id=#{customer_id} 
+		and og.status_id= #{status_id} and
+		oi.order_status='ACCEPT' and is_reserved='Y' and oi.warehouse_id=#{warehouse_id}
+		GROUP BY oi.order_id
+	</select>
+
+	<select id="selectGtOrderGoodsListSum" resultType="map">
+		select
+		og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,p.spec,sum(og.goods_number)
+		as goods_number
+		from wms.order_goods og
+		inner join wms.product p on
+		og.product_id = p.product_id
+		where og.order_id in
+		<foreach collection="gtOrderIdList" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+		group by og.product_id
+	</select>
+
+	<select id="selectGtOrderGoodsList" resultType="map">
+		select
+		og.order_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,og.status_id,p.spec,sum(og.goods_number)
+		as goods_number
+		from wms.order_goods og
+		inner join wms.product p on
+		og.product_id = p.product_id
+		where og.order_id in
+		<foreach collection="gtOrderIdList" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+		group by og.order_id,og.product_id
+	</select>
+
+	<select id="selectGtOrderGoodsListV5" resultType="map">
+		select
+		og.order_id,og.order_goods_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,og.status_id,p.spec,og.goods_number,og.oms_order_goods_sn
+		from wms.order_goods og
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where og.order_id in
+		<foreach collection="gtOrderIdList" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+	</select>
+
+
+	<select id="selectSaleOrderGoodsListV5" resultType="map">
+		select
+		og.order_id,og.order_goods_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,p.barcode,p.volume,og.status_id,p.spec,og.goods_number,og.oms_order_goods_sn
+		from wms.order_goods_oms og
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where og.order_id in
+		<foreach collection="list" item="order_id" open="(" separator=","
+			close=")">
+			#{order_id}
+		</foreach>
+	</select>
+
+
+	<update id="updateReserveStatus">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{status}
+		where order_id in
+		<foreach collection="gtYList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+
+	<update id="updateArrivalTimeByOrderId">
+		UPDATE
+		wms.order_info
+		set
+		arrival_time = #{arrivalTime},
+		last_updated_time = now()
+		where order_id=#{orderId}
+	</update>
+
+	<select id="selectAllVarianceMinusOrderIdsForUpdate" resultType="com.leqee.wms.entity.OrderInfo">
+		select order_id,parent_order_id
+		from wms.order_info
+		where
+		<if test="physical_warehouse_id != null and physical_warehouse_id != 0">
+			physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != null and customer_id !=0 ">
+			and customer_id = #{customer_id}
+		</if>
+		and order_type=#{order_type}
+		and order_status='ACCEPT'
+		and is_reserved=#{is_reserved}
+		and warehouse_id = #{warehouse_id}
+		for update
+	</select>
+
+	<select id="selectVarianceMinusImproveOrderGoodsMap" resultType="map">
+		select
+		og.order_id,og.order_goods_id,og.product_id,og.goods_name,og.warehouse_id,og.customer_id,og.status_id,og.goods_number,og.batch_sn,og.goods_price
+		from wms.order_goods og
+		inner join wms.product p on og.product_id =
+		p.product_id
+		where og.order_id in
+		<foreach collection="orderIdList" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+	</select>
+	<update id="updateBatchOrderInfos">
+		UPDATE
+		wms.order_info
+		set
+		order_status = #{status}
+		where order_id in
+		<foreach collection="list" item="orderId" open="(" separator=","
+			close=")">
+			#{orderId}
+		</foreach>
+	</update>
+
+
+	<insert id="saveTransferCodeForOrder" parameterType="com.leqee.wms.entity.OmsOrderTransferCode">
+		insert into
+		wms.oms_order_transfer_code(
+		order_id,sku_code,product_id,transfer_code,created_user,created_time)
+		values ( #{order_id,jdbcType=INTEGER},
+		#{sku_code,jdbcType=VARCHAR},#{product_id,jdbcType=INTEGER},
+		#{transfer_code,jdbcType=VARCHAR},
+		#{created_user,jdbcType=VARCHAR},NOW())
+	</insert>
+
+	<select id="selectIsNeedTransferCode" resultType="String">
+		select DISTINCT
+		p.is_need_transfer_code from wms.order_goods og
+		INNER JOIN wms.product p on p.product_id = og.product_id and p.is_delete =
+		'N'
+		where og.order_id = #{0}
+	</select>
+
+	<delete id="deleteTransferCodeByOrder">
+		delete from
+		wms.oms_order_transfer_code where order_id = #{0}
+	</delete>
+	<select id="getNoPlOrderListByProductIdList" resultType="map">
+		SELECT
+		wc.name,
+		op.order_id,
+		p.barcode,
+		p.product_name,
+		og.order_goods_id,
+		og.goods_number,
+		og.goods_number -IFNULL(SUM(pld.change_quantity),0) as diff
+		FROM
+		wms.order_process op
+		INNER JOIN wms.order_info oi ON oi.order_id = op.order_id
+		INNER JOIN
+		wms.batch_pick bp ON bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN
+		wms.order_goods og ON og.order_id = op.order_id
+		INNER JOIN wms.product
+		p ON p.product_id = og.product_id
+		INNER JOIN wms.warehouse_customer wc
+		ON wc.customer_id = op.customer_id
+		LEFT JOIN
+		wms.product_location_detail pld ON pld.order_goods_id =
+		og.order_goods_id and pld.change_quantity > 0
+		where
+		op.status ='CANCEL' and p.product_type in('GOODS','PREPACKAGE') and oi.created_time > '2016-08-03' and
+		bp.print_count > 0
+		and oi.physical_warehouse_id = #{physical_warehouse_id}  and oi.warehouse_id=#{warehouse_id}
+		and og.product_id in
+		<foreach collection="list" item="product_id" open="("
+			separator="," close=")">
+			#{product_id}
+		</foreach>
+		GROUP BY og.order_goods_id
+		HAVING diff > 0
+	</select>
+	<update id="updateOrderInfoLevelUp">
+		update wms.order_info set order_level=#{level}
+		where physical_warehouse_id=#{physical_warehouse_id} and
+		customer_id=#{customer_id} and order_type='SALE' and
+		order_status='ACCEPT'
+		<if test="start != null and start !=''">
+			and order_time > #{start}
+		</if>
+		<if test="end != null and end !=''">
+			and order_time <![CDATA[ < ]]>
+			#{end}
+		</if>
+	</update>
+	<update id="updateReserveResultList">
+		update wms.order_info set is_reserved=#{is_reserved} where order_id in
+		<foreach collection="list" item="orderId" open="(" separator=","
+			close=")">
+			#{orderId}
+		</foreach>
+	</update>
+	<select id="selectMiddleLevelTime" resultType='int'>
+		select config_value from wms.config where config_name='ORDER_LEVEL_MEDIUM'
+	</select>
+
+	<select id="selectHighLevelTime" resultType='int'>
+		select config_value from wms.config where config_name='ORDER_LEVEL_HIGH'
+	</select>
+	
+	<select id="getOrderGoodsList" resultType="com.leqee.wms.entity.OrderGoods">
+	    select order_id,order_goods_id,product_id,goods_number
+	    from wms.order_goods
+	    where order_id in 
+	    <foreach collection="list" item="order_id" open="("
+			separator="," close=")">
+			#{order_id}
+		</foreach>
+	</select>
+	<select id="selectCustomerShopCache" resultType="map">
+		select oms_shop_id,shop_name from wms.shop where customer_id = #{customerId}
+	</select>
+	<select id="getOrdersByShipByPage" resultType="Map" parameterType="Map">
+		SELECT
+			oi.order_id,
+			oi.order_time,
+			oi.shipping_id,
+			oi.customer_id,
+			oi.order_status,
+			w.warehouse_name
+		FROM
+			order_info oi
+		INNER JOIN warehouse w on w.warehouse_id = oi.warehouse_id
+		WHERE
+		<![CDATA[order_time >=#{start}]]>
+		<if test="end!=null">
+		<![CDATA[AND oi.order_time <=#{end}]]>
+		</if>
+		AND oi.physical_warehouse_id = #{warehouseid}
+		AND oi.order_type = 'SALE'
+		AND oi.customer_id IN 
+		<foreach collection="customerIdList" open="(" close=")" separator="," item="item">
+			#{item}
+		</foreach>
+		AND oi.order_status = #{orderStatus}
+		<if test='shopId!=null and shopId!="0"'>
+		AND oi.oms_shop_id = #{shopId}
+		</if>
+		<if test='warehouseId!=null and warehouseId!="0"'>
+	    AND oi.warehouse_id = #{warehouseId}
+	    </if>
+		<if test='shippingId!=null and shippingId!="0"'>
+		<![CDATA[AND oi.shipping_id =#{shippingId}]]>
+		</if>
+	</select>
+	<select id="selectBatchOrderByIdForUpdate" resultType="com.leqee.wms.entity.OrderInfo">
+		select * from wms.order_info where order_id in
+		<foreach collection="array" open="(" close=")" separator="," item="item">
+		#{item}
+		</foreach>
+		for update
+	</select>
+	<update id="batchUpdateShipId">
+	update wms.order_info set shipping_id=#{shippingId},last_updated_user=#{username},last_updated_time=now()
+	where order_id in
+		<foreach collection="updatelist" open="(" close=")" separator="," item="item">
+		#{item}
+		</foreach>
+	</update>
+	<select id="getWarehouseIdBySn" resultType='int'>
+	   select warehouse_id from wms.order_info where oms_order_sn=#{oms_order_sn}
+	</select>
+</mapper>

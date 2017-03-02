@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventorySummaryDao">
+	
+	<sql id="Base_Column_List" >
+    inventory_summary_id, serial_number, status_id, warehouse_id, product_id, customer_id, 
+    stock_quantity, available_to_reserved, created_user, created_stamp, last_updated_user, 
+    last_updated_stamp
+  </sql>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.InventorySummary" >
+      <selectKey keyProperty="inventory_summary_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+      insert into inventory_summary (inventory_summary_id, serial_number, 
+      status_id, warehouse_id, product_id, 
+      customer_id, stock_quantity, available_to_reserved, 
+      created_user, created_stamp, last_updated_user, 
+      last_updated_stamp)
+      values (#{inventory_summary_id,jdbcType=INTEGER}, #{serial_number,jdbcType=VARCHAR}, 
+      #{status_id,jdbcType=VARCHAR}, #{warehouse_id,jdbcType=INTEGER}, #{product_id,jdbcType=INTEGER}, 
+      #{customer_id,jdbcType=INTEGER}, #{stock_quantity,jdbcType=INTEGER}, #{available_to_reserved,jdbcType=INTEGER}, 
+      #{created_user,jdbcType=VARCHAR}, #{created_stamp,jdbcType=TIMESTAMP}, #{last_updated_user,jdbcType=VARCHAR}, 
+      #{last_updated_stamp,jdbcType=TIMESTAMP})
+  </insert>
+  <insert id="insertList">
+       insert into inventory_summary (serial_number, 
+	      status_id, warehouse_id, product_id, 
+	      customer_id, stock_quantity, available_to_reserved, 
+	      created_user, created_stamp, last_updated_user, 
+	      last_updated_stamp)
+	      values 
+      <foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.serial_number}, #{item.status_id},
+			#{item.warehouse_id}, #{item.product_id}, #{item.customer_id},
+			 #{item.stock_quantity},#{item.available_to_reserved}, #{item.created_user},
+			now(), #{item.created_user},now())
+	 </foreach>
+  </insert>
+  <update id="updateAddList">
+  	UPDATE wms.inventory_summary
+		SET stock_quantity = CASE inventory_summary_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.inventory_summary_id} then stock_quantity +
+			${item0.stock_quantity}
+		</foreach>
+		END,
+		available_to_reserved = CASE inventory_summary_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.inventory_summary_id} then available_to_reserved +
+			${item2.available_to_reserved}
+		</foreach>
+		END
+		where inventory_summary_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.inventory_summary_id}
+		</foreach>
+  </update>
+  <update id="updateMinusList">
+  	UPDATE wms.inventory_summary
+		SET stock_quantity = CASE inventory_summary_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.inventory_summary_id} then stock_quantity +
+			${item0.stock_quantity}
+		</foreach>
+		END
+		where inventory_summary_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.inventory_summary_id}
+		</foreach>
+  </update>
+  
+   <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.InventorySummary" parameterType="java.lang.Integer" >
+	    select 
+	    <include refid="Base_Column_List" />
+	    from inventory_summary
+	    where inventory_summary_id = #{inventory_summary_id,jdbcType=INTEGER}
+  </select>
+	
+	 <select id="getStockQuantityErrorRecord"  resultType="com.leqee.wms.entity.InventorySyncModifyInfo">		
+			select im.inventory_summary_id,im.product_id,im.warehouse_id,  
+			im.stock_quantity,sum(ifnull(ii.quantity,0)) as item_sum,im.status_id
+			from wms.inventory_summary im
+			inner join wms.inventory_item ii ON im.product_id = ii.product_id and im.warehouse_id = ii.warehouse_id
+			and im.status_id = ii.status
+			where im.status_id = 'NORMAL'
+			and ii.warehouse_id is not null and im.warehouse_id is not null
+			group by im.product_id, im.warehouse_id ,im.status_id
+			having stock_quantity!=item_sum		
+     </select>
+     
+     <select id="getErrorSrockQuantityRecord"  resultType="com.leqee.wms.entity.InventorySyncModifyInfo">		
+			select im.stock_quantity,im.product_id,im.warehouse_id,im.available_to_reserved,
+			im.inventory_summary_id,sum(ifnull(ii.quantity,0)) as item_sum,
+			im.status_id
+			from wms.inventory_summary im
+			left join wms.inventory_item ii ON im.product_id = ii.product_id
+			AND ii.warehouse_id = im.warehouse_id AND ii.status = im.status_id
+			WHERE  im.product_id =  #{0} and im.warehouse_id =  #{1}
+			AND im.status_id =  #{2}
+			group by inventory_summary_id
+		    limit 1	
+     </select>
+     
+     <update id="modifyErrorStockQuantity"  >		
+		 update wms.inventory_summary set STOCK_QUANTITY=STOCK_QUANTITY-#{1} where inventory_summary_id=#{0} limit 1 			
+     </update>
+     
+      <select id="getAvailibleQuantityErrorRecord"  resultType="com.leqee.wms.entity.InventorySyncModifyInfo">		
+			select im.inventory_summary_id,im.stock_quantity,im.available_to_reserved ,im.status_id,
+			(im.available_to_reserved + sum(if(ord.status = 'Y',ord.reserved_number,0)) - im.stock_quantity) as diff ,sum(if(ord.status = 'Y',ord.reserved_number,0)) as reser
+			from wms.inventory_summary im 
+			left JOIN wms.order_reserve_detail ord on im.product_id = ord.product_id and im.warehouse_id = ord.warehouse_id and im.status_id = ord.inventory_status 
+			left join wms.inventory_item_detail iid on ord.order_id = iid.order_id
+			where im.status_id = 'NORMAL' and im.warehouse_id is not null and im.warehouse_id !='' and iid.order_id  is null 
+			group by im.product_id,im.warehouse_id,im.status_id 
+			having diff !=0 
+      </select>
+      
+      <select id="getAvailibleQuantityErrorRecordV1"  resultType="com.leqee.wms.entity.InventorySyncModifyInfo">		
+			select im.inventory_summary_id,im.stock_quantity,im.available_to_reserved ,im.status_id,
+			(im.available_to_reserved + sum(if(ord.status = 'Y',ord.reserved_number,0)) - im.stock_quantity) as diff ,sum(if(ord.status = 'Y',ord.reserved_number,0)) as reser
+			from wms.inventory_summary im 
+			left JOIN wms.order_reserve_detail ord on im.product_id = ord.product_id and im.warehouse_id = ord.warehouse_id and im.status_id = ord.inventory_status 
+			left join wms.inventory_item_detail iid on ord.order_id = iid.order_id
+			where im.status_id = 'NORMAL' and im.warehouse_id is not null and im.warehouse_id !='' 
+			group by im.product_id,im.warehouse_id,im.status_id 
+			having diff !=0 
+      </select>
+      
+      
+      <update id="modifyErrorAvailibleQuantity"  >		
+		    update wms.inventory_summary set available_to_reserved=available_to_reserved-#{1} where inventory_summary_id=#{0} limit 1 			
+      </update>
+     
+     <select id="getReserveNumNotDelivery"  resultType="java.lang.Integer">		
+	     	SELECT sum(IFNULL(ord.reserved_number,0)) as reserve_num
+			from wms.order_reserve_detail ord 
+			where ord.STATUS='Y' and ord.product_id=#{0} and ord.warehouse_id=#{1} and ord.inventory_status =#{2}       
+     </select>
+     
+     <select id="getErrorSrockDetailQuantityRecord"  resultType="com.leqee.wms.entity.InventorySyncModifyInfo">		
+			select imd.inventory_summary_Detail_id,imd.product_id,imd.warehouse_id,imd.batch_sn,imd.unit_price,imd.provider_code,  
+			imd.stock_quantity,ifnull(sum(ii.quantity),0) as item_sum,imd.status_id
+			from wms.inventory_summary_detail imd
+			inner join wms.inventory_item ii ON imd.product_id = ii.product_id and imd.warehouse_id = ii.warehouse_id
+			and imd.status_id = ii.status and imd.batch_sn = ii.batch_sn and imd.provider_code = ii.provider_code and imd.unit_price = ii.unit_cost
+			where imd.status_id = 'NORMAL'
+			and imd.warehouse_id is not null and imd.warehouse_id is not null
+			group by imd.product_id, imd.warehouse_id,imd.status_id,imd.batch_sn,imd.provider_code,imd.unit_price
+			having stock_quantity!=item_sum		
+     </select>
+     
+      <update id="modifyErrorStockDetailQuantity"  >		
+		    update wms.inventory_summary_detail set stock_quantity=stock_quantity-#{1} where inventory_summary_detail_id=#{0} limit 1 			
+      </update>
+     
+     <select id="selectInventorySummary"  resultType="com.leqee.wms.entity.InventorySummary">		
+            select * from wms.inventory_summary im
+            where im.product_id = #{0} and im.warehouse_id = #{1} and status_id = #{2}
+            limit 1
+      </select>
+      
+      <select id="selectInventorySummaryListByProductIdList"  resultType="com.leqee.wms.entity.InventorySummary">		
+            select * from wms.inventory_summary 
+            where product_id in 
+            <foreach collection="productIdAddList" item="product_id" open="("
+			separator="," close=")">
+			#{product_id}
+			</foreach> 
+      </select>
+
+      <update id="updateStockQuantity" >		
+            update wms.inventory_summary 
+            set stock_quantity = stock_quantity+#{1},last_updated_stamp = now()
+            where inventory_summary_id = #{0}
+            limit 1
+      </update>
+      
+      <update id="updateStockAndAvailibleQuantity"  >		
+            update wms.inventory_summary 
+            set stock_quantity = stock_quantity+#{1},available_to_reserved = available_to_reserved+#{2},last_updated_stamp = now()
+            where inventory_summary_id = #{0}
+            limit 1
+      </update>
+      
+      
+      <update id="updateAvailibleNumberForReserve"  >		
+            update wms.inventory_summary 
+            set available_to_reserved = available_to_reserved-#{1},last_updated_stamp = now()
+            where inventory_summary_id = #{0}
+            limit 1
+      </update> 
+      
+
+     <select id="getProductNumForReserverByCustomerId"  resultType="Map">		
+            SELECT CAST(CONCAT(im.product_id,'_',im.warehouse_id,'_',if(im.status_id='NORMAL',1,0)) as char) as product,(available_to_reserved - ifnull(igf.reserve_number,0) ) as num
+			from wms.inventory_summary im
+            LEFT JOIN wms.inventory_goods_freeze igf on igf.product_id = im.product_id and igf.warehouse_id = im.warehouse_id
+			where 
+			status_id = 'NORMAL'
+			and im.customer_id = #{0}
+      </select>
+      
+      <select id="getProductNumForReserverByCustomerIdV4"  resultType="Map">		
+            SELECT CAST(CONCAT(im.product_id,'_',im.warehouse_id,'_',if(im.status_id='NORMAL',1,0)) as char) as product,available_to_reserved as num
+			from wms.inventory_summary im
+			where 
+			im.customer_id = #{0}
+      </select>
+      
+      <select id="getProductNumForReserverByCustomerIdV5"  resultType="Map">		
+            SELECT CAST(CONCAT(im.product_id,'_',im.warehouse_id,'_',if(im.status_id='NORMAL',1,0)) as char) as product,im.inventory_summary_id
+			from wms.inventory_summary im
+			where 
+		    im.customer_id = #{0}
+      </select>
+	  <update id="updateInventorySummaryReserveList">
+			update wms.inventory_summary
+			set available_to_reserved = case inventory_summary_id
+			<foreach collection="list" item="item0" index="index" open=" when "
+				separator="when " close="  ">
+				${item0.inventory_summary_id} then available_to_reserved -
+				${item0.available_to_reserved}
+			</foreach>
+			END
+			where inventory_summary_id in
+			<foreach collection="list" item="item" index="index" open="("
+				separator="," close=")">
+				#{item.inventory_summary_id}
+			</foreach>
+      </update>
+         
+      <update id="updateInventorySummaryForReserve" >		
+            update wms.inventory_summary 
+            set available_to_reserved = available_to_reserved-#{3},last_updated_stamp = now()
+            where product_id = #{0} and warehouse_id = #{1} and status_id = #{2}
+            limit 1
+      </update>
+      
+      <select id="selectInventorySummaryByMap" resultType="com.leqee.wms.entity.InventorySummary" parameterType="map" >
+  	select * from wms.inventory_summary where status_id= "NORMAL" 
+  		<if test="warehouse_id != '' and warehouse_id != null">
+		  and  warehouse_id = #{warehouse_id}
+		 </if>
+		<if test="product_id != '' and product_id != null">
+		  and  product_id = #{product_id}
+		 </if>
+		 <if test="customer_id != '' and customer_id != null">
+		    and customer_id = #{customer_id}
+		 </if>
+		 limit #{initPageNo},#{lastPageNo}
+  </select>
+   
+</mapper>

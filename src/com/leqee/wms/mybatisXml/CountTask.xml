@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.CountTaskDao">
+	<select id="searchCountSnForPrint" resultType="map">
+		SELECT
+		task_id,`name`,barcode,product_name,l.location_barcode,CONVERT(tc.validity,char(64))
+		as validity,CONVERT(tc.batch_sn,char(64))
+		as batch_sn,tc.warehouse_id,wa.warehouse_name,
+		if(tc.product_status='NORMAL','良品','不良品') as
+		product_status,tc.hide_real_num,tc.hide_batch_sn,tc.num_real,
+		CASE
+		tc.status
+		WHEN 'INIT' THEN '未开始'
+		WHEN 'CANCEL' THEN '已取消'
+		WHEN
+		'FULFILLED' THEN '已完成'
+		WHEN 'ON_FIRST' THEN '初盘中'
+		WHEN 'OVER_FIRST' THEN
+		'初盘已回单'
+		WHEN 'ON_SECOND' THEN '复盘中'
+		WHEN 'OVER_SECOND' THEN '复盘已回单'
+		ELSE
+		'三盘中'
+		END as `status`,
+		if(task_type='NORMAL','标准盘点','非标准盘点') as
+		task_type
+		from wms.task_count tc
+		INNER JOIN wms.warehouse_customer wc on
+		wc.customer_id = tc.customer_id
+		INNER JOIN wms.product p on
+		p.product_id = tc.product_id and p.is_delete = 'N'
+		INNER JOIN
+		wms.location l on l.location_id = tc.location_id and l.is_delete = 'N'
+		inner join wms.warehouse wa on  wa.warehouse_id=tc.warehouse_id
+		where tc.count_sn = #{countSn}
+		<if test="physicalWarehouseId != 0">and tc.physical_warehouse_id = #{physicalWarehouseId}</if>
+		<if test="batchCountSn != ''">
+			<if test="batchMark==1">and tc.batch_task_sn1 = #{batchCountSn}</if>
+			<if test="batchMark==2">and tc.batch_task_sn2 = #{batchCountSn}</if>
+			<if test="batchMark==3">and tc.batch_task_sn3 = #{batchCountSn}</if>
+			and tc.mark = #{batchMark}
+		</if>
+		and tc.status not in ('CANCEL','FULFILLED')
+		order by l.location_barcode asc,tc.task_id asc 
+	</select>
+
+
+	<select id="searchCountSnForPrintGroup" resultType="map">
+		select
+		group_concat(distinct status) as group_status,
+		group_concat(distinct
+		if(task_type='NORMAL','标准盘点','非标准盘点')) as group_task_type
+		from
+		wms.task_count
+		where count_sn = #{0} and physical_warehouse_id = #{1} and status not in ('CANCEL','FULFILLED')
+	</select>
+
+	<select id="searchCountSnForBatch" resultType="map">
+		select
+		status,count(*) as task_count
+		from wms.task_count
+		where count_sn = #{0}
+		and status not in ('CANCEL','FULFILLED')
+		group by
+		status
+	</select>
+
+	<select id="searchCountTaskByNum" resultType="Integer">
+		select task_id from wms.task_count tc
+		inner join wms.location l on l.location_id = tc.location_id and l.is_delete = 'N'
+		where count_sn=#{0} and status not in ('CANCEL','FULFILLED') and status = #{1}
+		order by l.location_barcode asc,tc.task_id asc
+		limit #{2}
+	</select>
+
+	<update id="batchUpdateMark">
+		update wms.task_count set status = #{status},mark=#{batchMark},
+		<if test="batchMark==1">batch_task_sn1=#{batchCountSn}</if>
+		<if test="batchMark==2">batch_task_sn2=#{batchCountSn}</if>
+		<if test="batchMark==3">batch_task_sn3=#{batchCountSn}</if>
+		where task_id in
+		<foreach collection="taskIdList" item="taskId" index="index"
+			open="(" separator="," close=")">
+			#{taskId}
+		</foreach>
+	</update>
+
+
+	<insert id="batchInsert">
+		insert into
+		wms.task_count
+		(count_sn,mark,num_real,location_id,physical_warehouse_id,warehouse_id,customer_id,task_type,product_id,hide_real_num,hide_batch_sn,product_status,status,created_user,created_time)
+		values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.count_sn},
+			#{item.mark},
+			#{item.num_real},
+			#{item.location_id},
+			#{item.physical_warehouse_id},
+			#{item.warehouse_id},
+			#{item.customer_id},
+			#{item.task_type},
+			#{item.product_id},
+			#{item.hide_real_num},
+			#{item.hide_batch_sn},
+			#{item.product_status},
+			#{item.status},
+			#{item.created_user},
+			now())
+		</foreach>
+	</insert>
+		<insert id="batchInsert2">
+		insert into
+		wms.task_count
+		(count_sn,mark,num_real,location_id,physical_warehouse_id,warehouse_id,customer_id,task_type,product_id,hide_real_num,hide_batch_sn,product_status,status,validity,batch_sn,created_user,created_time)
+		values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.count_sn},
+			#{item.mark},
+			#{item.num_real},
+			#{item.location_id},
+			#{item.physical_warehouse_id},
+			#{item.warehouse_id},
+			#{item.customer_id},
+			#{item.task_type},
+			#{item.product_id},
+			#{item.hide_real_num},
+			#{item.hide_batch_sn},
+			#{item.product_status},
+			#{item.status},
+			#{item.validity},
+			#{item.batch_sn},
+			#{item.created_user},
+			now())
+		</foreach>
+	</insert>
+
+	<select id="getCountTaskCount" resultType="int">
+		select count(*)
+		from
+		wms.task_count
+		where count_sn = #{count_sn} and status='INIT'
+	</select>
+
+	<update id="cancelTaskCountByCountSn">
+		update wms.task_count
+		set status='CANCEL' where
+		count_sn = #{count_sn}
+	</update>
+
+	<select id="getTaskCountByPage" resultType="com.leqee.wms.entity.TaskCount">
+		select
+		tc.task_id,tc.count_sn,tc.mark,tc.num_real,tc.location_id,tc.physical_warehouse_id,tc.num_first,tc.num_second,tc.num_third,tc.num_dif,
+		tc.customer_id,tc.product_id,tc.hide_real_num,tc.hide_batch_sn,tc.validity,tc.batch_sn,
+		case
+		tc.task_type when 'NORMAL' then '标准盘点' when 'CYCLE' then '循环盘点' when
+		'DYNAMIC' then '动态盘点' else '其他' end as task_type,
+		case
+		tc.product_status
+		when 'NORMAL' then '全新'
+		when 'DEFECTIVE' then '二手'
+		else '其他' end
+		as product_status,
+		case tc.status
+		when 'INIT' then '未开始'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		when 'ON_FIRST' then '初盘中'
+		when 'OVER_FIRST' then '初盘已回单'
+		when 'ON_SECOND' then '复盘中'
+		when 'OVER_SECOND' then '复盘已回单'
+		when 'ON_THIRD' then '终盘中'
+		else '其他' end as status ,
+		tc.created_user,tc.created_time,p.barcode,p.product_name,lo.location_barcode
+		from
+		wms.task_count tc
+		inner join wms.product p on
+		tc.product_id=p.product_id
+		inner join wms.location lo on
+		tc.location_id=lo.location_id
+		where
+		lo.physical_warehouse_id=#{physical_warehouse_id}
+		<if test="customer_id != null  and customer_id != 0">
+			and tc.customer_id =#{customer_id}
+		</if>
+		<if test="barcode != null  and barcode != ''">
+			and p.barcode =#{barcode}
+		</if>
+		<if test="product_name != null  and product_name != ''">
+			and p.product_name =#{product_name}
+		</if>
+		<if test="task_type != null  and task_type != ''">
+			and tc.task_type =#{task_type}
+		</if>
+		<if test="count_sn != null  and count_sn != ''">
+			and tc.count_sn =#{count_sn}
+		</if>
+		<if test="task_id != null  and task_id != 0">
+			and tc.task_id =#{task_id}
+		</if>
+		<if test="status != null  and status != ''">
+			and tc.status =#{status}
+		</if>
+		<if test="time != null and time != ''">
+			and tc.created_time > concat( #{time},' 00:00:00')
+			and tc.created_time <![CDATA[ < ]]>
+			concat( #{time},' 23:59:59')
+		</if>
+		order by location_barcode
+	</select>
+
+
+	<select id="queryTaskCountByBatchCountSnTaskId" resultType="com.leqee.wms.entity.TaskCount">
+		select
+		tc.task_id,tc.count_sn,tc.mark,tc.num_real,tc.location_id,tc.physical_warehouse_id,tc.is_improved,tc.num_first,tc.num_second,tc.num_third,tc.validity,tc.batch_sn,
+		tc.customer_id,tc.product_id,tc.hide_real_num,tc.hide_batch_sn,tc.warehouse_id,wa.warehouse_name,
+		case
+		tc.task_type when 'NORMAL' then '标准盘点' when 'CYCLE' then '循环盘点' when
+		'DYNAMIC' then '动态盘点' else '其他' end as task_type,
+		case
+		tc.product_status
+		when 'NORMAL' then '全新'
+		when 'DEFECTIVE' then '二手'
+		else '其他' end
+		as product_status,
+		case tc.status
+		when 'INIT' then '未开始'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		when 'ON_FIRST' then '初盘中'
+		when 'OVER_FIRST' then '初盘已回单'
+		when 'ON_SECOND' then '复盘中'
+		when 'OVER_SECOND' then '复盘已回单'
+		when 'ON_THIRD' then '终盘中'
+		else '其他' end as status ,
+		tc.created_user,tc.created_time,p.barcode,p.product_name,lo.location_barcode
+		from
+		wms.task_count tc
+		inner join wms.product p on
+		tc.product_id=p.product_id
+		inner join wms.location lo on
+		tc.location_id=lo.location_id
+		inner join wms.warehouse wa on wa.warehouse_id=tc.warehouse_id
+		where
+		lo.physical_warehouse_id=#{physical_warehouse_id}
+
+		<if test="mark == 1">
+			and tc.batch_task_sn1 =#{batch_task_sn}
+		</if>
+		<if test="mark == 2">
+			and tc.batch_task_sn2 =#{batch_task_sn}
+		</if>
+		<if test="mark == 3">
+			and tc.batch_task_sn3 =#{batch_task_sn}
+		</if>
+		<if test="task_id != 0">
+			and tc.task_id =#{task_id}
+		</if>
+
+		order by location_barcode asc,task_id asc
+	</select>
+
+	<select id="queryTaskCountByIdList" resultType="com.leqee.wms.entity.TaskCount">
+		select t.*,lo.location_barcode
+		from wms.task_count t
+		inner join wms.location lo on
+		t.location_id=lo.location_id
+		where t.task_id in
+		<foreach collection="taskIdList" item="ids" open="("
+			separator="," close=")">
+			#{ids}
+		</foreach>
+		order by location_barcode asc,task_id asc
+	</select>
+	<update id="updateList">
+		update wms.task_count
+		set
+		<if test="mark == 1">
+			updated_user_first=#{user_name},
+			updated_time_first=now(),num_dif=0,
+			num_first =
+			case task_id
+			<foreach collection="list" item="item1" index="index" open=" when "
+				separator="when " close="  ">
+				${item1.task_id} then ${item1.num_first}
+			</foreach>
+			end,
+		</if>
+		<if test="mark == 2">
+			updated_user_second=#{user_name},
+			updated_time_second=now(),
+			num_second = case task_id
+			<foreach collection="list" item="item2" index="index" open=" when "
+				separator="when " close="  ">
+				${item2.task_id} then ${item2.num_second}
+			</foreach>
+			end,
+			num_dif= case task_id
+			<foreach collection="list" item="item3" index="index" open=" when "
+				separator="when " close="  ">
+				${item3.task_id} then ${item3.num_dif}
+			</foreach>
+			end,
+
+		</if>
+		<if test="mark == 3">
+			updated_user_third=#{user_name},
+			updated_time_third=now(),
+			num_third =
+			case task_id
+			<foreach collection="list" item="item4" index="index" open=" when "
+				separator="when " close="  ">
+				${item4.task_id} then ${item4.num_third}
+			</foreach>
+			end,
+			num_dif= case task_id
+			<foreach collection="list" item="item5" index="index" open=" when "
+				separator="when " close="  ">
+				${item5.task_id} then ${item5.num_dif}
+			</foreach>
+			end,
+		</if>
+		status = case task_id
+		<foreach collection="list" item="item6" index="index" open=" when "
+			separator="when " close="  ">
+			${item6.task_id} then #{item6.status}
+		</foreach>
+		end
+		where task_id in
+		<foreach collection="list" item="item7" index="index" open="("
+			separator="," close=")">
+			#{item7.task_id}
+		</foreach>
+	</update>
+
+
+	<select id="getNotFulfilledTaskNums" resultType="int">
+		SELECT COUNT(tc.task_id) FROM wms.task_count tc INNER JOIN (SELECT count_sn
+		FROM wms.task_count WHERE task_id=#{task_id}) t ON tc.count_sn IN
+		(t.count_sn) AND tc.status !='FULFILLED';
+	</select>
+	
+	<select id="getNeedImprove" resultType="int">
+		SELECT COUNT(tc.task_id) FROM wms.task_count tc INNER JOIN (SELECT count_sn
+		FROM wms.task_count WHERE task_id=#{task_id}) t ON tc.count_sn IN
+		(t.count_sn) AND tc.status ='FULFILLED' and tc.is_improved='N' and tc.num_dif !=0;
+	</select>
+	
+	<select id="getFulfilledTaskByTaskId" resultType="com.leqee.wms.entity.TaskCount">
+		SELECT tc.task_id,ifnull(tc.validity,'') as validity,CONVERT(tc.batch_sn,char(64))
+		as batch_sn,tc.count_sn,tc.mark,tc.num_real,tc.location_id,tc.physical_warehouse_id,num_dif,tc.warehouse_id,
+		tc.customer_id,tc.product_id,tc.hide_real_num,tc.hide_batch_sn,
+		case
+		tc.task_type when 'NORMAL' then '标准盘点' when 'CYCLE' then '循环盘点' when
+		'DYNAMIC' then '动态盘点' else '其他' end as task_type,
+		tc.product_status,
+		case tc.status
+		when 'INIT' then '未开始'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		when 'ON_FIRST' then '初盘中'
+		when 'OVER_FIRST' then '初盘已回单'
+		when 'ON_SECOND' then '复盘中'
+		when 'OVER_SECOND' then '复盘已回单'
+		when 'ON_THIRD' then '终盘中'
+		else '其他' end as status ,
+		tc.created_user,tc.created_time 
+		FROM wms.task_count tc INNER JOIN (SELECT count_sn
+		FROM wms.task_count WHERE task_id=#{task_id}) t ON tc.count_sn IN
+		(t.count_sn) AND tc.status ='FULFILLED' and tc.is_improved='N';
+	</select>
+	
+	<update id="updateImproved">
+		update wms.task_count
+		set is_improved='Y' where
+		task_id in 
+		<foreach collection="list" item="item7" index="index" open="("
+			separator="," close=")">
+			#{item7.task_id}
+		</foreach>
+	</update>
+	
+
+	<select id="getCountSnByBatchTaskCount" resultType="string">
+		SELECT count_sn FROM wms.batch_task_count where batch_task_sn=#{batch_task_sn}
+	</select>
+	<select id="getTaskNumByCountSnMark" resultType="int">
+			SELECT COUNT(*) AS COUNT
+            FROM wms.task_count tc 
+            INNER JOIN wms.batch_task_count btc ON 
+            btc.batch_task_sn=tc.batch_task_sn${mark}
+            WHERE tc.count_sn=#{count_sn} AND btc.mark=#{mark}
+	</select>
+</mapper>

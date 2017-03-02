@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.WarehouseDao">
+	<select id="selectByWarehouseId" parameterType="Integer"  resultType="com.leqee.wms.entity.Warehouse">
+		select * from warehouse where warehouse_id = #{warehouseId}
+	</select>
+	
+	<select id="selectWarehouseList" resultType="com.leqee.wms.entity.Warehouse">
+		select * from wms.warehouse where is_physical='N' and is_delete = 'N'
+	</select>
+	
+	<select id="selectByWarehouseName" resultType="com.leqee.wms.entity.Warehouse">
+		select * from wms.warehouse where warehous_name=#{warehous_name}
+	</select>
+	
+	<select id="selectWarehouseIdList" resultType="int">
+		select warehouse_id from warehouse where is_delete = 'N'
+	</select>
+	
+	<select id="selectPhysicalWarehouseList" resultType="com.leqee.wms.entity.Warehouse">
+		select * from wms.warehouse where is_physical = 'Y' and is_delete = 'N'
+	</select>
+	
+	<select id="selectPhysicalWarehouseIdList" resultType="int">
+		select warehouse_id from wms.warehouse where is_physical = 'Y' and is_delete = 'N'
+	</select>
+	
+	<select id="selectAllWarehouseList" resultType="com.leqee.wms.entity.Warehouse">
+		select * from wms.warehouse where is_delete = 'N'
+	</select>
+	
+	<select id="selectLogicWarehousesByPhysicalWarehouseId" parameterType="java.lang.Integer" resultType="com.leqee.wms.entity.Warehouse">
+		select * 
+		from 
+			wms.warehouse 
+		where 
+			physical_warehouse_id = #{physicalWarehouseId}
+		and is_physical='N' and is_delete = 'N'
+	</select>
+	
+	<select id="getWarehouseListByUser" resultType="map">
+		SELECT
+			w.*,
+		IF (su.id IS NULL, 0, 1) checked
+		FROM
+			wms.warehouse w
+		LEFT JOIN sys_user su ON FIND_IN_SET(
+			w.warehouse_id,
+			su.warehouse_ids
+		)
+		AND su.id = #{userId};
+	</select>
+	
+</mapper>

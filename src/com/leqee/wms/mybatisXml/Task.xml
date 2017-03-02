@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.TaskDao">
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.Task">
+		<selectKey keyProperty="task_id" resultType="Integer">
+            select LAST_INSERT_ID()
+	    </selectKey>
+		insert into wms.task(
+			task_id,physical_warehouse_id,customer_id,task_type,task_status,task_level,
+			from_pl_id,to_location_id,to_pl_id,product_id,quantity,first_bind_user_id,
+			first_bind_time,second_bind_user_id,second_bind_time,cancel_reason,batch_task_id,
+			batch_pick_id,operate_platform,created_user,created_time,last_updated_user,last_updated_time
+		)values(
+			#{task_id},#{physical_warehouse_id},#{customer_id},#{task_type},#{task_status},#{task_level},
+			#{from_pl_id},#{to_location_id},#{to_pl_id},#{product_id},#{quantity},#{first_bind_user_id},
+			#{first_bind_time},#{second_bind_user_id},#{second_bind_time},#{cancel_reason},#{batch_task_id},
+			#{batch_pick_id},#{operate_platform},#{created_user},now(),#{last_updated_user},now()
+		)
+	</insert>
+	
+	<insert id="insertTask" parameterType="com.leqee.wms.entity.Task">
+		<selectKey keyProperty="task_id" resultType="Integer">
+            select LAST_INSERT_ID()
+	    </selectKey>
+	    insert into wms.task(physical_warehouse_id,customer_id,task_type,task_status,task_level,
+			from_pl_id,to_location_id,to_pl_id,product_id,quantity,
+			operate_platform,created_user,created_time,last_updated_user,last_updated_time,order_id,batch_pick_id,mark)
+	    values (#{physical_warehouse_id,jdbcType=INTEGER},#{customer_id,jdbcType=INTEGER},
+	      #{task_type,jdbcType=CHAR}, #{task_status,jdbcType=CHAR}, #{task_level,jdbcType=INTEGER},
+	      #{from_pl_id,jdbcType=INTEGER},#{to_location_id,jdbcType=INTEGER}, #{to_pl_id,jdbcType=INTEGER},  
+	      #{product_id,jdbcType=INTEGER},#{quantity,jdbcType=INTEGER},#{operate_platform,jdbcType=CHAR},
+	      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP},
+	      #{last_updated_user,jdbcType=VARCHAR}, #{last_updated_time,jdbcType=TIMESTAMP},#{order_id,jdbcType=INTEGER},#{batch_pick_id,jdbcType=INTEGER},#{mark,jdbcType=INTEGER})
+	</insert>
+	
+	
+	<select id="selectByTaskIdForUpdate" parameterType="Integer" resultType="com.leqee.wms.entity.Task">
+		select * from wms.task where task_id = #{taskId} for update
+	</select>
+	
+	<!-- 更新task任务状态  by hzhang1-->
+	<update id="updateTaskByTaskId" parameterType="map">
+		update wms.task
+		set task_status = #{taskStatus},last_updated_user =
+		#{actionUser},
+		<if test="operatePlatform != '' and operatePlatform != null">
+			operate_platform = #{operatePlatform},
+		</if>
+		<if test="firstBindUserId != '' and firstBindUserId != null">
+			first_bind_user_id = #{firstBindUserId},
+			first_bind_time = #{firstBindTime},
+		</if>
+		<if test="secondBindUserId != '' and secondBindUserId != null">
+			second_bind_user_id = #{secondBindUserId},
+			second_bind_time = #{secondBindTime},
+		</if>
+		<if test="toLocationId != '' and toLocationId != null">
+			to_location_id = #{toLocationId},
+		</if>
+		last_updated_time = now()
+		where task_id = #{taskId}
+	</update>
+
+	<!-- 补货(根据taskIdList查找补货任务) by hzhang1 -->
+	<select id="selectTaskByIdList" parameterType="map" resultType="map">
+		select t.task_id,t.quantity,wc.name,case t.task_level
+		when 1 then '一般补货'
+		when 3 then '紧急补货'
+		else '其他' end as task_level
+		,ifnull(bt.batch_task_sn,'') as batch_task_sn,t.created_time,t.last_updated_user,
+		l.location_barcode,p.barcode,p.product_name,pl.batch_sn,pl.validity,
+		(SELECT location_barcode from wms.location where location_id = t.to_location_id) as to_location_barcode,
+		(SELECT location_barcode from wms.location where location_id = lr.location_id) as bh_location_barcode,
+		case t.task_status
+		when 'INIT' then '未处理'
+		when 'BINDED' then '已分配'
+		when 'IN_PROCESS' then '执行中'
+		when 'UNSHELVE' then '执行中（已下架）'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		else '状态有误' end as task_status,
+		case t.cancel_reason 
+		when 2 then '数量异常'
+		when 3 then '质量异常'
+		when 4 then '无理由取消'
+		else '-' end as cancel_reason,w.warehouse_id,w.warehouse_name
+		from wms.task t
+		inner join wms.product p on p.product_id = t.product_id
+		inner join wms.product_location pl on pl.pl_id = t.from_pl_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.warehouse_customer wc on t.customer_id = wc.customer_id
+		left join wms.batch_task bt on t.batch_task_id = bt.batch_task_id
+		left join wms.label_replenishment lr on lr.task_id = t.task_id
+		where t.task_id in
+		<foreach collection="taskIdList" item="taskId" open="("
+			separator="," close=")">
+			#{taskId}
+		</foreach>
+		<if test="taskStatus != '' and taskStatus != null">
+			and t.task_status = #{taskStatus}
+		</if>
+		and t.task_status not in ('CANCEL','FULFILLED')
+		order by l.location_barcode
+	</select>
+
+	<!-- 补货(根据taskIdList更新补货任务状态) by hzhang1 -->
+	<update id="updateTaskByIdList" parameterType="map">
+		update wms.task set task_status = #{task_status},last_updated_user =
+		#{actionUser},batch_task_id =#{batchTaskId},last_updated_time = now(),
+		first_bind_user_id = #{userId},second_bind_user_id = #{userId},
+		first_bind_time = now(),second_bind_time = now()
+		where  task_status not in ('CANCEL','FULFILLED') and task_id in
+		<foreach collection="taskIdList" item="taskId" open="("
+			separator="," close=")">
+			#{taskId}
+		</foreach>
+	</update>
+
+	<!-- 补货(取消补货任务) by hzhang1 -->
+	<update id="updateTaskCancel" parameterType="map">
+		update wms.task set task_status = #{taskStatus},
+		cancel_reason = #{cancelReason},last_updated_user =
+		#{actionUser},last_updated_time = now()
+		where task_id = #{taskId}
+	</update>
+
+	<!-- 补货任务取消加回库存数量  by hzhang1-->
+	<update id="addProductLocationNumForCancel">
+		update wms.task t
+		inner join wms.product_location pl on t.from_pl_id = pl.pl_id
+		set qty_available = 0,qty_freeze = t.quantity,product_location_status = #{status}
+		where t.task_id = #{taskId}
+	</update>
+	
+	<update id="updateProductLocationNumForCancelNoReason">
+		update wms.product_location set qty_available = qty_available + #{quantity}
+		where pl_id = #{plId}
+	</update>
+	
+	<update id="updateProductLocationNumForCancelByPlId">
+		update wms.product_location set qty_freeze = qty_freeze + #{quantity}
+		where pl_id = #{plId}
+	</update>
+	
+	<update id="updateProductLocationNumForCancel">
+		update wms.product_location set qty_freeze = qty_freeze + qty_available,qty_available = 0,product_location_status = #{status}
+		where location_id = #{locationId} and product_id = #{productId}
+	</update>
+
+	<!-- 补货更新任务  by hzhang1 -->
+	<update id="updateTaskById" parameterType="map">
+		update wms.task set to_location_id = #{locationId},last_updated_user = #{actionUser},last_updated_time = now()
+		<if test="taskStatus != '' and taskStatus != null">
+			,task_status = #{taskStatus}
+		</if>
+		where task_id = #{taskId}
+	</update>
+	
+	<!-- RF补货获取任务 -->
+	<select id="selectTaskFromRF" parameterType="map" resultType="map">
+		select t.task_id,l.location_barcode,p.barcode,t.quantity,pl.batch_sn from wms.task
+		t
+		inner join wms.product_location pl on t.from_pl_id = pl.pl_id
+		inner
+		join wms.location l on pl.location_id = l.location_id
+		inner join
+		wms.product p on t.product_id = p.product_id
+		where
+		t.task_status in ('INIT','BINDED') and
+		t.physical_warehouse_id = #{physicalWarehouseId} and
+		t.task_level = #{taskLevel} and
+		t.task_type =
+		#{taskType}
+		<if test="customerId != '' and customerId != null">
+			and t.customer_id = #{customerId}
+		</if>
+		<if test="customers != '' and customers != null">
+			and t.customer_id in
+			<foreach collection="customers" item="customer" open="("
+				separator="," close=")">
+				#{customer.customer_id}
+			</foreach>
+		</if>
+		order by t.created_time,l.pick_seq desc limit 1
+	</select>
+
+	<!-- RF补货根据原库位获取商品信息 -->
+	<select id="selectProductFromRF" parameterType="map" resultType="map">
+		select 
+		t.task_id,pl.product_id,p.barcode,p.product_name,t.quantity,CONVERT(pl.validity,char(64)) as validity,pl.serial_number,pl.status,pl.batch_sn,
+		pl.warehouse_id,w.warehouse_name
+		from wms.task t
+		inner join wms.product_location pl on t.from_pl_id =
+		pl.pl_id
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.product p on p.product_id = pl.product_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		where
+		l.location_barcode = #{fromLocationBarcode}
+		and t.physical_warehouse_id
+		= #{physicalWarehouseId}
+		and t.task_id = #{taskId}
+		and t.task_type =
+		#{taskType}
+	</select>
+   <!-- 查出当前仓库的所有未完成的紧急补货任务 -->
+   <select id="getAllInitTask" resultType="com.leqee.wms.entity.Task">
+		select *
+        from wms.task
+		where physical_warehouse_id=#{physical_warehouse_id} and task_type='REPLENISHMENT' and task_status='INIT' and task_level=#{task_level}		
+	</select>
+
+   <!-- 查出当前仓库的所有未完成的紧急补货任务 -->
+   <select id="getAllOnStartTask" resultType="com.leqee.wms.entity.Task">
+		select t.*
+        from wms.task t
+        inner join wms.product_location pl on t.from_pl_id=pl.pl_id
+        inner join wms.location l on pl.location_id=l.location_id
+		where t.physical_warehouse_id=#{physical_warehouse_id} 
+		and t.task_type='REPLENISHMENT' 
+		and t.task_status in ('UNSHELVE','IN_PROCESS','BINDED','INIT') 
+		and t.task_level=#{task_level} 
+		and pl.product_id in
+		<foreach collection="list" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		and t.mark=#{mark}
+	</select>
+	
+	 <select id="getAllInitTaskForUpdate" resultType="com.leqee.wms.entity.Task">
+		select t.*
+        from wms.task t
+        inner join wms.product_location pl on t.from_pl_id=pl.pl_id
+		where t.physical_warehouse_id=#{physical_warehouse_id} and t.task_type='REPLENISHMENT' and t.task_status='INIT' and t.task_level=#{task_level} 
+		and pl.product_id in
+		<foreach collection="list" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		for update
+	</select>
+	
+	<!-- 批量取消紧急补货任务 -->
+	<update id="setTaskListCancel">
+		update wms.task set task_status='CANCEL',cancel_reason=1 
+		where task_id in 
+		<foreach collection="updateTaskList" item="task" open="("
+			separator="," close=")">
+			#{task.task_id}
+		</foreach>
+	</update>
+	
+	<!-- 批量插入任务 -->
+	<insert id="insertTaskList">
+		insert into
+		wms.task(physical_warehouse_id,
+		customer_id,task_type,task_level,task_status,from_pl_id,
+		to_location_id,to_pl_id,product_id,quantity,
+		batch_pick_id,order_id,batch_task_id,created_user,created_time,operate_platform)
+		values 
+		<foreach collection="taskList" item="item" index="index"  open=' ' 
+			separator="," close=' '>
+			(
+			#{item.physical_warehouse_id},
+			#{item.customer_id},
+			#{item.task_type},
+			#{item.task_level},
+			#{item.task_status},
+			#{item.from_pl_id},
+			#{item.to_location_id},
+			#{item.to_pl_id},
+			#{item.product_id},
+			#{item.quantity},
+			#{item.batch_pick_id},
+			#{item.order_id},
+			#{item.batch_task_id},
+			#{item.created_user},
+			#{item.created_time},#{item.operate_platform})
+		</foreach>
+	</insert>
+	
+	<update id="updateTaskForWEBBind" >
+		update wms.task set first_bind_user_id=#{0},second_bind_user_id=#{0},first_bind_time=now(),second_bind_time=now()
+		where batch_task_id = #{1} and task_status not in ('EXCEPTION','CANCEL')
+	</update>
+	
+	<select id="getTaskIdByBatchTaskId" resultType="com.leqee.wms.entity.Task">
+		select * from wms.task where batch_task_id = #{0} and task_status not in ('EXCEPTION','CANCEL')
+	</select>
+	
+	<select id="getTaskIdByOrderProcess" parameterType="map" resultType="com.leqee.wms.entity.Task">
+		SELECT * from  wms.order_process op
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.task t  on t.batch_pick_id = bp.batch_pick_id
+		where op.order_id = #{order_id} and t.product_id =#{productId} and op.status ='CANCEL' and t.physical_warehouse_id = #{physicalWarehouseId}
+		and t.to_pl_id >0 
+		
+	</select>
+	
+	<select id="selectCancelProductLocationByOrderId" parameterType="Integer" resultType="map">
+		SELECT t.task_id,t.from_pl_id,t.quantity from order_process op
+		INNER JOIN wms.order_goods og on og.order_id = op.order_id
+		INNER JOIN wms.task t on t.order_id = op.order_id 
+		where op.order_id =#{order_id}  and op.status in ('RESERVED')
+		GROUP BY t.task_id 
+		
+	</select>
+	
+	
+	<update id="updateTaskToPlId">
+		update wms.task set to_pl_id = #{toPlId} ,task_status = 'IN_PROCESS',last_updated_time = now() where task_id = #{taskId}
+	</update>
+	
+	<update id="updateTaskFulfilledAndQty">
+		update wms.task set quantity=#{1},task_status='FULFILLED',last_updated_user=#{2},last_updated_time=now() where task_id = #{0}
+	</update>
+	
+	<update id="updateTaskFromPlId">
+		update wms.task t,wms.product_location pl
+		set t.from_pl_id = #{new_pl_id} where t.task_id = #{task_id} 
+		and t.product_id = pl.product_id and pl.qty_total > 0  and pl.pl_id = #{new_pl_id}
+	</update>
+	
+	<select id="selectTaskByProductId2BatchPicjId" resultType="com.leqee.wms.entity.Task">
+		select * from wms.task where batch_pick_id = #{batch_pick_id} and product_id = #{product_id} and task_status != 'CANCEL'
+	</select>
+	
+	<update id="updateTaskStatusById">
+		update wms.task set task_status = #{task_status},batch_pick_id = 0,last_updated_time = now() where task_id = #{task_id}
+	</update>
+</mapper>

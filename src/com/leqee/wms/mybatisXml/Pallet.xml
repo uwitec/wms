@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.PalletDao">
+ 
+  <!-- 通过条件筛选来查询快递方式，运单数量以及发货时间 --> 
+  <select id="selectPalletShipmentList" resultType="map" parameterType="map">
+  		SELECT  psm.pallet_no,sp.shipping_name,p.shipped_time,s.tracking_number,w.warehouse_name
+  		FROM wms.pallet_shipment_mapping psm
+  		INNER JOIN wms.shipment s ON psm.shipment_id = s.shipment_id 
+  		INNER JOIN wms.pallet p ON p.pallet_no = psm.pallet_no
+  		INNER JOIN wms.shipping sp ON sp.shipping_id = p.shipping_id
+  		inner join wms.warehouse w on w.physical_warehouse_id = p.physical_warehouse_id
+  		where psm.bind_status = 'BINDED' and is_physical = 'Y' and p.ship_status='SHIPPED'
+  			<if test="shippingId != '' and shippingId != null">
+				and	p.shipping_id = #{shippingId}
+			</if>
+			<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+				and	p.physical_warehouse_id = #{physicalWarehouseId}
+			</if>
+			<if test="startTime != null">
+					and p.shipped_time > #{startTime}
+			</if>
+			<if test="endTime != null">
+					and p.shipped_time  <![CDATA[ < ]]> #{endTime}
+			</if>
+			<if test="palletNo != '' and palletNo != null">
+					and psm.pallet_no = #{palletNo}
+			</if>
+		GROUP BY psm.shipment_id
+		order by psm.pallet_no
+	</select>
+	
+	<select id="selectPalletIdListNeedToShipmentByPage" resultType="Integer" parameterType="map">
+  		SELECT  pallet_id
+  		FROM wms.pallet 
+  		where ship_status='SHIPPED'
+  			<if test="shippingId != '' and shippingId != null">
+				and	shipping_id = #{shippingId}
+			</if>
+			<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+				and	physical_warehouse_id = #{physicalWarehouseId}
+			</if>
+			<if test="print != null and print == 1">
+				and	print_count > 0
+			</if>
+			<if test="print != null and print == 0">
+				and	print_count = 0
+			</if>
+			<if test="startTime != null">
+					and shipped_time > #{startTime}
+			</if>
+			<if test="endTime != null">
+					and shipped_time  <![CDATA[ < ]]> #{endTime}
+			</if>
+			<if test="palletNo != '' and palletNo != null">
+					and pallet_no = #{palletNo}
+			</if>
+		order by pallet_id
+	</select>
+	
+	<select id="selectPalletShipmentCount" resultType="Integer" parameterType="map">
+  		SELECT
+			count(s.shipment_id) AS count
+		FROM
+			wms.pallet_shipment_mapping psm
+		INNER JOIN wms.shipment s ON psm.shipment_id = s.shipment_id
+		INNER JOIN wms.pallet p ON p.pallet_no = psm.pallet_no
+		WHERE
+			psm.bind_status = 'BINDED'
+		AND p.ship_status = 'SHIPPED' 
+  			<if test="shippingId != '' and shippingId != null">
+				and	p.shipping_id = #{shippingId}
+			</if>
+			<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+				and	p.physical_warehouse_id = #{physicalWarehouseId}
+			</if>
+			<if test="print != null and print == 1">
+				and	p.print_count > 0
+			</if>
+			<if test="print != null and print == 0">
+				and	p.print_count = 0
+			</if>
+			<if test="startTime != null">
+					and p.shipped_time > #{startTime}
+			</if>
+			<if test="endTime != null">
+					and p.shipped_time  <![CDATA[ < ]]> #{endTime}
+			</if>
+			<if test="palletNo != '' and palletNo != null">
+					and p.pallet_no = #{palletNo}
+			</if>
+	</select>
+	
+	 <select id="selectPalletShipmentListV2" resultType="map">
+  		SELECT  psm.pallet_no,p.shipped_time,s.tracking_number
+  		FROM wms.pallet_shipment_mapping psm
+  		INNER JOIN wms.shipment s ON psm.shipment_id = s.shipment_id 
+  		INNER JOIN wms.pallet p ON p.pallet_no = psm.pallet_no
+  		where  psm.bind_status = 'BINDED' and 
+  		p.pallet_id in 
+  		<foreach collection="list" item="pallet_id" open="("
+			separator="," close=")">
+			#{pallet_id}
+		</foreach>
+		order by p.pallet_id
+	</select>
+	
+	<update id="updatePalletPrintCount">
+	   update wms.pallet set print_count = print_count + 1 where 1
+	   and pallet_no in
+	   <foreach collection="list" item="pallet_id" open="("
+			separator="," close=")">
+			#{pallet_id}
+		</foreach>
+	</update>
+	
+	<select id="selectPalletBySnForUpdate" resultType="com.leqee.wms.entity.Pallet" parameterType="java.lang.String" >
+	    SELECT * from wms.pallet where pallet_no = #{palletSn} for UPDATE
+	</select>
+</mapper>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventoryItemDetailDao">
+	<sql id="Base_Column_List" >
+    inventory_item_detail_id, inventory_item_id, product_id, change_quantity, order_id, 
+    order_goods_id, customer_id, warehouse_id, packbox_customer_id, packbox_warehouse_id, 
+    created_user, created_time, last_updated_user, last_updated_time
+  </sql>
+  
+  <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.InventoryItemDetail" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from inventory_item_detail
+    where inventory_item_detail_id = #{inventory_item_detail_id,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.InventoryItemDetail" >
+      <selectKey keyProperty="inventory_item_detail_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+     
+    insert into inventory_item_detail (inventory_item_detail_id, inventory_item_id, 
+      product_id, change_quantity, order_id, 
+      order_goods_id, customer_id, warehouse_id, 
+      packbox_customer_id, packbox_warehouse_id, 
+      created_user, created_time, last_updated_user, 
+      last_updated_time,oms_order_goods_sn,order_goods_oms_id)
+    values (#{inventory_item_detail_id,jdbcType=INTEGER}, #{inventory_item_id,jdbcType=INTEGER}, 
+      #{product_id,jdbcType=INTEGER}, #{change_quantity,jdbcType=INTEGER}, #{order_id,jdbcType=INTEGER}, 
+      #{order_goods_id,jdbcType=INTEGER}, #{customer_id,jdbcType=INTEGER}, #{warehouse_id,jdbcType=INTEGER}, 
+      #{packbox_customer_id,jdbcType=INTEGER}, #{packbox_warehouse_id,jdbcType=INTEGER}, 
+      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP}, #{last_updated_user,jdbcType=VARCHAR}, 
+      #{last_updated_time,jdbcType=TIMESTAMP},#{oms_order_goods_sn,jdbcType=VARCHAR},#{order_goods_oms_id,jdbcType=INTEGER})
+  </insert>
+  
+  <insert id="batchInsert">
+		insert into inventory_item_detail (inventory_item_detail_id, inventory_item_id, 
+      product_id, change_quantity, order_id, 
+      order_goods_id, customer_id, warehouse_id, 
+      packbox_customer_id, packbox_warehouse_id, 
+      created_user, created_time, last_updated_user, 
+      last_updated_time,order_prepack_id) values 
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.inventory_item_detail_id}, #{item.inventory_item_id}, 
+      #{item.product_id}, #{item.change_quantity}, #{item.order_id}, 
+      #{item.order_goods_id}, #{item.customer_id}, #{item.warehouse_id}, 
+      #{item.packbox_customer_id}, #{item.packbox_warehouse_id}, 
+      #{item.created_user}, #{item.created_time}, #{item.last_updated_user}, 
+      #{item.last_updated_time},#{item.order_prepack_id})
+		</foreach>
+	</insert>
+  
+  <select id="selectByOrderId" resultType="com.leqee.wms.entity.InventoryItemDetail" parameterType="java.lang.Integer" >
+    SELECT 
+    	*
+    FROM 
+    	wms.inventory_item_detail
+    WHERE 
+    	order_id = #{orderId}
+  </select>
+  
+  <select id="selectByOrderIdList" resultType="com.leqee.wms.entity.InventoryItemDetail" parameterType="list" >
+    SELECT 
+    	*
+    FROM 
+    	wms.inventory_item_detail
+    WHERE 
+    	order_id IN
+    	<foreach collection="list" item="orderIdList" open="(" separator="," close=")">
+			#{orderIdList}
+		</foreach>
+  </select>
+  
+  <select id="selectByOrderIdAndGoodsId" resultType="com.leqee.wms.entity.InventoryItemDetail" parameterType="map">
+  	select * from wms.inventory_item_detail where order_id =  #{order_id} and order_goods_id = #{order_goods_id}
+  </select>
+	
+	
+<select id="selectByReturnOrderId" resultType="com.leqee.wms.entity.InventoryItemDetail" parameterType="java.lang.Integer" >
+    SELECT SUM(change_quantity) as change_quantity,iid.* from wms.inventory_item_detail iid
+    WHERE 
+    	order_id = #{orderId} GROUP BY inventory_item_id
+  </select>
+</mapper>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ProductPrepackageDao">
+	<insert id="insert" parameterType="com.leqee.wms.entity.ProductPrepackage">
+		<selectKey resultType="java.lang.Integer" keyProperty="product_id"
+			order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.product_prepackage(
+			  prepackage_product_id,
+			  component_product_id,
+			  number
+		)values(
+			  #{prepackage_product_id},
+			  #{component_product_id},
+			  #{number}
+		)
+	</insert>
+	
+</mapper>

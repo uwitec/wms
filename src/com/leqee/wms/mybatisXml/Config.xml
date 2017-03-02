@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ConfigDao">
+
+	<select id="getConfigValueByFrezen" resultType="string">
+	
+		SELECT config_value FROM wms.config WHERE physical_warehouse_id=#{physical_warehouse_id} AND
+		customer_id=#{customer_id} AND config_name=#{config_name}
+		UNION
+		SELECT config_value FROM wms.config WHERE physical_warehouse_id=#{physical_warehouse_id} AND
+		customer_id=0 AND config_name=#{config_name}
+		UNION
+		SELECT config_value FROM wms.config WHERE physical_warehouse_id=0 AND
+		customer_id=0 AND config_name=#{config_name}
+		LIMIT 1
+	</select>
+	
+	
+	<select id="checkSuperRecheckConfigForOrder" resultType="map">
+		SELECT c.config_value,oi.brand_name from wms.config c 
+		INNER JOIN wms.order_info oi on oi.customer_id = c.customer_id 
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id and w.physical_warehouse_id = c.physical_warehouse_id
+		where oi.order_id = #{0} and c.config_name = 'SUPER_RECHECK'
+	</select>
+	
+	
+	<select id="getConfigValueByConfigName" resultType="String">
+		SELECT config_value from wms.config 
+		where config_name = #{ConfigName}
+	</select>
+</mapper>

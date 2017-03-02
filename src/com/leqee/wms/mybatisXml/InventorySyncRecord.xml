@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventorySyncRecordDao">
+	
+   <sql id="Base_Column_List" >
+    inventory_sync_record, inventory_item_detail_id, customer_id, created_stamp
+  </sql>
+
+ <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.InventorySyncRecord" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from inventory_sync_record
+    where inventory_sync_record = #{inventory_sync_record,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.InventorySyncRecord" >
+    insert into inventory_sync_record (inventory_sync_record, inventory_item_detail_id, 
+      customer_id, created_stamp)
+    values (#{inventory_sync_record,jdbcType=INTEGER}, #{inventory_item_detail_id,jdbcType=INTEGER}, 
+      #{customer_id,jdbcType=INTEGER}, #{created_stamp,jdbcType=TIMESTAMP})
+  </insert>
+   
+</mapper>

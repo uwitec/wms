@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.TaskImproveDao">
+	
+
+	<insert id="batchInsert">
+		insert into
+		wms.task_improve
+		(task_improve_sn,num,physical_warehouse_id,warehouse_id,product_id,product_status,status,created_user,created_time,user,last_update_time)
+		values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.task_improve_sn},
+			#{item.num},
+			#{item.physical_warehouse_id},
+			#{item.warehouse_id},
+			#{item.product_id},
+			#{item.product_status},
+			#{item.status},
+			#{item.created_user},
+			now(),'',now())
+		</foreach>
+	</insert>
+	
+	
+	<insert id="insertTcplList">
+		insert into
+		wms.tc_pl_mapping
+		(count_sn,num,task_id,pl_id,created_time)
+		values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.count_sn},
+			#{item.num},
+			#{item.task_id},
+			#{item.pl_id},
+			now())
+		</foreach>
+	</insert>
+	
+	
+	<!-- API获取VarianceImproveTaskResDomain -->
+	<select id="selectVarianceImproveTaskResDomainList" parameterType="map"
+		resultType="com.leqee.wms.api.response.domain.VarianceImproveTaskResDomain">
+		SELECT
+		id as task_improve_id ,
+		task_improve_sn,
+		physical_warehouse_id ,
+		warehouse_id ,
+		p.customer_id ,
+		p.sku_code,
+		ti.status,
+		ti.product_status as status_id,
+		ti.num,
+		ti.last_update_time AS modified_time
+		FROM
+			wms.task_improve ti
+		INNER JOIN wms.product p ON ti.product_id = p.product_id
+		WHERE
+		p.customer_id = #{customerId}
+		AND ti.last_update_time <![CDATA[ >= ]]>
+		#{startModifiedTime}
+		AND ti.last_update_time <![CDATA[ < ]]>
+		#{endModifiedTime}
+		limit #{offset}, #{rows}
+
+	</select>
+	
+	
+	<select id="getHistoryTaskImprove" resultType="map">
+	    SELECT wc.name,p.barcode,p.product_name ,t.`num` ,t.`created_time` ,wa.warehouse_name
+	        FROM  wms.`product` p
+            INNER JOIN wms.`task_improve` t ON p.`product_id`=t.`product_id`
+            INNER JOIN wms.`warehouse_customer` wc ON p.`customer_id`=wc.`customer_id`
+            inner join wms.warehouse wa on t.warehouse_id=wa.warehouse_id
+	        where t.physical_warehouse_id=#{physical_warehouse_id} 
+	       <if test="customer_id > 0">
+			AND p.customer_id = #{customer_id}
+		   </if>
+		   <if test="end != '' and end != null">
+			and t.created_time <![CDATA[ <= ]]> #{end}
+		   </if>
+		   <if test="start != '' and start != null">
+			and t.created_time > #{start}
+		   </if>
+	</select>
+	
+	<select id="getHistoryTaskImproveByPage" resultType="map">
+	    SELECT wc.name,p.barcode,p.product_name ,t.`num` ,t.`created_time` ,wa.warehouse_name
+	        FROM  wms.`product` p
+            INNER JOIN wms.`task_improve` t ON p.`product_id`=t.`product_id`
+            INNER JOIN wms.`warehouse_customer` wc ON p.`customer_id`=wc.`customer_id`
+            inner join wms.warehouse wa on t.warehouse_id=wa.warehouse_id
+	        where t.physical_warehouse_id=#{physical_warehouse_id} 
+	       <if test="customer_id > 0">
+			AND p.customer_id = #{customer_id}
+		   </if>
+		   <if test="end != '' and end != null">
+			and t.created_time <![CDATA[ <= ]]> #{end}
+		   </if>
+		   <if test="start != '' and start != null">
+			and t.created_time > #{start}
+		   </if>
+	</select>
+	
+</mapper>

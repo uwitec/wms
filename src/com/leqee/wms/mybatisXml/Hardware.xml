@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.HardwareDao">
+
+	<select id="getCountHardwareCode" parameterType="String"
+		resultType="int">
+		select count(hardwarecode) from wms.hardware where
+		hardwarecode = #{hardwarecode}
+	</select>
+
+	<select id="getCountHardwareCodeAndPWarehouse" parameterType="com.leqee.wms.entity.Hardware"
+		resultType="int">
+		select count(hardwarecode) from wms.hardware where
+		hardwarecode = #{hardwarecode} and
+		physical_warehouse_id=#{physical_warehouse_id}
+	</select>
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.Hardware">
+		insert into wms.hardware (
+		hardwarecode,
+		physical_warehouse_id
+		)
+		values (
+		#{hardwarecode,jdbcType=VARCHAR},
+		#{physical_warehouse_id,jdbcType=INTEGER}
+		)
+	</insert>
+
+
+</mapper>

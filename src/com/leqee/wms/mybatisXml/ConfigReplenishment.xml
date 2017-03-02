@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ConfigReplenishmentDao">
+	<select id="selectConfigByJob" resultType="com.leqee.wms.entity.ConfigReplenishment">
+		select cr.* from wms.config_replenishment cr
+		inner join wms.product p on p.product_id = cr.product_id and p.product_type in ('GOODS','PREPACKAGE')
+		where cr.physical_warehouse_id = #{physicalWarehouseId}
+		and cr.customer_id = #{customerId}
+		<if test=" productId != 0">
+		and cr.product_id =#{productId}
+		</if>
+		<if test="locationType =='PIECE'">
+		and cr.piece_location_min_quantity>0
+		</if>
+		<if test="locationType=='BOX'">
+		and cr.box_location_min_quantity>0
+		</if>
+		and p.is_delete = 'N' 
+        and p.spec is not null and p.spec !=0
+	</select>
+	
+</mapper>

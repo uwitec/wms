@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ScheduleQueueCountDao">
+
+	<select id="queryJob" resultType="com.leqee.wms.entity.ScheduleQueueCount">
+		select * from wms.schedule_queue_count where
+		physical_warehouse_id=#{physical_warehouse_id}
+		<if test="customer_id != 0">
+			and customer_id=#{customer_id} 
+		</if>
+		<if test="time != null and time != ''">
+			and created_time >  concat( #{time},' 00:00:00')
+			and created_time <![CDATA[ < ]]> concat( #{time},' 23:59:59') 
+		</if>
+		
+		<if test="task_type != null  and task_type != ''">
+			and task_type=#{task_type} 
+		</if>
+		
+		<if test="status != null  and status != ''">
+			 and status=#{status}
+		</if>
+		order by created_time desc
+	</select>
+	
+	<select id="queryJobByPage" resultType="com.leqee.wms.entity.ScheduleQueueCount">
+		select * from wms.schedule_queue_count where
+		physical_warehouse_id=#{physical_warehouse_id}
+		<if test="customer_id != 0">
+			and customer_id=#{customer_id} 
+		</if>
+		<if test="time != null and time != ''">
+			and created_time >  concat( #{time},' 00:00:00')
+			and created_time <![CDATA[ < ]]> concat( #{time},' 23:59:59') 
+		</if>
+		
+		<if test="task_type != null  and task_type != ''">
+			and task_type=#{task_type} 
+		</if>
+		
+		<if test="status != null  and status != ''">
+			 and status=#{status}
+		</if>
+		and location_type!='VARIANCE_MINUS_LOCATION' and location_type !='VARIANCE_ADD_LOCATION'
+		order by created_time desc
+	</select>
+	
+	<insert id="insert" parameterType="com.leqee.wms.entity.ScheduleQueueCount">
+	    <selectKey keyProperty="queue_id" resultType="java.lang.Integer">
+			select LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.schedule_queue_count(
+		queue_id,count_sn,physical_warehouse_id,customer_id,task_type,
+		hide_real_num,hide_batch_sn,location_type,from_location_barcode,to_location_barcode,barcode,status,
+		created_user,created_time,last_updated_user,last_updated_time,num
+		)values(
+		#{sqc.queue_id},#{sqc.count_sn},#{sqc.physical_warehouse_id},#{sqc.customer_id},#{sqc.task_type},
+		#{sqc.hide_real_num},#{sqc.hide_batch_sn},#{sqc.location_type},#{sqc.from_location_barcode},#{sqc.to_location_barcode},#{sqc.barcode},#{sqc.status},
+		#{sqc.created_user},now(),#{sqc.created_user},now(),#{sqc.num}
+		)
+	</insert>
+	
+	<select id="getScheduleQueueCountByQueueId" resultType="com.leqee.wms.entity.ScheduleQueueCount">
+	    select * from wms.schedule_queue_count where queue_id= #{queue_id}
+	</select>
+	
+	<update id="updateSqcStatus">
+	    update wms.schedule_queue_count  set status=#{status},num=#{num} where queue_id= #{queue_id}
+	</update>
+	
+	<select id="getProductLoactionByCount" resultType="map">
+	    select lo.location_id,pl.product_id,convert(ifnull(pl.validity,'1970-01-01 00:00:00'),char(64)) as validity,warehouse_id, ifnull(pl.batch_sn,'') as batch_sn,sum(pl.qty_total) as qty_total,pl.status as product_status,lo.physical_warehouse_id,p.customer_id  from wms.product_location pl 
+	    inner join wms.location lo on pl.location_id=lo.location_id
+	    inner join wms.product p on pl.product_id=p.product_id
+	    where lo.physical_warehouse_id=#{physical_warehouse_id} and  p.product_type !='PREPACKAGE' 
+	    and  p.customer_id !=27
+	     <if test="customer_id != null  and customer_id != 0">
+			and p.customer_id =#{customer_id}
+		</if>
+	    <if test="location_type != null  and location_type == 'PICKANDSTOCK'">
+			and lo.location_type in ('PIECE_PICK_LOCATION','BOX_PICK_LOCATION','STOCK_LOCATION')
+		</if>
+		<if test="location_type != null  and location_type == 'PICK_LOCATION'">
+			and lo.location_type in ('PIECE_PICK_LOCATION','BOX_PICK_LOCATION')
+		</if>
+	   <if test="location_type != null  and location_type != 'PICK_LOCATION' and location_type != 'PICKANDSTOCK'">
+			and lo.location_type =#{location_type}
+		</if>
+		<if test="from_location_barcode != null  and from_location_barcode != ''">
+			and lo.location_barcode >= #{from_location_barcode}
+		</if>
+		<if test="to_location_barcode != null  and to_location_barcode != ''">
+			and lo.location_barcode <![CDATA[ <= ]]> #{to_location_barcode}
+		</if>
+		<if test="barcode != null  and barcode != ''">
+			and p.barcode = #{barcode}
+		</if>
+		<if test="hide_batch_sn != null  and hide_batch_sn != 0">
+			group by product_id,location_id,validity,batch_sn,warehouse_id
+			order by product_id,location_id,validity,batch_sn,warehouse_id
+		</if>
+		<if test="hide_batch_sn != null  and hide_batch_sn == 0">
+			group by product_id,location_id,batch_sn,warehouse_id
+			order by product_id,location_id,batch_sn,warehouse_id
+		</if>
+	</select>
+	
+	
+	<select id="getProductLoactionByCountByHand" resultType="map">
+	 select lo.location_id,pl.product_id,convert(ifnull(pl.validity,'1970-01-01 00:00:00'),char(64)) as validity,sum(pl.qty_total) as qty_total,pl.status as product_status,lo.physical_warehouse_id,p.customer_id  from wms.product_location pl 
+	    inner join wms.location lo on pl.location_id=lo.location_id
+	    inner join wms.product p on pl.product_id=p.product_id
+	    where lo.physical_warehouse_id=#{physical_warehouse_id} and  p.product_type !='PREPACKAGE'
+			and p.customer_id =#{customer_id} and pl.warehouse_id=#{warehouse_id}
+			and lo.location_barcode = #{location_barcode}
+			and p.barcode = #{barcode}
+			and pl.status = #{status}
+			group by product_id,location_id
+			order by product_id,location_id
+	</select>
+	
+	
+	<select id="getProductLoactionByCountByHandNotIn" resultType="int">
+	 select ifnull(sum(pl.qty_total),0) as qty_total
+	    from wms.product_location pl 
+	    inner join wms.location lo on pl.location_id=lo.location_id
+	    inner join wms.product p on pl.product_id=p.product_id
+	    where lo.physical_warehouse_id=#{physical_warehouse_id} and  p.product_type !='PREPACKAGE'
+			and p.customer_id =#{customer_id} and pl.warehouse_id != #{warehouse_id}
+			and lo.location_barcode = #{location_barcode}
+			and p.barcode = #{barcode}
+			and pl.status = #{status}
+	</select>
+</mapper>

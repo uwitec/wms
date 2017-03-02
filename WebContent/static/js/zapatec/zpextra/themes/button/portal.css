@@ -1,0 +1,53 @@
+/* $Id: portal.css 4584 2006-09-28 15:37:42Z smaxim $ */
+.zpButtonPortalContainer, .zpButtonImagePortalContainer{
+  padding: 0;
+  border: 0;
+}
+
+.zpButtonImagePortalContainer .internalContainer{
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.zpButtonPortalContainer .internalContainer{
+  background-color:#fff;
+  cursor: pointer;
+  margin: 0;
+  font-family: Helvetica, Arial, Verdana, Sans-serif;
+  width:100%;
+  position:relative;
+  font-size:11px;
+  font-weight:bold;
+  padding:5px 10px 3px;
+  text-transform:uppercase;
+}
+
+.zpButtonPortalContainer .internalContainer img{
+  border: 0;
+}
+
+.zpButtonPortalContainer .disabled .internalContainer{
+  filter: Alpha(Opacity=50);
+  -moz-opacity: 0.50;
+/*  border: 1px solid #ccc;*/
+}
+
+.zpButtonPortalContainer .mouseOut .internalContainer{
+ /* border-top: 1px solid #ccc;
+  border-bottom:1px solid #ccc;*/
+  background: #fff url(portal/bgoff.gif) top left repeat-x;
+}
+
+.zpButtonPortalContainer .mouseOver .internalContainer{
+ /* border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc; */
+  background: #fff url(portal/bgon.gif) top left repeat-x;
+  color:#034895;
+}
+
+
+.zpButtonPortalContainer .mouseDown .internalContainer{
+/*  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;*/
+}

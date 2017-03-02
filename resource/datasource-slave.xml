@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx" 
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd 
+       http://www.springframework.org/schema/aop 
+       http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+<bean id="dataSourceSlave" class="org.apache.commons.dbcp.BasicDataSource">
+  <property name="driverClassName">
+    <value>com.mysql.jdbc.Driver</value>
+  </property>
+  <!-- localhost -->
+  <!--  
+  <property name="username">
+    <value>root</value>
+  </property>
+  <property name="password">
+    <value>123456</value>
+  </property>
+  <property name="url">
+    <value>jdbc:mysql://127.0.0.1:3306/wms?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</value>
+  </property>
+  -->
+  
+   
+  <!-- 2.11 
+  <property name="username">
+    <value>dev</value>
+  </property>
+  <property name="password">
+    <value>wJSdQVNvS6PqN8wG</value>
+  </property>
+  <property name="url">
+    <value>jdbc:mysql://127.0.0.1:33306/wms?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</value>
+  </property>
+
+    -->
+    
+  
+  <!-- RDS TEST -->
+  <!--    --> 
+  <property name="username">
+    <value>dev</value>
+  </property>
+  <property name="password">
+    <value>I2pzbjkI1Iwt8SXl</value>
+  </property>
+  <property name="url">
+    <value>jdbc:mysql://rm-bp11p54gwj0gp669uo.mysql.rds.aliyuncs.com:3306/wms?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</value>
+  </property>
+
+  
+  <!-- ERP.WMS TEST -->
+  <!-- 
+  <property name="username">
+    <value>office_test</value>
+  </property>
+  <property name="password">
+    <value>pz1ytq1WCT2Z2bNR</value>
+  </property>
+  <property name="url">
+    <value>jdbc:mysql://rdsjjw98q0455p35wi06o.mysql.rds.aliyuncs.com:3306/wms?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</value>
+  </property>
+  -->  
+  <property name="initialSize">
+  
+  	<value>10</value>
+  </property>
+  <property name="minIdle">
+  	<value>1</value>
+  </property>
+  <property name="maxIdle">
+  	<value>25</value>
+  </property>
+  
+  <!-- 超时等待时间 -->
+  <property name="maxWait">
+  	<value>60000</value>
+  </property> 
+  <!-- 每隔一个小时检查一次连接    单位为MS-->
+  <property name="minEvictableIdleTimeMillis">
+  	<value>360000</value>
+  </property>
+  <!-- 长时间不用连接，将连接回收 -->
+  <property name="removeAbandoned">
+  	<value>true</value>
+  </property>
+  <!-- 如果连接180S没有使用，则认为连接可以被回收 -->
+  <property name="removeAbandonedTimeout">
+ 	<value>180</value> 
+  </property>
+  <!-- SQL查询,用来验证从连接池取出的连接 -->
+  <property name="validationQuery">
+	<value>SELECT 1</value>
+  </property>
+  <!-- 取出连接前进行检验 --> 
+  <property name="testOnBorrow">
+  	<value>false</value>
+  </property>
+</bean>
+</beans>

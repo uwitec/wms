@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShipmentDetailDao">
+  
+  <!-- 通过shipmentId查询shipmentDetail -->
+  <select id="selectByShipmentId" resultType="com.leqee.wms.entity.ShipmentDetail" parameterType="java.lang.Integer" >
+    SELECT 
+    	*
+    FROM 
+    	wms.shipment_detail
+    WHERE 
+    	shipment_id = #{shipmentId}
+  </select>
+  
+  <!-- 插入 -->
+  <insert id="insert" parameterType="com.leqee.wms.entity.ShipmentDetail" useGeneratedKeys="true" keyProperty="shipment_detail_id">
+    INSERT INTO 
+    	wms.shipment_detail 
+    	(shipment_detail_id, shipment_id, order_goods_id, product_id, goods_name, goods_number, serial_number)
+	VALUES
+		(#{shipment_detail_id,jdbcType=INTEGER}, #{shipment_id,jdbcType=INTEGER}, #{order_goods_id,jdbcType=INTEGER}, 
+		 #{product_id,jdbcType=INTEGER}, #{goods_name,jdbcType=VARCHAR}, #{goods_number,jdbcType=INTEGER}, 
+		 #{serial_number,jdbcType=VARCHAR});
+  </insert>
+  
+  <insert id="batchInsert">
+  	INSERT INTO 
+    	wms.shipment_detail 
+    	(shipment_detail_id, shipment_id, order_goods_id, product_id, goods_name, goods_number, serial_number)
+	VALUES
+	<foreach collection="shipmentDetailList" item="item" index="index"
+			separator=",">
+		(#{item.shipment_detail_id,jdbcType=INTEGER}, #{item.shipment_id,jdbcType=INTEGER}, #{item.order_goods_id,jdbcType=INTEGER}, 
+		 #{item.product_id,jdbcType=INTEGER}, #{item.goods_name,jdbcType=VARCHAR}, #{item.goods_number,jdbcType=INTEGER}, 
+		 #{item.serial_number,jdbcType=VARCHAR})
+		</foreach>
+  </insert>
+  <!-- 更新 -->
+  <update id="update" parameterType="com.leqee.wms.entity.ShipmentDetail">
+		UPDATE 
+			wms.shipment_detail
+	    SET 
+	    	shipment_id = #{shipment_id,jdbcType=INTEGER}, 
+	    	order_goods_id = #{order_goods_id,jdbcType=INTEGER}, 
+	    	product_id = #{product_id,jdbcType=INTEGER}, 
+	    	goods_name = #{goods_name,jdbcType=VARCHAR}, 
+	    	goods_number = #{goods_number,jdbcType=INTEGER}, 
+	    	serial_number = #{serial_number,jdbcType=VARCHAR}
+	    WHERE 
+	    	shipment_detail_id = #{shipment_detail_id,jdbcType=INTEGER}
+	</update>
+	
+	<update id="batchUpdateGoodsNumber">
+		update wms.shipment_detail 
+		set goods_number = goods_number+1
+		where shipment_id in 
+		<foreach collection="shipmentList" item="shipmentId" open="("
+			separator="," close=")">
+			#{shipmentId}
+		</foreach>
+		and order_goods_id in 
+		<foreach collection="orderGoodsIdList" item="orderGoodsId" open="("
+			separator="," close=")">
+			#{orderGoodsId}
+		</foreach>
+	</update>
+	<!-- 通过shipmentId和orderGoodsId查询shipmentDetail -->
+	<select id="selectByShipmentIdAndOrderGoodsId" resultType="com.leqee.wms.entity.ShipmentDetail" parameterType="map" >
+    SELECT 
+    	sd.*
+    FROM 
+    	wms.shipment_detail sd
+    inner join wms.shipment s on s.shipment_id = sd.shipment_id
+    WHERE 
+    	sd.shipment_id = #{shipmentId}
+    AND sd.order_goods_id = #{orderGoodsId}
+  	</select>
+  	
+  	<!-- 根据orderGoodsId查询订单已绑定数量 -->
+  	<select id="checkDetailNumberByOrderGoodsId" resultType="java.lang.Integer">
+  		select og.goods_number-ifnull(sum(sd.goods_number),0) 
+  		from wms.order_goods og 
+  		inner join wms.shipment_detail sd on sd.order_goods_id = og.order_goods_id
+  		inner join wms.shipment s on s.shipment_id = sd.shipment_id 
+  		where og.order_goods_id = #{0}
+  	</select>
+  
+  	<!-- 根据串号查找已经绑定Shipment但还未出库的记录 -->
+	<select id="selectBySerialNumberNotDelivered" resultType="com.leqee.wms.entity.ShipmentDetail" parameterType="java.lang.String" >
+    SELECT 
+    	sd.*
+    FROM 
+    	wms.shipment_detail sd
+    inner join wms.shipment s on s.shipment_id = sd.shipment_id
+    LEFT JOIN wms.inventory_item_detail iid ON iid.order_goods_id = sd.order_goods_id
+    WHERE 
+    	serial_number = #{serialNumber}
+    AND iid.inventory_item_detail_id IS NULL
+ 	</select>
+  
+  	<!-- 通过orderId查询shipmentDetail -->
+	<select id="selectByOrderId" resultType="com.leqee.wms.entity.ShipmentDetail" parameterType="java.lang.Integer" >
+    SELECT 
+    	sd.*
+    FROM 
+    	wms.shipment s
+    INNER JOIN 
+    	wms.shipment_detail sd ON sd.shipment_id = s.shipment_id 
+    WHERE 
+    	s.order_id = #{orderId}
+  	</select>
+  	
+  	<update id="deleteShipmentDetail">
+  		delete from wms.shipment_detail where shipment_id = #{0}
+  	</update>
+  	
+  	<delete id="deleteBatchShipmentDetail">
+		delete from wms.shipment_detail where shipment_id in 
+		<foreach collection="shipmentIdList" item="shipmentId" open="("
+			separator="," close=")">
+			#{shipmentId}
+		</foreach>
+	</delete>
+	<!-- 超级复核！其他情况不可用 -->
+	<insert id="batchCreateShipmentDetail"  parameterType="java.util.List">
+		INSERT INTO 
+	    	wms.shipment_detail 
+	    	(shipment_detail_id, shipment_id, order_goods_id, product_id, goods_name, goods_number, serial_number)
+		VALUES
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.shipment_detail_id,jdbcType=INTEGER}, #{item.shipment_id,jdbcType=INTEGER}, #{item.order_goods_id,jdbcType=INTEGER}, 
+			 #{item.product_id,jdbcType=INTEGER}, #{item.goods_name,jdbcType=VARCHAR}, #{item.goods_number,jdbcType=INTEGER}, 
+			 #{item.serial_number,jdbcType=VARCHAR})
+		</foreach>
+	</insert>
+	
+	
+	<select id="selectShipmentDetailForPackBox" resultType="com.leqee.wms.entity.ShipmentDetail">
+		select d.* from wms.shipment_detail d
+		inner join wms.product p on p.product_id = d.product_id
+		where d.shipment_id = #{shipment_id} and p.product_type = 'PACKBOX'
+	</select>
+	
+	<update id="updateShipmentDetailForPackBox">
+		update wms.shipment_detail set product_id = #{product_id} , goods_name = #{goods_name}
+		where shipment_detail_id = #{shipment_detail_id} limit 1
+	</update>
+</mapper>

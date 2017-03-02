@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.TaobaoShopConfDao">
+	<!-- 查询所有淘宝店铺 -->
+	<select id="selectAllTaobaoShopConf" resultType="com.leqee.wms.entity.TaobaoShopConf">
+		SELECT * from
+		ecshop.taobao_shop_conf WHERE STATUS='OK' and shop_type='taobao'
+	</select>
+	
+	<!-- 通过taobaoShopConfId删除淘宝店铺 -->
+	<update id="deleteTaobaoShopConfById" parameterType="long" >
+		update ecshop.taobao_shop_conf set STATUS = "DELETE" where taobao_shop_conf_id = #{taobaoShopConfId}
+	</update>
+	
+	
+	<!-- 添加淘宝店铺 -->
+	    <!-- INSERT INTO `ecshop`.`taobao_shop_conf` ( `role`, `nick`, `user_id`, `userId`, `user_name`, `pay_id`, `pay_name`, `application_key`, `taobao_api_params_id`, `status`, `party_id`, `facility_id`, `distributor_id`, `shipping_id`, `type`, `is_erp_display`, `shop_type`, `is_stock_update`, `inventory_ratio`, `group_id`, `is_main`, `is_bird_facility_available`) 
+	    VALUES ( 'seller', '测试事务旗舰店', '34139', '2693c26ac15c44c2917c26f372cd7089', 'zhero', '135', '支付宝－玺乐', '2693c26ac15c44c2917c26f372cd7089', '39', 'DELETE', '65573', '19568549', '460', '85', 'zhixiao', 'Y', 'taobao', 'N', '1.00', '', 'Y', 'N'); -->
+	<update id="insertTaobaoShopConf" parameterType="com.leqee.wms.entity.TaobaoShopConf" >
+		update set  wms.quantity = quantity-1 where inventory_item_id = 1
+	</update>
+	
+	<update id="updateInventoryItem" parameterType="int" >
+		update  wms.inventory_item set quantity = quantity-#{num} where inventory_item_id = 1
+	</update>
+	
+	
+	
+	
+</mapper>

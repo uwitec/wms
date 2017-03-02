@@ -1,0 +1,991 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ProductLocationDao">
+
+	<select id="selectProduLocationById" resultType="com.leqee.wms.entity.ProductLocation">
+		select * from wms.product_location where pl_id = #{pl_id} limit 1
+	</select>
+	
+	<select id="selectSumProductLoaction" resultType="int">
+		select
+		sum(qty_available) from
+		wms.product_location pl
+		inner join location lo
+		on pl.location_id=lo.location_id
+		where pl.product_id= #{product_id} and
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status='NORMAL' and
+		pl.product_location_status='NORMAL'
+	</select>
+	
+	<!-- dlyao -->
+	<select id="selectAll" resultType="com.leqee.wms.entity.ProductLocation">
+		SELECT lo.physical_warehouse_id,p.customer_id,p.product_name,p.barcode,pl.product_id,pl.status,lo.location_type,SUM(pl.qty_total) AS qty_total,p.sku_code,p.product_type
+		FROM wms.product_location pl
+		INNER JOIN wms.location lo ON pl.location_id=lo.location_id
+		INNER JOIN wms.product p ON pl.product_id=p.product_id
+		WHERE 
+		lo.location_type in ${location_type}
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+		GROUP BY physical_warehouse_id,product_id,status,location_type
+		ORDER BY physical_warehouse_id,product_id,location_type,status
+	</select>
+	
+	<select id="selectTaskPlByBatchPickId" resultType="com.leqee.wms.entity.TaskAllotProductlocation">
+	    select t.task_id,pl.pl_id,pl.product_id,pl.qty_available,t.quantity from wms.task t 
+	    inner join wms.product_location pl on t.from_pl_id=pl.pl_id
+	    where t.batch_pick_id=#{batch_pick_id}  order by qty_available asc
+	</select>
+	
+	<update id="addQtyAvailableByTaskAllotProductlocationList">
+	    UPDATE wms.product_location
+		SET qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available +
+			${item2.change_quantity}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+	
+	<update id="minusQuantityByTaskAllotProductlocationList">
+	    UPDATE wms.task
+		SET quantity = CASE task_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.task_id} then quantity -
+			${item2.change_quantity}
+		</foreach>
+		END
+		where task_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.task_id}
+		</foreach>
+	</update>
+	
+	<select id="selectAllByLocationTypeList" resultType="com.leqee.wms.entity.ProductLocation">
+	    SELECT lo.physical_warehouse_id,p.customer_id,p.product_name,p.barcode,pl.product_id,pl.status,lo.location_type,SUM(pl.qty_total) AS qty_total,p.sku_code,p.product_type,pl.warehouse_id
+		FROM wms.product_location pl
+		INNER JOIN wms.location lo ON pl.location_id=lo.location_id
+		INNER JOIN wms.product p ON pl.product_id=p.product_id
+		WHERE 
+		lo.location_type in 
+		<foreach collection="list" item="location_type" open="("
+			separator="," close=")">
+			#{location_type}
+		</foreach>
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+		GROUP BY physical_warehouse_id,product_id,status,location_type,warehouse_id
+		ORDER BY physical_warehouse_id,product_id,location_type,status
+	</select>
+	
+	<!-- 找出库存分配区域中冻结库存 ：并记录到total上 -->
+	<select id="selectAllExceptionProductLocationList" resultType="com.leqee.wms.entity.ProductLocation">
+	SELECT lo.physical_warehouse_id,p.customer_id,p.product_name,p.barcode,pl.product_id,pl.status,lo.location_type,SUM(pl.qty_freeze) AS qty_total,p.sku_code,p.product_type,pl.warehouse_id
+		FROM wms.product_location pl
+		INNER JOIN wms.location lo ON pl.location_id=lo.location_id
+		INNER JOIN wms.product p ON pl.product_id=p.product_id
+		WHERE 
+		lo.location_type in ${location_type}
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+		GROUP BY physical_warehouse_id,product_id,status,location_type,warehouse_id
+		HAVING qty_total > 0
+		ORDER BY physical_warehouse_id,product_id,location_type,status
+	</select>
+	
+	<select id="selectAllCancelOutShelfProductLocationList"  resultType="com.leqee.wms.entity.ProductLocation">
+     SELECT physical_warehouse_id,customer_id,product_name,barcode,SUM(diff) AS qty_total,product_id,STATUS,sku_code,'TRANSIT_LOCATION' as location_type,product_type,warehouse_id
+     FROM
+	       ( SELECT
+	        oi.physical_warehouse_id,
+            oi.customer_id,
+            oi.warehouse_id,		
+			p.product_name,
+			p.barcode,
+			p.sku_code,
+			p.product_id,
+			og.status_id AS STATUS,
+			p.product_type,
+			og.goods_number -IFNULL(SUM(pld.change_quantity),0) AS diff
+		FROM
+			wms.order_process op
+		INNER JOIN wms.order_info oi ON oi.order_id = op.order_id
+		INNER JOIN wms.batch_pick bp ON bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.order_goods og ON og.order_id = op.order_id
+		INNER JOIN wms.product p ON p.product_id = og.product_id
+		LEFT JOIN wms.product_location_detail pld ON pld.order_goods_id = og.order_goods_id AND pld.change_quantity > 0
+		WHERE   
+		 op.status ='CANCEL'  AND p.product_type IN('GOODS','PREPACKAGE') AND  
+		 bp.print_count > 0
+	    <if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND oi.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+	     GROUP BY og.order_goods_id
+	     HAVING diff > 0) AS a
+	     
+	     GROUP BY physical_warehouse_id,product_id,STATUS,warehouse_id
+	     ORDER BY customer_id
+	</select>
+	
+	<!-- 找出盘盈盘亏区总和 -->
+	<select id="selectAllByPage" resultType="com.leqee.wms.entity.ProductLocation">
+	select * from 
+	(SELECT physical_warehouse_id,customer_id,product_name,barcode,STATUS,SUM(qty_total) AS qty_total,product_id,warehouse_id
+	FROM
+	  (SELECT lo.physical_warehouse_id,p.customer_id,pl.product_id,pl.status,SUM(pl.qty_total) AS qty_total,p.product_name,p.barcode,pl.warehouse_id
+	    FROM wms.product_location pl INNER 
+	      JOIN wms.location lo ON pl.location_id = lo.location_id 
+	      INNER JOIN wms.product p ON pl.product_id = p.product_id 
+	    WHERE lo.location_type IN ('VARIANCE_Add_LOCATION') 
+	    <if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+	    GROUP BY physical_warehouse_id,product_id,STATUS,location_type,pl.warehouse_id 
+	UNION
+	ALL 
+	 SELECT lo.physical_warehouse_id,p.customer_id,pl.product_id,pl.status,SUM(-pl.qty_total) AS qty_total,p.product_name,p.barcode,pl.warehouse_id
+	   FROM wms.product_location pl 
+	     INNER JOIN wms.location lo ON pl.location_id = lo.location_id 
+	     INNER JOIN wms.product p ON pl.product_id = p.product_id 
+	   WHERE lo.location_type IN ('VARIANCE_MINUS_LOCATION') 
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		<if test="customer_id != '' and customer_id != 0">
+			AND p.customer_id = #{customer_id}
+		</if>
+	GROUP BY physical_warehouse_id,product_id,STATUS,location_type,pl.warehouse_id) AS a
+	GROUP BY product_id,STATUS,warehouse_id) b
+	where qty_total!=0
+	</select>
+	<select id="selectAllVarinanceProductLocation"  resultType="com.leqee.wms.entity.ProductLocation">
+	    select * from 
+	(SELECT physical_warehouse_id,customer_id,product_name,barcode,STATUS,SUM(qty_total) AS qty_total,product_id,warehouse_id
+	FROM
+	  (SELECT lo.physical_warehouse_id,p.customer_id,pl.product_id,pl.status,SUM(pl.qty_total) AS qty_total,p.product_name,p.barcode,pl.warehouse_id
+	    FROM wms.product_location pl INNER 
+	      JOIN wms.location lo ON pl.location_id = lo.location_id 
+	      INNER JOIN wms.product p ON pl.product_id = p.product_id 
+	    WHERE lo.location_type IN ('VARIANCE_Add_LOCATION') 
+	    <if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		and pl.warehouse_id=#{warehouse_id}
+        and pl.product_id in
+		<foreach collection="productIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+	    GROUP BY physical_warehouse_id,product_id,STATUS,location_type ,pl.warehouse_id
+	UNION
+	ALL 
+	 SELECT lo.physical_warehouse_id,p.customer_id,pl.product_id,pl.status,SUM(-pl.qty_total) AS qty_total,p.product_name,p.barcode,pl.warehouse_id
+	   FROM wms.product_location pl 
+	     INNER JOIN wms.location lo ON pl.location_id = lo.location_id 
+	     INNER JOIN wms.product p ON pl.product_id = p.product_id 
+	   WHERE lo.location_type IN ('VARIANCE_MINUS_LOCATION') 
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		and pl.warehouse_id=#{warehouse_id}
+		and pl.product_id in
+		<foreach collection="productIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+	GROUP BY physical_warehouse_id,product_id,STATUS,location_type,pl.warehouse_id) AS a
+	GROUP BY product_id,STATUS,warehouse_id ) b
+	where qty_total!=0
+	</select>
+
+	<select id="selectProductlocationList" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*
+		from
+		wms.product_location pl
+		inner join location lo
+		on
+		pl.location_id=lo.location_id
+		where pl.product_id= #{product_id} and
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status='NORMAL' and
+		pl.product_location_status='NORMAL'
+		order by validity
+		asc,qty_available
+		desc
+	</select>
+
+	<select id="selectProductlocationListV2" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id  and pl.warehouse_id=#{warehouse_id}
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status=#{status}
+		and
+		pl.product_location_status='NORMAL' and pl.qty_available>0  and pl.validity_status in ('NORMAL','WARNING')
+		and
+		pl.product_id in
+		<foreach collection="goodsIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type = #{location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+
+
+	<select id="selectProductlocationListV3" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id and pl.warehouse_id=#{warehouse_id}
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and 
+		lo.is_delete='N' and
+		pl.status=#{status} and pl.qty_available>0
+		and
+		pl.product_location_status='NORMAL' and pl.validity_status in ('NORMAL','WARNING')
+		and pl.product_id in
+		<foreach collection="goodsIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type in ${location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+	
+	<select id="selectProductlocationListV4" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id  and pl.warehouse_id=#{warehouse_id}
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status=#{status}
+		and
+		pl.product_location_status='NORMAL' and pl.qty_available>0
+		and
+		pl.product_id in
+		<foreach collection="goodsIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type = #{location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+	
+	<select id="selectProductlocationListV5" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and  pl.warehouse_id=#{warehouse_id}  and 
+		lo.is_delete='N'
+		and
+		pl.product_location_status='NORMAL'
+		and pl.product_id in
+		<foreach collection="productIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type = #{location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+	
+	<select id="selectProductlocationListV6" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id and pl.warehouse_id=#{warehouse_id}
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status=#{status}
+		and
+		pl.product_location_status='NORMAL' and pl.qty_available>0 
+		and
+		pl.product_id in
+		<foreach collection="goodsIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type = #{location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+
+
+	<select id="selectProductlocationListV9" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode from
+		wms.product_location pl
+		inner join
+		location lo
+		on
+		pl.location_id=lo.location_id and pl.warehouse_id=#{warehouse_id}
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status=#{status} and pl.qty_available>0
+		and
+		pl.product_location_status='NORMAL'
+		and pl.product_id in
+		<foreach collection="goodsIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		<if test="location_type != '' and location_type != null">
+			AND lo.location_type in ${location_type}
+		</if>
+		order by validity asc,qty_available desc
+	</select>
+	
+	
+	<select id="selectProductlocationListForBatchPick" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode,
+		CASE
+		lo.location_type
+		WHEN 'PIECE_PICK_LOCATION' THEN '件拣货区'
+		WHEN 'BOX_PICK_LOCATION' THEN '箱拣货区'
+		WHEN 'STOCK_LOCATION' THEN '存储区'
+		WHEN 'RETURN_LOCATION' THEN '退货区'
+		WHEN 'TRANSIT_LOCATION' THEN '中转区'
+		WHEN 'RETURN_NORMAL_LOCATION' THEN '退货良品暂存区'
+        ELSE '其他区域'
+		END as location_type,p.product_name,p.barcode
+		from wms.product_location pl
+		inner join wms.location lo on pl.location_id=lo.location_id and pl.warehouse_id=#{warehouse_id}
+		inner join wms.product p on p.product_id = pl.product_id
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status='NORMAL' and pl.qty_available>0  and pl.validity_status in ('NORMAL','WARNING')
+		and
+		pl.product_location_status='NORMAL'
+		and pl.product_id in
+		<foreach collection="list" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+			AND lo.location_type in ('PIECE_PICK_LOCATION','STOCK_LOCATION','BOX_PICK_LOCATION','RETURN_LOCATION','RETURN_NORMAL_LOCATION')
+		order by validity asc,qty_available desc
+	</select>
+	
+		<select id="selectProductlocationListForGT" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.*,lo.location_barcode,
+		CASE
+		lo.location_type
+		WHEN 'PIECE_PICK_LOCATION' THEN '件拣货区'
+		WHEN 'BOX_PICK_LOCATION' THEN '箱拣货区'
+		WHEN 'STOCK_LOCATION' THEN '存储区'
+		WHEN 'RETURN_LOCATION' THEN '退货区'
+		WHEN 'TRANSIT_LOCATION' THEN '中转区'
+		WHEN 'RETURN_NORMAL_LOCATION' THEN '退货良品暂存区'
+		WHEN 'PACKBOX_LOCATION' THEN '耗材区'
+		WHEN 'DEFECTIVE_LOCATION' THEN '二手区'
+        ELSE '其他区域'
+		END as location_type,p.product_name,p.barcode
+		from wms.product_location pl
+		inner join wms.location lo on pl.location_id=lo.location_id  and pl.warehouse_id=#{warehouse_id}
+		inner join wms.product p on p.product_id = pl.product_id
+		where
+		lo.physical_warehouse_id= #{physical_warehouse_id} and
+		lo.is_delete='N' and
+		pl.status='NORMAL' and pl.qty_available>0  and pl.validity_status in ('NORMAL','WARNING')
+		and
+		pl.product_location_status='NORMAL'
+		and pl.product_id in
+		<foreach collection="list" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+			AND lo.location_type in ('PIECE_PICK_LOCATION','STOCK_LOCATION','BOX_PICK_LOCATION','RETURN_LOCATION','RETURN_NORMAL_LOCATION','PACKBOX_LOCATION','DEFECTIVE_LOCATION')
+		order by validity asc,qty_available desc
+	</select>
+
+	<select id="getAllImproveProductLocation" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.pl_id,pl.product_id,pl.location_id,pl.qty_total,pl.qty_available,
+		pl.product_location_status,pl.qty_freeze,pl.status,ifnull(pl.validity,"")
+		as validity,pl.batch_sn,pl.serial_number,
+		pl.created_user,pl.created_time,pl.last_updated_user,pl.last_updated_time,lo.location_barcode
+		from
+		wms.product_location pl
+		inner join location lo
+		on
+		pl.location_id=lo.location_id
+		where
+		lo.physical_warehouse_id=
+		#{physical_warehouse_id} and pl.warehouse_id=#{warehouse_id} and
+		lo.is_delete='N'
+		and pl.product_id in
+		<foreach collection="productIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		and pl.location_id in
+		<foreach collection="locationIdList" item="location_id" open="("
+			separator="," close=")">
+			#{location_id}
+		</foreach>
+		order by validity desc,qty_available desc
+	</select>
+	<select id="getImproveProductLocationInVariance" resultType="com.leqee.wms.entity.ProductLocation">
+		select
+		pl.pl_id,pl.product_id,pl.location_id,
+		pl.product_location_status,pl.status,ifnull(pl.validity,"") as
+		validity,pl.batch_sn,pl.serial_number,lo.physical_warehouse_id,
+		pl.last_updated_user,pl.last_updated_time,lo.location_barcode from
+		wms.product_location pl
+		inner join location lo
+		on
+		pl.location_id=lo.location_id
+		where
+		lo.physical_warehouse_id=
+		#{physical_warehouse_id} and pl.warehouse_id=#{warehouse_id} and
+		lo.is_delete='N'
+		and pl.product_id in
+		<foreach collection="productIdList" item="productId" open="("
+			separator="," close=")">
+			#{productId}
+		</foreach>
+		AND lo.location_type = #{location_type}
+		order by validity
+		asc,qty_available desc
+	</select>
+
+	<select id="lockProductlocationForAllotJob" resultType="com.leqee.wms.entity.ProductLocation">
+		select * from
+		wms.product_location
+		and pl_id in
+		<foreach collection="list" item="pl_id" open="(" separator=","
+			close=")">
+			#{pl_id}
+		</foreach>
+		for update
+	</select>
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.ProductLocation">
+		<selectKey keyProperty="pl_id" resultType="java.lang.Integer">
+			select
+			LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.product_location(
+		pl_id,product_id,location_id,qty_total,qty_available,
+		product_location_status,qty_freeze,status,validity,validity_status,batch_sn,serial_number,warehouse_id,
+		created_user,created_time,last_updated_user,last_updated_time
+		)values(
+		#{pl_id},#{product_id},#{location_id},#{qty_total},#{qty_available},
+		#{product_location_status},#{qty_freeze},#{status},#{validity},#{validity_status},#{batch_sn},#{serial_number},#{warehouse_id},
+		#{created_user},now(),#{last_updated_user},now()
+		)
+	</insert>
+
+
+
+	<update id="updateProductLocationByAllotJob">
+		UPDATE wms.product_location
+		SET qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available -
+			${item2.qty_available}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+	<update id="updateProductLocationV5">
+		UPDATE wms.product_location
+		SET qty_total = CASE pl_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.pl_id} then qty_total +
+			${item0.qty_total}
+		</foreach>
+		END,
+		qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available +
+			${item2.qty_total}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+	
+		<update id="updateProductLocationV6">
+			UPDATE wms.product_location
+			SET qty_total = CASE pl_id
+			<foreach collection="list" item="item0" index="index" open=" when "
+				separator="when " close="  ">
+				${item0.pl_id} then qty_total +
+				${item0.qty_total}
+			</foreach>
+			END
+			where pl_id in
+			<foreach collection="list" item="item" index="index" open="("
+				separator="," close=")">
+				#{item.pl_id}
+			</foreach>
+		</update>
+		<update id="updateProductLocationByImproveJob">
+		UPDATE wms.product_location
+		SET qty_total = CASE pl_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.pl_id} then qty_total +
+			${item0.qty_total}
+		</foreach>
+		END,
+		qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available +
+			${item2.qty_available}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+	<update id="updateProductLocationByVariance">
+		UPDATE wms.product_location
+		SET qty_total = CASE pl_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.pl_id} then qty_total -
+			${item0.qty_total}
+		</foreach>
+		END,
+		qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available -
+			${item2.qty_total}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+    <update id="updateProductLocationByPackOut">
+		UPDATE wms.product_location
+		SET qty_total = CASE pl_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.pl_id} then qty_total -
+			${item0.qty_available}
+		</foreach>
+		END,
+		qty_available = CASE pl_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.pl_id} then qty_available -
+			${item2.qty_available}
+		</foreach>
+		END
+		where pl_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.pl_id}
+		</foreach>
+	</update>
+	<update id="updateProductLocationAdd">
+		update wms.product_location set qty_total = qty_total + #{quantity},qty_available = qty_available + #{quantity},
+		last_updated_time=now()
+		where pl_id = #{pl_id} limit 1
+	</update>
+	
+	<update id="updateProductLocationTotalAvaliable">
+		update wms.product_location set qty_total = qty_total + #{quantity1},qty_available = qty_available + #{quantity2},
+		last_updated_time=now()
+		where pl_id = #{pl_id} limit 1
+	</update>
+	
+	<update id="updateProductLocation">
+		update wms.product_location set qty_total = qty_total
+		+
+		#{quantity},qty_available = qty_available +
+		#{quantity},last_updated_time=now()
+		where pl_id = #{pl_id}
+	</update>
+	<update id="updateProductLocationByImproveSingle">
+	    update wms.product_location set qty_total = qty_total
+		+
+		#{pl.qty_total},qty_available = qty_available +
+		#{pl.qty_available},last_updated_time=now()
+		where pl_id = #{pl.pl_id}
+	</update>
+	
+	<update id="updateProductLocationV2">
+		update wms.product_location set qty_total = #{quantity},qty_available = #{quantity},
+		last_updated_time=now()
+		where pl_id = #{pl_id} limit 1
+	</update>
+
+	<update id="updateProductLocationTotal">
+		update wms.product_location set qty_total = qty_total
+		+ #{0},last_updated_time=now()
+		where pl_id = #{1}
+	</update>
+	
+	<update id="updateProductLocationTotalMinus">
+		update wms.product_location set qty_total = qty_total
+		- #{0},last_updated_time=now()
+		where pl_id = #{1}
+	</update>
+
+	<select id="getFromProductLocation" resultType="com.leqee.wms.entity.ProductLocation">
+		SELECT pl.* from
+		wms.product_location pl
+		INNER JOIN wms.location l on l.location_id =
+		pl.location_id
+		where pl.product_id = #{productId} and l.location_type =
+		#{locationType} and l.physical_warehouse_id = #{physicalWarehouseId}
+		and pl.product_location_status = 'NORMAL' AND pl.`status` =
+		#{productStatus} and l.is_delete = 'N' and pl.qty_available>0
+		<if test="customerId != '' and customerId != null">
+			AND l.customer_id = #{customerId}
+		</if>
+		ORDER BY
+		pl.validity asc,pl.qty_available desc
+	</select>
+	<select id="selectExceptionList" resultType="com.leqee.wms.entity.ProductLocation">
+		SELECT location_id,product_id FROM wms.product_location WHERE
+		product_location_status!='NORMAL' and product_id in
+		<foreach collection="list" item="product_id" index="index"
+			open="(" separator="," close=")">
+			#{product_id}
+		</foreach>
+		GROUP BY location_id,product_id
+	</select>
+
+	<update id="updateProductLocationForMinusAvailable">
+		update wms.product_location set qty_available = qty_available - #{0} where
+		pl_id = #{1}
+	</update>
+
+	<update id="updateProductLocationForAddAvailable">
+		update wms.product_location set qty_available = qty_available + #{0} where
+		pl_id = #{1}
+	</update>
+
+	<select id="selectProductLocationQtyByLocationId" parameterType="int"
+		resultType="Integer">
+		select sum(qty_total) as total from wms.product_location where location_id =
+		#{locationId}
+	</select>
+
+	<select id="selectAllProductLocationByLocationId" resultType="map">
+		select
+		pl.pl_id,pl.qty_total,pl.qty_available,pl.product_id,p.barcode,p.product_name,CONVERT(pl.validity,char(64))
+		as validity,pl.status,pl.batch_sn,pl.warehouse_id,w.warehouse_name
+		from wms.product_location pl
+		inner join wms.product p on p.product_id = pl.product_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		where location_id = #{locationId} 
+		<if test="barcode!=''">and p.barcode=#{barcode}</if>
+		<if test="type!='ALL'">and qty_total>0</if>
+	</select>
+
+	<select id="selectMapFromId" resultType="map">
+		select
+		pl.qty_available,pl.product_id,pl.status,CONVERT(pl.validity,char(64))
+		as validity,p.customer_id,p.barcode,pl.location_id,pl.batch_sn,pl.warehouse_id
+		from wms.product_location pl
+		inner join wms.product p on p.product_id = pl.product_id
+		where pl.pl_id = #{0}
+	</select>
+
+	<select id="selectByMap" parameterType="map"
+		resultType="com.leqee.wms.entity.ProductLocation">
+		select * from wms.product_location where location_id = #{locationId} and
+		product_id =#{product_id} and
+		status = #{status} and validity= #{validity} and batch_sn = #{batch_sn}
+	</select>
+
+	<select id="getproduLocations" resultType="com.leqee.wms.entity.ProductLocation">
+		select * from wms.product_location pl
+		LEFT JOIN wms.task t on t.to_pl_id = pl.pl_id
+		where t.task_id = #{0} and t.to_pl_id =#{1}
+	</select>
+	<select id="getFromProduLocations" resultType="com.leqee.wms.entity.ProductLocation">
+		select * from wms.product_location pl
+		LEFT JOIN wms.task t on t.from_pl_id = pl.pl_id
+		where t.task_id = #{0} and t.from_pl_id =#{1}
+	</select>
+
+
+	<select id="selectValidityByOrderId" resultType="map">
+		SELECT pl.validity,pl.batch_sn from wms.order_process op
+		INNER JOIN wms.batch_pick bp on
+		bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.task t on
+		t.batch_pick_id = bp.batch_pick_id
+		INNER JOIN wms.product_location pl
+		on t.from_pl_id = pl.pl_id
+		where op.order_id = #{order_id} and
+		t.product_id =#{product_id} and op.status ='CANCEL' and
+		t.physical_warehouse_id = #{physical_warehouse_id}
+		limit 1
+	</select>
+
+
+	<select id="productExceptionLocation" resultType="map">
+		select
+		wh.warehouse_name,whc.name,p.product_name,p.barcode,lo.location_barcode,
+		case pl.product_location_status
+		when 'EXCEPTION_QUALITY' then '质量问题' when 'EXCEPTION_NUM' then '数量问题' else
+		'其他问题' end as product_location_status,
+		pl.qty_freeze,pl.qty_total,
+		case lo.location_type
+		when 'PIECE_PICK_LOCATION' then '件拣区'
+		when 'BOX_PICK_LOCATION' then '箱拣区'
+		when 'STOCK_LOCATION' then '存储区'
+		when 'PACKBOX_LOCATION' then '耗材区'
+		when 'RETURN_LOCATION' then '退货区'
+		when 'DEFECTIVE_LOCATION' then '二手区'
+		else '其他区' end as location_type,
+		ifnull(pl.validity,"") as validity
+		from wms.product_location pl
+		inner join wms.location lo on pl.location_id=lo.location_id
+		inner join wms.product p on pl.product_id=p.product_id and p.is_delete = 'N'
+		inner join wms.warehouse wh on lo.physical_warehouse_id=wh.warehouse_id
+		inner join wms.warehouse_customer whc on whc.customer_id=p.customer_id
+		where pl.product_location_status !='NORMAL'
+		<if test="physical_warehouse_id != '' and physical_warehouse_id > 0">
+			AND lo.physical_warehouse_id = #{physical_warehouse_id}
+		</if>
+		order by warehouse_name,location_barcode,barcode,validity
+	</select>
+
+	<update id="updateProductLocationForFreezeAvailable">
+		update wms.product_location set qty_available = qty_available - #{quantity}
+		, qty_freeze = qty_freeze + #{quantity}
+		where pl_id = #{pl_id} limit 1
+	</update>
+
+	<update id="updateProductLocationForReleaseAvailable">
+		update wms.product_location set qty_available = qty_available + #{quantity}
+		, qty_freeze = qty_freeze - #{quantity}
+		,product_location_status = 'NORMAL'
+		where pl_id = #{pl_id} limit 1
+	</update>
+
+	<select id="selectMapFromLocationId" resultType="Integer">
+		select count(*) from wms.product_location where location_id = #{0} and
+		qty_total > 0
+	</select>
+
+	<insert id="batchInsert">
+		insert into wms.product_location
+		(product_id,location_id,qty_total,qty_available,
+		product_location_status,qty_freeze,status,validity,
+		created_user,created_time,last_updated_user,last_updated_time)
+		values
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.product_id}, #{item.location_id},
+			#{item.qty_total}, #{item.qty_available}, #{item.product_location_status},
+			0, #{item.status},#{item.validity}, #{item.created_user},
+			now(), #{item.created_user},now())
+		</foreach>
+	</insert>
+	<insert id="batchInsert2">
+		insert into wms.product_location
+		(product_id,location_id,qty_total,qty_available,
+		product_location_status,qty_freeze,status,
+		created_user,created_time,last_updated_user,last_updated_time)
+		values
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.product_id}, #{item.location_id},
+			#{item.qty_total}, #{item.qty_available}, #{item.product_location_status},
+			0, #{item.status}, #{item.created_user},
+			now(), #{item.created_user},now())
+		</foreach>
+	</insert>
+	
+	<select id="selectNotEnoughProductItemByCustomerId" resultType="map">
+		    SELECT
+				case l.physical_warehouse_id 
+				when '1' then '嘉善仓' else
+			'北京仓' end as warehouse_name,
+				wc.name,
+				p.product_name,
+				p.barcode,
+				case pl. STATUS
+				when 'NORMAL' then '良品' 
+				when 'DEFECTIVE' then '不良品' end as status,
+				IFNULL(SUM(pl.qty_total), 0)  AS qty_available_sum 
+			FROM
+				wms.product_location pl
+			INNER JOIN wms.location l ON l.location_id = pl.location_id
+			INNER JOIN wms.product p ON p.product_id = pl.product_id and p.is_delete = 'N'
+			INNER JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id
+			WHERE 1
+				${con}
+					<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+	    					and l.physical_warehouse_id = #{physicalWarehouseId}
+	    			</if>
+	    			<if test="customerId != '' and customerId != null">
+	    					and p.customer_id = #{customerId}
+	    			</if>
+	    			and l.location_type in ('PIECE_PICK_LOCATION','BOX_PICK_LOCATION','STOCK_LOCATION','RETURN_LOCATION')
+			GROUP BY
+				pl.product_id,
+				pl.STATUS
+			HAVING qty_available_sum <![CDATA[ < ]]>5
+     </select>
+  	
+  	
+  	<select id="selectProductLocationByLocation2Product" resultType="com.leqee.wms.entity.ProductLocation">
+  		select pl.* from wms.product_location pl
+  		inner join wms.location l on l.location_id = pl.location_id
+  		where l.physical_warehouse_id = #{physical_warehouse_id} and pl.warehouse_id = #{warehouse_id}
+  		and pl.product_id = #{product_id} and pl.location_id = #{location_id}
+  		and pl.status = #{status}
+  	</select>
+  	<select id="selectAllProductPrepackagelist" resultType="com.leqee.wms.entity.ProductPrepackage">
+  	     select pp.prepackage_product_id,pp.component_product_id,pp.number,p.customer_id,p.barcode,p.sku_code,p.product_name 
+  	     from wms.product_prepackage pp 
+  	     inner join wms.product p on pp.component_product_id=p.product_id
+  	     where pp.prepackage_product_id in  	     
+  	     <foreach collection="list" item="product_id" index="index"
+			open="(" separator="," close=")">
+			#{product_id}
+		</foreach>
+  	</select>
+  	
+  	<select id="selectNeedTaggedByPage" resultType="map">
+  		select 
+  			pl.pl_id,
+  			pl.validity,
+  			p.is_maintain_warranty,
+  			p.warranty_warning_days,
+  			p.warranty_unsalable_days,
+  			p.validity as validity_days,
+  			p.validity_unit
+  		from 
+  			wms.product_location pl
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.product p on pl.product_id = p.product_id
+  		where 
+  				<![CDATA[pl.created_time < NOW()]]>  
+  			and p.is_maintain_warranty = 'Y'
+  			and pl.validity_status in 
+  			<foreach collection="validityStatuslist" item="validity_status" index="index" open="(" separator="," close=")">
+				#{validity_status}
+			</foreach>
+  			and l.location_type not in 
+  			<foreach collection="locationTypeList" item="location_type" index="index" open="(" separator="," close=")">
+				#{location_type}
+			</foreach>
+			order by 
+				pl.pl_id
+  	</select>
+  	
+  	<update id="batchUpdateValidityStatus">
+			update wms.product_location 
+			set validity_status = #{validityStatus}
+			where pl_id in 
+			<foreach collection="list" item="pl_id" index="index" open="(" separator="," close=")">
+				#{pl_id}
+			</foreach>
+    </update>
+    
+    	
+	<update id='updateLocationEmptyStatusByPlId'>
+	    update  wms.location l
+	    inner join wms.product_location pl on l.location_id=pl.location_id
+	    set l.is_empty='N' where pl.pl_id=#{pl_id}
+	</update>
+	
+	
+	<update id="updateLocationEmptyStatusByPlIdMinus">
+	    UPDATE wms.`location` l 
+	    INNER JOIN 
+	   	   ( 
+		   SELECT pl.location_id,SUM(pl.qty_total)  AS SUM FROM wms.product_location pl INNER JOIN 
+		    (
+		    	SELECT location_id FROM wms.`product_location` WHERE pl_id=#{pl_id})  temp 
+		    	ON pl.`location_id`= temp.location_id
+		    ) a 
+	    ON l.`location_id`=a.location_id
+	    SET l.is_empty='Y' WHERE a.sum = #{num}
+	</update>
+</mapper>

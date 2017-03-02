@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShippingWarehouseMappingDao">
+	<!-- 根据shipping_id与warehouse_id查询是否为ShippingWarehouseMapping -->
+	<select id="selectByShippingWarehouseId" resultType="com.leqee.wms.entity.ShippingWarehouseMapping">
+		SELECT * from
+		wms.shipping_warehouse_mapping WHERE shipping_id = #{shipping_id} and warehouse_id = #{warehouse_id}
+	</select>
+	 
+	
+	<!-- 查询当前所有热敏方式 + 批量获取号段的资源信息 -->
+	<select id="getThermalShippingAppInfo" resultType="map">
+		SELECT swm.shipping_app_id,s.shipping_id,s.shipping_name,group_concat(w.warehouse_name SEPARATOR " , ") as warehouse_names
+		from wms.shipping_warehouse_mapping swm 
+		INNER JOIN wms.warehouse w on w.warehouse_id = swm.warehouse_id
+		INNER JOIN wms.shipping s on s.shipping_id = swm.shipping_id
+		INNER JOIN wms.shipping_app sa on sa.app_id = swm.shipping_app_id
+		where swm.paper_type = 'electronic' and sa.apply_type = 'BATCH'
+		group by swm.shipping_app_id
+	</select>
+	
+	<!-- 查询某账号现有热敏资源 -->
+	<select id = "getThermalCountByAppId" parameterType="Integer" resultType="map">
+		select count(tracking_number) as count,status 
+		from wms.shipping_tracking_number_repository 
+		where shipping_app_id = #{shipping_app_id} 
+		group by status
+	</select> 
+	
+	<!-- 当前逻辑仓使用热敏快递 -->
+	<select id="getWarehouseShippingThermal" resultType="map">
+		SELECT w.warehouse_name,s.shipping_name
+		from wms.shipping_warehouse_mapping swm 
+		INNER JOIN wms.warehouse w on w.warehouse_id = swm.warehouse_id
+		INNER JOIN wms.shipping s on s.shipping_id = swm.shipping_id
+		WHERE swm.paper_type = 'electronic' 
+		ORDER BY swm.shipping_app_id
+	</select>
+	
+	<!-- 当前使用热敏批量获取方式shippingAppId (若为线下方式获取号段，则apply_amount=0)-->
+	<select id="selectNeedApplyShippingAppId" resultType="Integer">
+		SELECT DISTINCT wm.shipping_app_id from wms.shipping_app sa 
+		INNER JOIN wms.shipping_warehouse_mapping wm on wm.shipping_app_id = sa.app_id and wm.paper_type='electronic'
+		where sa.apply_type='BATCH' AND wm.paper_type='electronic' and sa.apply_amount>0
+	</select>
+	
+	<!-- 根据app_id查询账号密码信息 -->
+	<select id="selectByAppId" resultType="map">
+		SELECT wm.shipping_id,sa.app_id,sa.apply_amount,sa.app_secret,sa.app_key,s.shipping_code,wm.ht_express_code  
+		from wms.shipping_app sa 
+		INNER JOIN wms.shipping_warehouse_mapping wm on wm.shipping_app_id = sa.app_id and wm.paper_type='electronic'
+		INNER JOIN wms.shipping s on s.shipping_id = wm.shipping_id
+		where sa.apply_type='BATCH' and sa.app_id = #{app_id} LIMIT 1 
+	</select>
+	
+	<select id="selectSingleByAppId" resultType="map">
+		SELECT wm.shipping_id,sa.app_id,sa.apply_amount,sa.app_secret,sa.app_key from wms.shipping_app sa 
+		INNER JOIN wms.shipping_warehouse_mapping wm on wm.shipping_app_id = sa.app_id and wm.paper_type='electronic'
+		where sa.apply_type='SINGLE' and sa.app_id = #{app_id} LIMIT 1 
+	</select>
+	
+	<select id="selectShippingAppIdOne" resultType="java.lang.Integer">
+		SELECT m.shipping_app_id from wms.shipping_warehouse_mapping m 
+		INNER JOIN wms.warehouse w on w.warehouse_id = m.warehouse_id and w.is_delete = 'N'
+		INNER JOIN wms.shipping_app a on a.app_id = m.shipping_app_id  
+		where m.shipping_id = #{shippingId} and w.physical_warehouse_id = #{physicalWarehouseId} and apply_type = 'BATCH' 
+		AND apply_amount = 0 and m.paper_type='electronic' limit 1
+	</select>
+	
+	<select id="searchShippingCodeBatch" resultType="string">
+		select distinct s.shipping_code from wms.shipping s 
+		inner join wms.shipping_warehouse_mapping m on s.shipping_id = m.shipping_id and m.paper_type = 'electronic'
+		INNER JOIN wms.shipping_app sa on sa.app_id = m.shipping_app_id and sa.apply_type = 'BATCH'
+	</select>
+</mapper>

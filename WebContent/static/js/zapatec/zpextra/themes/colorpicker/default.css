@@ -1,0 +1,157 @@
+/* $Id: default.css 4731 2006-10-12 15:54:00Z roman $ */
+
+.zpColorPickerDefaultContainer {
+	position: absolute;
+	z-index: 1000;
+	visibility: hidden;
+	left: -1000px;
+	top: -1000px;
+	height: 315px;
+	width: 405px;
+	background-color: #CCCCCC;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	border: 1px solid black;
+}
+
+.zpColorPickerDefaultContainer .header{
+	position: absolute;
+	display: block;
+	left: 0px;
+	top: 0px;
+	height: 20px;
+	width: 399px;
+	background-color: #336699;
+	color: white;
+	font-weight: bold;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	text-align: left;
+	padding: 3px;
+	cursor: default;
+}
+.zpColorPickerDefaultContainer .fullPalette{
+	position: absolute;
+	display: block;
+	left: 1px;
+	top: 27px;
+	height: 183px;
+	width: 252px;
+	background-color: white;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	border: 1px solid black;
+}
+
+.zpColorPickerDefaultContainer .colorPreview{
+	position: absolute;
+	display: block;
+	left: 256px;
+	top: 27px;
+	height: 60px;
+	width: 70px;
+	background-color: white;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	border: 1px solid black;
+	text-align: center;
+}
+
+.zpColorPickerDefaultContainer .buttons{
+	position: absolute;
+	display: block;
+	left: 330px;
+	top: 27px;
+	height: 60px;
+	width: 73px;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	text-align: center;
+}
+
+.zpColorPickerDefaultContainer .buttons BUTTON{
+	margin-top: 6px;
+	margin-bottom: 6px;
+	width: 73px;
+	height: 20 px,
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+}
+
+.zpColorPickerDefaultContainer .hexFields{
+	position: absolute;
+	display: block;
+	left: 256px;
+	top: 90px;
+	height: 29px;
+	width: 140px;
+	background-color: #AAAAAA;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	border: 1px solid black;
+	text-align: center;
+	padding: 3px;
+}
+
+.zpColorPickerDefaultContainer .rgbFields{
+	position: absolute;
+	display: block;
+	left: 256px;
+	top: 128px;
+	height: 72px;
+	width: 136px;
+	background-color: #AAAAAA;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	border: 1px solid black;
+	text-align: right;
+	padding: 5px;
+}
+
+.zpColorPickerDefaultContainer .slidersContainer{
+	position: absolute;
+	display: block;
+	left: 1px;
+	top: 213px;
+	width: 401px;
+	background-color: #EEEEEE;
+	color: black;
+	font-family: Tahoma,sans-serif;
+	font-size: 8pt;
+	text-align: center;
+	border: 1px solid black;
+}
+
+.zpColorPickerDefaultContainer .paletteTable td.under img{
+	border: 1px solid #FF0000 !important;
+}
+
+.zpColorPickerDefaultContainer .paletteTable td img{
+	border: 1px solid #FFFFFF;
+}
+
+.zpColorPickerDefaultContainer .title{
+	float: left;
+	height: 20px;
+	width: 340px;
+}
+.zpColorPickerDefaultContainer .close{
+	float: right;
+	cursor: pointer;
+	cursor: hand;
+	background-image : url('default/close.gif');
+	width: 20px;
+	height: 18px;
+}
+
+.dragging {
+	background-color: #FFE4B5;
+	opacity: .33;
+	filter: alpha( opacity = 33 );
+	cursor: move;
+}

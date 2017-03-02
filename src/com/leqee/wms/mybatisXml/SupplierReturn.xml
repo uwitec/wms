@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.SupplierReturnDao">
+	 
+    <select id="selectSupplierReturnByPage" parameterType="map" resultType="map">
+		SELECT oi.order_id,oi.oms_order_sn,
+		case oi.order_status
+		when 'ACCEPT' then '未处理'
+		when 'RESERVED' then '分配成功'
+		when 'FULFILLED' then '已退还'
+		when 'CANCEL' then '已取消'
+		else '' end  as order_status,wc.name as customer_name,
+		cast(oi.order_time as char) as order_time,w.warehouse_name,p.barcode,
+		og.goods_name,og.goods_number,sum(IF(t.task_id is null,0,t.quantity)) as out_num,
+		if(og.status_id='NORMAL','良品','不良品') as goods_status
+		from wms.order_info oi 
+		INNER JOIN wms.order_goods og on oi.order_id = og.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		LEFT JOIN wms.task t on t.order_id = oi.order_id and t.task_type = 'PICK' and t.task_status = 'FULFILLED' and t.product_id = og.product_id
+		<if test="omsOrderSn == null and barcode !='' and barcode != null">
+		LEFT JOIN wms.order_goods og2 on og2.order_id = oi.order_id 
+		LEFT JOIN wms.product p2 on p2.product_id = og2.product_id and p2.barcode = #{barcode}
+		</if>
+		where oi.order_type = 'SUPPLIER_RETURN' 
+		<if test="omsOrderSn != '' and omsOrderSn != null"> 
+		and  oi.oms_order_sn = #{omsOrderSn}
+		</if>
+		and oi.warehouse_id in
+		<foreach collection="warehouseIdList" item="item" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+		<if test="omsOrderSn == null">
+	     	<if test="customerIdList != null and customerIdList.size() != 0">
+	        	and oi.customer_id in
+				<foreach collection="customerIdList" item="item" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+	     	</if>
+	     	<if test="orderStatus != null and orderStatus !='' ">
+				and oi.order_status = #{orderStatus}
+			</if>
+	     	and oi.created_time >= #{start}
+			<if test="end != null">
+				and oi.created_time <![CDATA[ <= ]]> #{end}
+			</if>
+			<if test="barcode !='' and barcode != null">
+				and p2.product_id is not null
+			</if>
+			 
+	   </if>
+	   group BY oi.order_id,og.order_goods_id
+	   order by oi.order_time,oi.order_id
+	</select>
+	
+	
+	<select id="selectTaskOrderGoodsList" resultType="map">
+		SELECT t.order_id,t.task_id,t.product_id,og.status_id,t.quantity as task_qty,
+		pl.pl_id,pl.location_id,pl.qty_total,og.order_goods_id,pl.batch_sn
+		from wms.task t
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id and pl.product_id = t.product_id
+		INNER JOIN wms.order_goods og on og.order_id = t.order_id and og.product_id = t.product_id 
+			and og.status_id = pl.`status`
+		where task_id in 
+		<foreach collection="taskIdList" item="taskId" index="index" open="("
+			close=")" separator=",">
+			#{taskId}
+		</foreach> and t.task_type ='PICK'
+	</select>
+	
+	<select id="selectInventoryItemByOrderId" resultType="map">
+		SELECT  og.order_goods_id,og.status_id,og.goods_number,sum(rim.quantity) as reserve_qty,
+			cast(GROUP_CONCAT(CONCAT(rim.mapping_id,'_',rim.inventory_item_id,'_',rim.quantity,'_',ii.quantity)) as char) as mapping_inventory_item_reserve_total_qty,
+			wis.inventory_summary_id,wis.warehouse_id,wis.customer_id,wis.product_id
+		from wms.order_goods og 
+		INNER JOIN wms.order_reserve_inventory_mapping rim on rim.order_goods_id = og.order_goods_id
+		INNER JOIN wms.inventory_item ii on ii.inventory_item_id = rim.inventory_item_id
+		INNER JOIN wms.inventory_summary wis on wis.warehouse_id = ii.warehouse_id and wis.customer_id = ii.customer_id 
+			and wis.product_id = ii.product_id and wis.status_id = ii.`status` 
+		where og.order_id = #{0}
+		GROUP BY og.order_goods_id
+	</select>
+	
+	<select id="selectOutDoneNum" resultType="Integer">
+		select ifnull(sum(quantity),0) from wms.task where order_id = #{0} and task_type = 'PICK' and task_status = 'FULFILLED'
+	</select>
+	
+	<select id="checkGoodsInventoryNum" resultType="map">
+		SELECT  og.order_goods_id,(og.goods_number-sum(rim.quantity)) as diff
+		from wms.order_goods og 
+		INNER JOIN wms.order_process op on op.order_id = og.order_id and op.order_type='SUPPLIER_RETURN'
+		INNER JOIN wms.order_reserve_inventory_mapping rim on rim.order_goods_id = og.order_goods_id
+		where og.order_id = #{0}
+		GROUP BY og.order_goods_id
+		having diff !=0
+	</select>
+	
+	<select id="checkGoodsProductLocationNum" resultType="map">
+		SELECT og.order_goods_id,og.goods_number,p.barcode,sum(t.quantity) as t_sum
+		from wms.order_info oi
+		INNER JOIN wms.order_goods og on og.order_id = oi.order_id
+		INNER JOIN wms.task t on oi.order_id = t.order_id and t.created_time > oi.order_time and 
+		t.physical_warehouse_id = oi.physical_warehouse_id and t.task_type='PICK'  and t.product_id = og.product_id
+		INNER JOIN wms.product p on p.product_id = og.product_id and p.customer_id = oi.customer_id and p.is_delete = 'N' 
+		where t.order_id = #{0}
+		GROUP BY og.order_goods_id
+		HAVING goods_number != t_sum
+	</select>
+</mapper>

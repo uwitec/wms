@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShippingZtoMarkDao">
+	<select id="getAllRegionsForMark" resultType="com.leqee.wms.entity.ShippingZtoMark">
+		SELECT * from wms.shipping_zto_mark 
+	</select>
+	
+	<update id="updateZTOMark" parameterType="String" >
+		update wms.shipping_zto_mark set mark = #{mark},marke=#{marke},last_updated_stamp=now() where mark_id = #{markId}
+	</update>
+	
+	<select id="getMark" resultType="String">
+		SELECT IFNULL(zm.marke,zm.mark) as ws_mark
+		from wms.order_info oi
+		INNER JOIN wms.shipping_zto_mark zm on oi.province_id = zm.province_id and oi.city_id = zm.city_id and oi.district_id = zm.district_id
+		where oi.order_id =#{orderId}
+	</select>
+</mapper>

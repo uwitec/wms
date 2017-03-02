@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderReserveDetailDao">
+	
+   <sql id="Base_Column_List" >
+    order_goods_id, order_id, warehouse_id, product_id, goods_number, reserved_number, 
+    inventory_status, status, reserved_time, created_time
+  </sql>
+  
+   <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.OrderReserveDetail" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from order_reserve_detail
+    where order_goods_id = #{order_goods_id,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.OrderReserveDetail">
+    
+    insert into order_reserve_detail (order_goods_id,order_goods_oms_id, order_id, warehouse_id, 
+      product_id, goods_number, reserved_number, 
+      inventory_status, status, reserved_time, 
+      created_time)
+    values (#{order_goods_id,jdbcType=INTEGER}, #{order_goods_oms_id,jdbcType=INTEGER}, #{order_id,jdbcType=INTEGER}, #{warehouse_id,jdbcType=INTEGER}, 
+      #{product_id,jdbcType=INTEGER}, #{goods_number,jdbcType=INTEGER}, #{reserved_number,jdbcType=INTEGER}, 
+      #{inventory_status,jdbcType=CHAR}, #{status,jdbcType=CHAR}, #{reserved_time,jdbcType=TIMESTAMP}, 
+      #{created_time,jdbcType=TIMESTAMP})
+  </insert>
+  <insert id="batchInsert">
+     insert into order_reserve_detail (order_goods_id,order_goods_oms_id, order_id, warehouse_id, 
+      product_id, goods_number, reserved_number, 
+      inventory_status, status, reserved_time, 
+      created_time)
+    values 
+      <foreach collection="list" item="item" index="index" open=' '
+				separator="," close=' '>
+				(#{item.order_goods_id},
+				#{item.order_goods_oms_id},
+				#{item.order_id},
+				#{item.warehouse_id},
+				#{item.product_id},
+				#{item.goods_number},
+				#{item.reserved_number},
+				#{item.inventory_status},
+				#{item.status},
+				now(),
+				now())
+		</foreach>
+  </insert>  
+  
+  <update id="updateReserveDetailInfo"  >
+       update order_reserve_detail
+       set status = #{2}, reserved_number = reserved_number+ #{1},reserved_time = now()
+       where order_goods_id = #{0}
+  </update>
+  
+  <select id="selectOrderReserveDetailByOrderId" resultType="com.leqee.wms.entity.OrderReserveDetail" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from order_reserve_detail
+    where order_id = #{order_id,jdbcType=INTEGER}
+  </select>
+  
+    <update id="updateReserveDetailInfoStatus"  >
+       update order_reserve_detail
+       set status = #{1}
+       where order_goods_id = #{0}
+     </update>
+  
+  <update id="updateReserveStatusByOrderid"  >
+       update order_reserve_detail
+       set status =#{1}
+       where order_id = #{0}
+  </update>
+  
+   <delete id="deleteOrderReserveDetailByOrderId"  >
+       delete from wms.order_reserve_detail where order_id = #{order_id}
+   </delete>
+   
+   <select id="selectOrderReserveDetail" resultType="com.leqee.wms.entity.OrderReserveDetail" parameterType="map" >
+  	select * from wms.order_reserve_detail where inventory_status= "NORMAL" and status = "Y"
+  		<if test="warehouse_id != '' and warehouse_id != null">
+		  and  warehouse_id = #{warehouse_id}
+		 </if>
+		<if test="product_id != '' and product_id != null">
+		  and  product_id = #{product_id}
+		 </if>
+		 <if test="order_id != '' and order_id != null">
+		    and order_id = #{order_id}
+		 </if>
+		 limit #{initPageNo},#{lastPageNo}
+  </select>
+  
+  
+   
+</mapper>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ScheduleQueueReplenishmentDao">
+	
+	<select id="getInitJobByRequest" resultType="Integer">
+		select distinct customer_id from wms.schedule_queue_replenishment
+		where physical_warehouse_id = #{physicalWarehouseId} and customer_id in (0,#{customerId}) and queue_status ='INIT'
+		and box_piece in ('',#{boxPiece}) and task_level = #{taskLevel}
+		<if test="productId !=0">
+		and ( product_id = 0 or product_id = #{productId})
+		</if>
+		<if test="productId ==0">
+		and product_id = 0 
+		</if>
+	</select>
+	
+	<insert id="insertJobByRequest" parameterType="com.leqee.wms.entity.ScheduleQueueReplenishment">
+		insert into wms.schedule_queue_replenishment(
+		physical_warehouse_id,customer_id,product_id,box_piece,task_level,
+		queue_status,created_user,created_time,last_updated_time)
+		values(#{physical_warehouse_id,jdbcType=INTEGER},#{customer_id,jdbcType=INTEGER},
+		#{product_id,jdbcType=INTEGER}, #{box_piece,jdbcType=VARCHAR},#{task_level,jdbcType=INTEGER},
+		#{queue_status,jdbcType=VARCHAR},#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP},
+		#{last_updated_time,jdbcType=TIMESTAMP})
+	</insert>
+	
+	<select id="selectManulReplenishByPage" resultType="map">
+		select if(qr.customer_id=0,'全部',wc.name) as customerName,
+		if(qr.box_piece='BOX_PIECE','箱拣货区/件拣货区',if(qr.box_piece='PIECE','件拣货区','箱拣货区')) as boxPiece,
+		if(qr.task_level=1,'一般补货',if(qr.task_level=3,'紧急补货','不知类型')) as taskLevel,
+		if(qr.product_id = 0,'0',p.barcode) as barcode,
+		if(qr.product_id = 0,'0',p.product_name) as productName,
+		qr.task_count as completeNum,
+		if(qr.queue_status='INIT','执行中',if(qr.queue_status='COMPLETE','已结束','任务执行出错')) as status,
+		qr.created_user,CONVERT(qr.created_time,char(64)) as created_time
+		from wms.schedule_queue_replenishment qr 
+		left join wms.warehouse_customer wc on wc.customer_id = qr.customer_id
+		left join wms.product p on p.product_id = qr.product_id and (qr.customer_id =0 or qr.customer_id = p.customer_id) and p.is_delete = 'N'
+		where qr.created_time > #{startTime} and qr.created_time <![CDATA[ <= ]]> #{endTime} and qr.physical_warehouse_id = #{physicalWarehouseId}
+	</select>
+	
+	<select id="selectManulPieceReplenish" parameterType="Integer" resultType="com.leqee.wms.entity.ScheduleQueueReplenishment">
+		select * from wms.schedule_queue_replenishment
+		where queue_status='INIT' and task_level=1 
+		limit #{0}
+	</select>
+	
+</mapper>

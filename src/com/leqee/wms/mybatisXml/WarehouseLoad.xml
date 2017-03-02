@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.WarehouseLoadDao">
+  
+  <select id="selectWarehouseLoadByid" parameterType="int" resultType="int">
+    select loads from wms.warehouse_load where physical_warehouse_id=#{physical_warehouse_id}
+  </select>
+  
+  <select id="findWarehouseLoadList" resultType="com.leqee.wms.entity.WarehouseLoad">
+    SELECT whl.physical_warehouse_id,whl.loads,wh.warehouse_name FROM wms.warehouse_load whl INNER JOIN wms.warehouse wh ON whl.physical_warehouse_id = wh.warehouse_id
+  </select>
+  
+  
+  <insert id="insertUserActionWarehouseLoad" parameterType="map" >
+    REPLACE INTO wms.warehouse_load(physical_warehouse_id, loads) VALUES(#{physical_warehouse_id,jdbcType=INTEGER},#{loads,jdbcType=INTEGER});
+  </insert>
+
+  
+</mapper>

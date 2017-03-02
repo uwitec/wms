@@ -1,0 +1,319 @@
+body {
+  font-family:Tahoma,Verdana;
+  font-size:13px;
+  margin : 10px;
+}
+
+select {
+  font-family : Tahoma,Verdana;
+  font-size : 13px;
+}
+
+pre {
+  font-family:Tahoma;
+  font-size:13px;
+}
+
+input {
+  font-family:Tahoma;
+  font-size:13px;
+}
+
+textarea {
+  font-family : Tahoma,Verdana;
+  font-size : 13px;
+}
+
+table.report, table.details {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.report th, table.report td{
+  border: solid 1px #aaa;
+  padding: 2px;
+}
+
+table.report tr.sub th, table.report tr.sub-new th,
+table.report tr.sub-active th{
+  font-weight: normal;
+}
+
+table.report tbody th, table.report thead.vertical th {
+  white-space: nowrap;
+  width: 1%;
+}
+
+table.report td {
+  border: solid 1px #ccc;
+}
+
+table.report th{
+  background-color: #eee;
+}
+
+table.report tbody {
+}
+
+table.report tbody tr:hover{
+  background-color: #def;
+}
+
+table.report tbody tr.nohover:hover{
+  background-color: #fff;
+}
+
+.button {
+  background:#DFE8F5;
+  font-size: 12px;
+  height:30px;
+  border-left: 1px solid #FFFFFF;
+  border-top: 1px solid #FFFFFF;
+  border-right: 1px solid #DFE8F5;
+  border-bottom: 1px solid #DFE8F5;
+  padding: 4px;
+  text-align:center;
+}
+
+.cellinput {
+  font-family : Tahoma,Verdana;
+  font-size : 12px;
+  border : none;
+  width : 100%;
+  height : 100%;
+  background : #FFFFC4;
+}
+
+
+.toptab {
+  border:1px solid #000;width:140px;height:40px;cursor:pointer;background:#def;
+}
+.toptabselected {
+  border:1px solid #000;border-bottom:none;width:140px;height:40px;cursor:pointer;
+}
+.toptabsplitter {
+  border-bottom:1px solid #000;
+}
+.tabcontent {
+  padding: 5px;
+}
+
+.lefttab {
+  border:1px solid #000;width:140px;height:40px;cursor:pointer;background:#def;
+}
+.lefttabselected {
+  border:1px solid #000;border-right:none;width:140px;height:40px;cursor:pointer;
+}
+.lefttabsplitter {
+  border-right:1px solid #000;
+  height : 5px;
+  font-size: 1px;
+}
+
+table.bWindow {
+	width: 100%;
+	border-collapse: collapse;
+	border:1px solid #b7b7b7;
+	font-size:12px
+}
+
+table.bWindow th, table.bWindow td{
+	border: 1px solid rgba(220,220,220,1);
+	padding: 2px;
+	height: 30px;
+}
+
+table.bWindow thead th.header {
+	background-image: url(bg.gif);
+	background-repeat: no-repeat;
+	background-position: center right;
+	cursor: pointer;
+}
+
+table.bWindow thead th.headerSortUp {
+	background-image: url(asc.gif);
+}
+table.bWindow thead th.headerSortDown {
+	background-image: url(desc.gif);
+}
+
+table.bWindow tr.odd{
+	background-color: #FFFFFF;
+}
+
+table.bWindow tr.even{
+	background-color: rgba(220,220,220,.4);
+}
+
+table.bWindow td input.price {
+	text-align: right;
+}
+
+/*table.bWindow tbody tr:hover{
+    background-color:#b7cce9;
+    }*/
+    table.bWindow tbody tr.nohover:hover{
+      background-color:#fff;
+    }
+
+    table.bWindow th{
+     border-bottom:1px solid rgba(220,220,220,1);
+     border-top:1px solid rgba(220,220,220,1);
+     clear:both;
+     cursor:default;
+     color: white;
+     background-color: #3295DD;
+    font-size: 13px;
+   }
+
+   table.odd tr:nth-child(odd){
+  background: rgba(220,220,220,.4);
+}
+
+
+   .bSplit {
+     height: 5px;
+   }
+
+   .content {
+    border:1px solid #000;border-left:none;width:100%;padding:5px;height:400px;
+  }
+
+  ul.tree {
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+
+  li.tree {
+    margin:0;
+    padding:0;
+    padding-left: 20px;
+    display:block;
+  }
+
+  li.root {
+    margin:0;
+    padding:0;
+    padding-left:2px;
+    display:block;
+  }
+  li div {
+    margin:0;
+    padding:0;
+    height:20px;
+  }
+  li div img{
+    float:left;
+  }
+
+  li div a{
+    text-decoration:none;
+    border:1px solid #fff;
+    padding-left: 3px;
+    padding-right: 2px;
+    padding-top:1px;
+    padding-bottom:0px;
+    margin:0;
+  }
+  li div a:hover{
+    text-decoration:none;
+    border:1px solid #333;
+    background:#eee;
+  }
+
+  div#catnav{
+    margin:0;
+    padding:0;
+  }
+
+/**
+ * 用于分页的样式
+ *
+ * @author yxiang@oukoo.com
+ */
+ div.page {
+   float:right;
+   clear:both;
+   padding: 5px;
+   font-weight: 700;
+ }
+ div.page a{
+   border: 1px solid #b2b2b2;
+   padding: 5px 7px;
+   margin: 0 3px;
+   color:#000000;
+   text-decoration:none;
+ }
+ div.page a:hover{
+   background:#FF9900 none repeat scroll 0 0;
+   color:#FFFFFF;
+ }
+ div.page a.currentPage{
+   border: 1px solid #CE5A00;
+   color: #FFFFFF;
+   background:#FF9900 none repeat scroll 0 0;
+ }
+
+/**
+ * 用于tab菜单的样式
+ */
+ .menu-tab {
+   height:25px; line-height:25px; width:100%; clear:both; text-align:center; color:#003; font-weight:bold;
+ }
+ .menu-tab a{
+   color:#003;
+   text-decoration:none;
+ }
+ .menu-tab a:hover{
+   color:#903;
+   text-decoration:underline;
+ }
+ .menu-tab .right-edge{
+   float:right; border-bottom:#999 1px solid; width:30px;
+ }
+ .menu-tab .left-edge{
+   float:right; border-bottom:#999 1px solid; width:30px;
+ }
+ .menu-tab .item{
+   float:right; border-bottom:#999 1px solid; padding:0 10px;
+ }
+ .menu-tab .active{
+   float:right; border:#999 1px solid; border-bottom:#fff; padding:0 10px;
+ }
+
+/**
+ * 表单必须和帮助提示
+ */
+ .tip{ color: #888; }
+ .require{ color: #F00; }
+
+
+ .pagination {
+  display: block;
+  padding-left: 0;
+  margin-top: 60px;
+  /*margin: 20px 0;*/
+  border-radius: 4px;
+}
+.pagination li{
+  display:inline-block;
+}
+
+.pagination>li:first-child>a, .pagination>li:first-child>span {
+  margin-left: 0;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.pagination>li>a, .pagination>li>span {
+  position: relative;
+  float: left;
+  padding: 6px 12px;
+  margin-left: -1px;
+  line-height: 1.42857143;
+  color: #337ab7;
+  text-decoration: none;
+  background-color: #fff;
+  border: 1px solid #ddd;
+}

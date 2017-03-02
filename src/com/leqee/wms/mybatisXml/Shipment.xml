@@ -1,0 +1,918 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShipmentDao">
+
+	<!-- 通过orderId查询shipment -->
+	<select id="selectByOrderId" resultType="com.leqee.wms.entity.Shipment"
+		parameterType="java.lang.Integer">
+		SELECT
+		*
+		FROM
+		wms.shipment
+		WHERE
+		order_id = #{orderId}
+	</select>
+
+	<select id="getShipmentByTrackingNumber" resultType="com.leqee.wms.entity.Shipment">
+		SELECT
+		*
+		FROM
+		wms.shipment
+		WHERE
+		tracking_number = #{0} limit 1
+	</select>
+
+	<update id="setShipmentPackageWeight">
+		update
+		wms.shipment set shipping_wms_weight =
+		#{0},status='WEIGHED',packbox_product_id = #{2},last_updated_user=#{3},last_updated_time= now()
+		WHERE
+		tracking_number = #{1}
+	</update>
+
+	<select id="getOrderStatusByTrackingNumber" resultType="map">
+		SELECT op.status,bp.batch_process_type,s.status as s_status,op.order_id
+		from wms.shipment s
+		INNER JOIN wms.order_process op on s.order_id = op.order_id
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		where s.tracking_number = #{0} limit 1
+	</select>
+
+	<select id="getOrderPhysicalWarehouseIdByTrackingNumber"
+		resultType="java.lang.Integer">
+		SELECT oi.physical_warehouse_id
+		from wms.shipment s
+		INNER JOIN wms.order_info oi on s.order_id = oi.order_id
+		where s.tracking_number =#{0}
+	</select>
+
+	<update id="updatePalletPhysicalWarehouseId" parameterType="map">
+		update wms.pallet set physical_warehouse_id = #{physicalWarehouseId}
+		where pallet_no = #{palletNo}
+	</update>
+
+	<select id="getSameMTCodeNum" resultType="java.lang.Integer">
+		select count(pallet_no)
+		from `wms`.`pallet`
+		where ship_status = 'INIT'
+
+		AND pallet_no in
+		<foreach collection="list" item="mtCode" index="index" open="("
+			close=")" separator=",">
+			#{mtCode}
+		</foreach>
+
+	</select>
+
+
+	<insert id="insertMTcode" parameterType="com.leqee.wms.entity.Pallet">
+		insert into pallet( pallet_no, ship_status, created_user,
+		created_time)
+		values ( #{pallet_no,jdbcType=VARCHAR}, #{ship_status,jdbcType=VARCHAR},
+		#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP})
+	</insert>
+
+	<insert id="insertMTcodeNew" parameterType="com.leqee.wms.entity.Pallet">
+		insert into pallet( pallet_no, ship_status,shipping_id,physical_warehouse_id,
+		created_user, created_time)
+		values ( #{pallet_no,jdbcType=VARCHAR}, #{ship_status,jdbcType=VARCHAR},#{shipping_id,jdbcType=INTEGER},
+		#{physical_warehouse_id,jdbcType=INTEGER},
+		#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP})
+	</insert>
+
+	<select id="selectPalletByPalletSn" resultType="com.leqee.wms.entity.Pallet">
+		select * from wms.pallet where pallet_no = #{0} limit 1
+	</select>
+
+	<select id="getBindListByByPalletSnV2" resultType="Map">
+		select s.tracking_number,es.shipping_id,es.shipping_name
+		,s.order_id,s.shipment_id,s.status
+		from wms.pallet_shipment_mapping psm
+		inner join wms.shipment s on s.shipment_id = psm.shipment_id
+		inner join wms.shipping es on es.shipping_id =s.shipping_id
+		where psm.pallet_no = #{0} and psm.bind_status='BINDED' and s.status!='SHIPPED' order by psm.bind_time desc
+	</select>
+
+	<select id="getBindListByByPalletSn" resultType="Map">
+		select s.tracking_number,es.shipping_id,es.shipping_name
+		,s.order_id,s.shipment_id
+		from wms.pallet_shipment_mapping psm
+		inner join wms.shipment s on s.shipment_id = psm.shipment_id
+		inner join wms.shipping es on es.shipping_id =s.shipping_id
+		where psm.pallet_no = #{0} and psm.bind_status='BINDED' order by psm.bind_time desc
+	</select>
+
+	<select id="getOrderStautsByTrackingNo" resultType="Map">
+		select s.status,s.shipment_id,case
+		op.status 
+		when 'ACCEPT' then 10
+		when 'BATCH_PICK' then 20
+		when 'PICKING' then 30
+		when 'RECHECKED' then 40
+		when 'WEIGHED' then 50
+		when 'DELIVERED' then 60
+		when 'IN_PROCESS' then 15
+		when 'ON_SHIP' then 25
+		when 'FULFILLED' then 70
+		when 'EXCEPTION' then 9
+		when 'CANCEL' then 8
+		else 7 end 
+		as opstatus
+		from wms.shipment s
+		inner join wms.order_process op on op.order_id = s.order_id
+		where s.tracking_number = #{0} limit 1
+	</select>
+    <select id="selectMtCodeByTrackingNo" resultType="String">
+       SELECT pallet_no 
+       FROM  wms.`shipment` s 
+	   INNER JOIN wms.`pallet_shipment_mapping` psm 
+		ON s.shipment_id=psm.shipment_id
+		WHERE bind_status='BINDED' AND  s.tracking_number=#{tracking_no}
+    </select>
+
+
+	<select id="getPalletShipmentMappingByTrackingNo" resultType="Map">
+		select pallet_no,bind_status,unbind_user,s.status,p.bind_time
+		from wms.pallet_shipment_mapping p
+		inner join wms.shipment s on p.shipment_id = s.shipment_id
+		where s.tracking_number = #{0} ORDER BY bind_time desc
+	</select>
+
+	<select id="getBindNumByPalletNo" resultType="java.lang.Integer">
+		select count(*) from wms.pallet_shipment_mapping where pallet_no =
+		#{0} and bind_status = 'BINDED'
+	</select>
+
+	<select id="getShippingInfoByTrackingNo" resultType="Map">
+		select e.shipping_id,s.shipment_id,shipping_name from wms.shipping e
+		inner join wms.shipment s on e.shipping_id = s.shipping_id
+		where s.tracking_number = #{0} limit 1
+	</select>
+
+	<insert id="insertpalletShipmentMapping" parameterType="com.leqee.wms.entity.PalletShipmentMapping">
+		insert into pallet_shipment_mapping (pallet_no, shipment_id,
+		bind_status,
+		bind_user, bind_time)
+		values (#{pallet_no,jdbcType=VARCHAR}, #{shipment_id,jdbcType=INTEGER},
+		#{bind_status,jdbcType=VARCHAR},
+		#{bind_user,jdbcType=VARCHAR}, #{bind_time,jdbcType=TIMESTAMP})
+	</insert>
+
+	<update id="updatePalletShippingIdByPalletNo">
+		update wms.pallet set shipping_id = #{0} where pallet_no = #{1} limit 1
+	</update>
+
+	<select id="getShippingIdByTrackingNo" resultType="java.lang.Integer">
+		select shipping_id from wms.shipment where tracking_number = #{0}
+		limit 1
+	</select>
+
+	<select id="getShippingIdByPalletSn" resultType="java.lang.Integer">
+		select shipping_id from wms.pallet where pallet_no = #{0} limit 1
+	</select>
+
+	<select id="getShipmentIdBytrackingNo" resultType="java.lang.Integer">
+		select shipment_id from wms.shipment s where s.tracking_number = #{0}
+		limit 1
+	</select>
+
+	<select id="getShippingInfoByTrackingNoForUnBind" resultType="Map">
+		select psm.shipment_id,p.ship_status
+		from wms.pallet_shipment_mapping psm
+		inner join wms.shipment s on s.shipment_id = psm.shipment_id
+		inner join wms.pallet p on psm.pallet_no = p.pallet_no
+		where tracking_number = #{0} and psm.bind_status = 'BINDED'
+	</select>
+
+	<!-- change by dlyao for add status query -->
+	<select id="getShipmentStatusForUnbindByTrackingNo" resultType="Map">
+		select e.status,s.shipment_id,psm.pallet_no,s.status as
+		shipment_status
+		from wms.shipment s
+		inner join wms.pallet_shipment_mapping psm on psm.shipment_id =
+		s.shipment_id
+		inner join wms.order_process e on s.order_id = e.order_id
+		where tracking_number = #{0} and psm.bind_status = 'BINDED' limit 1
+	</select>
+
+	<update id="updatePalletShipMappingForUnbind">
+		update `wms`.`pallet_shipment_mapping`
+		set bind_status = 'UNBINDED' ,unbind_user = #{0} ,unbind_time = now()
+		where shipment_id = #{1}
+	</update>
+
+	<update id="updateShipmentStatusForShip">
+		update
+		wms.shipment
+		set status= 'SHIPPED',
+		last_updated_user = #{1},last_updated_time=NOW() where shipment_id = #{0}
+	</update>
+
+	<select id="queryByPalletSn" resultType="map">
+		SELECT
+		sg.shipping_name,p.pallet_no
+		FROM wms.shipment st
+		INNER JOIN
+		wms.shipping sg ON st.shipping_id=sg.shipping_id
+		INNER JOIN
+		wms.pallet_shipment_mapping psm ON st.shipment_id=psm.shipment_id
+		INNER JOIN wms.pallet p ON psm.pallet_no=p.pallet_no
+		WHERE p.pallet_no=
+		#{0} and psm.bind_status='BINDED'
+	</select>
+	<select id="findPalletSnInPallet" resultType="int">
+		SELECT count(1)
+		FROM wms.pallet
+		WHERE pallet_no= #{0}
+	</select>
+	<select id="findShipmentByTrackingNo" resultType="int">
+		SELECT count(1)
+		FROM wms.shipment
+		WHERE tracking_number= #{0}
+	</select>
+	<select id="queryByTrackingNo" resultType="map">
+		SELECT
+		sg.shipping_name,p.pallet_no
+		FROM wms.shipment st
+		INNER JOIN
+		wms.shipping sg ON st.shipping_id=sg.shipping_id
+		INNER JOIN
+		wms.pallet_shipment_mapping psm ON st.shipment_id=psm.shipment_id
+		INNER JOIN wms.pallet p ON psm.pallet_no=p.pallet_no
+		WHERE
+		st.tracking_number= #{0} and psm.bind_status='BINDED'
+	</select>
+	<select id="selectShipmentNotShipByShipmentId" resultType="java.lang.Integer">
+		select count(s2.tracking_number) as c from wms.shipment s
+		left join wms.shipment s2 on s2.order_id = s.order_id and s2.shipment_id
+		!= s.shipment_id
+		WHERE s.shipment_id =#{0} and s2.status != 'SHIPPED'
+		group by s.order_id limit 1
+	</select>
+
+	<insert id="createShipment" parameterType="com.leqee.wms.entity.Shipment">
+		<selectKey keyProperty="shipment_id" resultType="java.lang.Integer">
+			select LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.shipment
+		(order_id,shipment_order_sequence_number,status,shipping_id,created_user,created_time,last_updated_user,last_updated_time)
+		values (#{order_id,jdbcType=INTEGER},#{shipment_order_sequence_number,jdbcType=INTEGER},
+		#{status,jdbcType=CHAR},#{shipping_id,jdbcType=INTEGER},
+		#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP} ,
+		#{last_updated_user,jdbcType=VARCHAR},
+		#{last_updated_time,jdbcType=TIMESTAMP})
+	</insert>
+
+	<insert id="createShipmentTrackingNumber" parameterType="com.leqee.wms.entity.Shipment">
+		<selectKey keyProperty="shipment_id" resultType="java.lang.Integer">
+			select LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.shipment
+		(order_id,shipment_order_sequence_number,tracking_number,mark,status,shipping_id,created_user,created_time,last_updated_user,last_updated_time)
+		values (#{order_id,jdbcType=INTEGER},#{shipment_order_sequence_number,jdbcType=INTEGER},
+		#{tracking_number,jdbcType=VARCHAR},#{mark,jdbcType=VARCHAR},
+		#{status,jdbcType=CHAR},#{shipping_id,jdbcType=INTEGER},
+		#{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP} ,
+		#{last_updated_user,jdbcType=VARCHAR},
+		#{last_updated_time,jdbcType=TIMESTAMP})
+	</insert>
+	<update id="updateTrackingNumber">
+		update wms.shipment set tracking_number = #{1},mark=#{2},last_updated_time=now() where shipment_id =#{0}  
+	</update>
+	<!-- add by dlyao for sf -->
+	<update id="updateSfShipment">
+		update wms.shipment set sf_destcode = #{2},sf_origincode=#{1},last_updated_time=now() where
+		shipment_id = #{0}
+	</update>
+
+	<select id="selectBindShipmentGoodsInfoByOrderId" parameterType="java.lang.Integer"
+		resultType="map">
+		select s.shipment_id,og.order_goods_id,s.tracking_number,if(s.packbox_product_id is
+		null or s.packbox_product_id='','N','Y') as bind_pack,
+		sd.order_goods_id,sd.product_id,p.barcode,
+		sd.goods_number,sd.goods_name,sd.serial_number,p.is_serial,p.is_maintain_batch_sn,p.product_type
+		from wms.shipment s
+		left join wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		left join wms.order_goods og on og.order_id = s.order_id and
+		sd.order_goods_id = og.order_goods_id
+		left join wms.product p on p.product_id = sd.product_id
+		where s.order_id = #{orderId}
+		order by s.shipment_id desc
+	</select>
+
+
+	<select id="selectSaleOrderWarehouseShippingInfo" parameterType="java.lang.Integer"
+		resultType="map">
+		select
+		oi.order_id,ws.shipment_id,oi.oms_order_sn,w.warehouse_name,s.shipping_name,swm.mapping_id,swm.paper_type
+		from wms.order_info oi
+		inner join wms.warehouse w on w.warehouse_id =
+		oi.warehouse_id
+		inner join wms.shipping s on s.shipping_id =
+		oi.shipping_id
+		left join wms.shipment ws on ws.order_id = oi.order_id
+		left join wms.shipping_warehouse_mapping swm on swm.shipping_id =
+		oi.shipping_id and swm.warehouse_id = oi.warehouse_id
+		where oi.order_id
+		= #{orderId} and oi.is_reserved = 'Y' and oi.order_type='SALE'
+	</select>
+
+	<select id="selectAllTrackingNumberByOrderId" parameterType="java.lang.Integer"
+		resultType="map">
+		SELECT shipment_order_sequence_number as pm,tracking_number
+		FROM wms.shipment where order_id =#{orderId} 
+	</select>
+
+	<select id="selectAllTrackingNumberByOrderIdV2" parameterType="map"
+		resultType="map">
+		select shipment_order_sequence_number as pm,tracking_number,order_id from wms.shipment where 1
+		<if test="orderId != '' and orderId != null">
+			and order_id = #{orderId}
+		</if>
+		<if test="trackingNumber != '' and trackingNumber != null">
+			and tracking_number=#{trackingNumber}
+		</if>
+	</select>
+
+	<select id="selectShipOrderPaperType" parameterType="java.lang.Integer"
+		resultType="map">
+		select
+		swm.sf_monthly_balance_account,swm.sf_payment_method,swm.sf_tp_areacode,swm.paper_type,
+		sa.apply_type,sa.app_key,sa.app_secret,sa.app_id
+		from wms.order_info oi
+		inner join wms.shipping_warehouse_mapping swm on swm.shipping_id =
+		oi.shipping_id and swm.warehouse_id = oi.warehouse_id
+		inner join wms.shipping_app sa on sa.app_id = swm.shipping_app_id
+		where oi.order_id=#{orderId} limit 1
+	</select>
+
+	<select id="selectReceiveInfo" parameterType="java.lang.Integer"
+		resultType="map">
+		select
+		s.status,oi.customer_id,oi.warehouse_id,oi.receive_name,oi.mobile_number
+		as receive_mobile,
+		oi.phone_number as
+		receive_phone,oi.province_id,oi.province_name as receive_province,
+		oi.city_name as receive_city,oi.shipping_address as receive_address,
+		oi.district_name as
+		receive_district,oi.shop_order_sn,oi.shipping_id,s.tracking_number,s.mark,
+		s.sf_destcode,s.sf_origincode,ship.shipping_code
+		from wms.shipment s
+		inner join wms.order_info oi on oi.order_id = s.order_id
+		inner join wms.shipping ship on ship.shipping_id = oi.shipping_id
+		where s.shipment_id
+		= #{shipmentId} limit 1
+	</select>
+
+	<select id="getShipmentInfoById" parameterType="java.lang.Integer"
+		resultType="map">
+		select s.packbox_product_id,s.shipment_id,s2.shipment_id as
+		last_shipment_id,
+		oi.customer_id,oi.order_id,oi.warehouse_id,s.status,oi.order_status,sd.product_id
+		from wms.shipment s
+		inner join wms.shipment s2 on s2.order_id =
+		s.order_id
+		inner join wms.order_info oi on oi.order_id = s.order_id
+		LEFT JOIN wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		where s.shipment_id = #{shipment_id}
+		order by s2.shipment_id desc limit 1
+	</select>
+
+	<update id="updatePackBoxStatus">
+		update wms.shipment set
+		<if test="productId != null">
+			packbox_product_id = #{productId},
+		</if>
+		<if test="is_out == 'N'">
+			packbox_is_out = #{is_out},packbox_created_time = #{localTime,jdbcType=TIMESTAMP},
+		</if>
+		<if test="is_out == 'Y' ">
+			packbox_is_out = #{is_out},packbox_out_time = #{localTime,jdbcType=TIMESTAMP},
+		</if>
+		<if test="is_out == 'E' ">
+			packbox_is_out = null,packbox_product_id = null,packbox_created_time =null,
+		</if>
+		last_updated_user = #{localUser,jdbcType=VARCHAR},last_updated_time =
+		#{localTime}
+		where shipment_id = #{shipmentId}
+
+	</update>
+
+	<update id="updatePackBoxStatusV2">
+		update wms.shipment set packbox_is_out = #{is_out} ,last_updated_user = #{actionUser},last_updated_time = now()
+		where shipment_id = #{shipmentId}
+	</update>
+
+
+	<select id="selectLastShipmentBindInfo" parameterType="java.lang.Integer"
+		resultType="map">
+		select s.shipment_id,cast(group_concat(p.product_type) as char) as
+		last_product_type,oi.order_status,oi.shipping_id
+		from wms.shipment s
+		inner join wms.order_info oi on oi.order_id = s.order_id
+		left join
+		wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		left join
+		wms.product p on p.product_id = sd.product_id
+		where s.order_id =
+		#{orderId}
+		group by s.shipment_id
+		order by s.shipment_id desc limit 1
+	</select>
+
+	<select id="getWrongStatuslListForPalletShip" resultType="java.lang.String">
+		select
+		s.tracking_number
+		from wms.pallet_shipment_mapping psm
+		INNER JOIN
+		wms.shipment s on psm.shipment_id = s.shipment_id
+		INNER JOIN
+		wms.order_process ops on ops.order_id = s.order_id
+		where psm.pallet_no
+		= #{0} and ops.status in ('ACCEPT','BATCH_PICK','PICKING','DELIVERED' ,'IN_PROCESS','ON_SHIP' ,'FULFILLED','EXCEPTION','CANCEL') AND psm.bind_status='BINDED'
+				
+		<!-- and ops.status != 'RECHECKED' -->
+	</select>
+
+	<update id="updatePalletStatusForShip">
+		update wms.pallet
+		set ship_status = 'SHIPPED',shipped_user = #{1},shipped_time= now()
+		where pallet_no = #{0}
+	</update>
+
+	<!-- 查询某码托上的所有运单 -->
+	<select id="getTrackingNoByPalletNo" resultType="java.lang.String"
+		parameterType="java.lang.String">
+		SELECT
+		s.tracking_number
+		FROM
+		wms.pallet_shipment_mapping psm
+		inner join
+		wms.shipment s
+		on
+		psm.shipment_id = s.shipment_id
+		where
+		psm.pallet_no = #{palletNo};
+	</select>
+
+	<select id="getOrderInfoByTn" parameterType="java.lang.String"
+		resultType="map">
+		select op.order_id,op.status,count(*) as pack_num,
+		ifnull(cast(group_concat(
+		CONCAT(s1.tracking_number,"(",if(s1.`status`='WEIGHED','已称重',if(s1.`status`='SHIPPED','已发货',if(s1.`status`='INIT','未称重',s1.`status`))),")")
+		) as char),"") as tracking_numbers,bp.batch_process_type
+		from wms.shipment s
+		inner join wms.order_process op on op.order_id = s.order_id
+		inner join wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.shipment s1 on s1.order_id = op.order_id
+		where s.tracking_number =
+		#{0}
+		group by op.order_id
+	</select>
+	<select id="loadBindGoodsByTn" parameterType="java.lang.String"
+		resultType="map">
+		SELECT p.barcode,sd.goods_name,sd.goods_number from
+		wms.shipment s
+		LEFT JOIN wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		LEFT
+		JOIN wms.product p on p.product_id = sd.product_id
+		WHERE
+		s.tracking_number = #{0}
+	</select>
+
+	<select id="loadGoodsForDeleteByOrderId" parameterType="java.lang.Integer"
+		resultType="map">
+		select op.order_id,op.status,count(*) as pack_num,
+		ifnull(cast(group_concat(
+		CONCAT(s.tracking_number,"(",if(s.`status`='WEIGHED','已称重',if(s.`status`='SHIPPED','已发货',if(s.`status`='INIT','未称重',s.`status`))),")")
+		) as char),"") as tracking_numbers,bp.batch_process_type
+		from wms.shipment s
+		inner join wms.order_process op on op.order_id = s.order_id
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		where op.order_id =
+		#{0}
+	</select>
+
+	<select id="loadBatchInfosForDeleteByBatchPickSn" parameterType="java.lang.String"
+		resultType="map">
+		SELECT ws.shipping_name,count(s.tracking_number) as track_num,
+		GROUP_CONCAT(DISTINCT s.`status`) as group_shipment_status,count(DISTINCT op.order_id ) as order_num
+		from wms.batch_pick bp 
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id
+		INNER JOIN wms.shipment s on s.order_id = op.order_id and s.tracking_number is NOT null 
+		INNER JOIN wms.shipping ws on ws.shipping_id = s.shipping_id 
+		where bp.batch_pick_sn = #{0} and bp.batch_process_type = 'BATCH'
+		GROUP BY s.shipping_id
+	</select>
+	
+	<update id="deleteShipment">
+		DELETE FROM wms.shipment WHERE shipment_id = #{0}
+	</update>
+
+
+	<select id="queryOrderByTrackingNo" parameterType="string"
+		resultType="map">
+		SELECT op.order_id,CASE
+		op.status
+		WHEN 'ACCEPT' THEN '未处理'
+		WHEN 'BATCH_PICK' THEN '已分配'
+		WHEN 'PICKING' THEN '波次中'
+		WHEN 'RECHECKED' THEN '已复核'
+		WHEN 'DELIVERED' THEN '已发货'
+		WHEN 'IN_PROCESS' THEN '处理中'
+		WHEN 'ON_SHIP' THEN '待上架'
+		WHEN 'FULFILLED' THEN '已发货'
+		WHEN 'WEIGHED' THEN '已称重'
+		WHEN 'EXCEPTION' THEN '异常'
+		WHEN 'CANCEL' THEN '取消'
+		ELSE '状态有误' END
+		AS
+		order_status,sg.shipping_name,op.customer_id,bp.batch_pick_sn
+		FROM wms.shipment st
+		INNER JOIN wms.order_process op ON op.order_id = st.order_id
+		INNER JOIN
+		wms.shipping sg ON sg.shipping_id=st.shipping_id
+		inner join wms.batch_pick bp on bp.batch_pick_id=op.batch_pick_id
+		WHERE
+		st.tracking_number=#{trackingNumber}
+	</select>
+
+	<!-- 查询包裹对应订单 是否有其他未称重包裹 -->
+	<select id="getTnsNotWeight" parameterType="java.lang.String"
+		resultType="map">
+		SELECT oi.order_id,count(*) as coun from wms.shipment s
+		INNER JOIN wms.order_info oi on oi.order_id = s.order_id
+		INNER JOIN wms.shipment s1 on s1.order_id = oi.order_id
+		where s1.tracking_number = #{0}
+		and s.tracking_number != #{0} and
+		s.shipping_wms_weight = 0 and s.`status` = 'INIT'
+	</select>
+	<select id="queryCancelOrderByTrackingNo" parameterType="string"
+		resultType="int">
+		SELECT count(oi.order_id)
+		FROM wms.shipment st
+		INNER JOIN wms.order_info oi ON oi.order_id = st.order_id and
+		oi.order_status='CANCEL'
+		WHERE st.tracking_number=#{trackingNumber}
+	</select>
+	<select id="getCancelOrderByPalletSn" parameterType="string"
+		resultType="map">
+		SELECT st.tracking_number,oi.order_id
+		FROM wms.shipment st
+		INNER JOIN wms.order_info oi ON oi.order_id = st.order_id AND
+		oi.order_status = 'CANCEL'
+		INNER JOIN wms.pallet_shipment_mapping psm
+		ON psm.shipment_id=st.shipment_id
+		AND psm.bind_status='BINDED' AND
+		psm.pallet_no=#{pallet_sn}
+	</select>
+
+	<!-- 根据orderid和status获取满足条件的shipment -->
+	<select id="selectByOrderIdAndStatus" parameterType="map"
+		resultType="com.leqee.wms.entity.Shipment">
+		SELECT
+		*
+		FROM
+		wms.shipment
+		WHERE
+		order_id = #{orderId}
+		AND STATUS = #{status}
+	</select>
+
+	<!-- 批量称重(检查波次单号) -->
+	<select id="selectBatchPickIsRechecked" parameterType="java.lang.String"
+		resultType="map">
+		select bp.batch_pick_sn,count(oi.order_id) as
+		num,oi.order_status from wms.batch_pick bp
+		inner join wms.order_process
+		op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.order_info oi
+		on op.order_id = oi.order_id
+		where bp.batch_pick_sn = #{batchPickSn}
+		and bp.batch_process_type = 'BATCH' and op.status in ('RECHECKED','WEIGHED')
+		and bp.flow_status = 'BATCH_RECHECK'
+		group by oi.order_status
+	</select>
+
+	<!-- 批量称重(显示取消订单运单号) -->
+	<select id="selectBatchPickCancelTrackingNumber" parameterType="java.lang.String"
+		resultType="map">
+		select op.order_id,op.status,s.tracking_number from wms.batch_pick bp
+		inner join wms.order_process op on op.batch_pick_id = bp.batch_pick_id
+		left join wms.shipment s on s.order_id = op.order_id
+		where bp.batch_pick_sn = #{batchPickSn} and op.status = 'CANCEL' 
+	</select>
+	
+	<!-- 批量称重(检查快递单号是否在波次单内) -->
+	<select id="checkBatchTrackingNumber" parameterType="map"
+		resultType="map">
+		select
+		bp.batch_pick_sn,s.tracking_number,s.shipping_wms_weight from
+		wms.shipment s
+		inner join wms.order_process op on s.order_id =
+		op.order_id
+		inner join wms.batch_pick bp on op.batch_pick_id =
+		bp.batch_pick_id
+		where bp.batch_pick_sn = #{batchPickSn} and
+		s.tracking_number = #{trackingNumber} and bp.batch_process_type =
+		'BATCH' and bp.flow_status = 'BATCH_RECHECK' and op.status != 'CANCEL' limit 1
+	</select>
+
+	<!-- 批量称重(批量更新重量) -->
+	<update id="updateBatchWeight" parameterType="map">
+		update wms.shipment
+		s,wms.batch_pick bp,wms.order_process op set s.shipping_wms_weight =
+		#{weight},s.status = 'WEIGHED'
+		where bp.batch_pick_sn = #{batchPickSn} and
+		s.shipment_order_sequence_number = #{sequenceNumber}
+		and
+		bp.batch_pick_id = op.batch_pick_id and s.order_id = op.order_id and op.status != 'CANCEL'
+	</update>
+
+
+	<!-- 批量称重(检查是否所有包裹都称重) -->
+	<select id="selectBatchWeightIsOver" parameterType="int"
+		resultType="map">
+		select
+		bp.batch_pick_sn,s.order_id,s.tracking_number,s.shipping_wms_weight
+		from wms.batch_pick bp
+		inner join wms.order_process op on
+		bp.batch_pick_id = op.batch_pick_id
+		inner join wms.shipment s on op.order_id = s.order_id
+		where op.order_id = #{orderId} and s.shipping_wms_weight = 0
+	</select>
+
+	<!-- 批量称重(批量更新订单状态) -->
+	<update id="updateBatchOrderStatus" parameterType="map">
+		update
+		wms.order_info oi, wms.batch_pick bp,wms.order_process op set
+		oi.order_status = #{orderStatus},op.status=#{orderStatus},
+		oi.last_updated_user = #{lastUpdatedUser},oi.last_updated_time =
+		now(),op.weighed_status = 'Y',op.weighed_time = now()
+		where
+		bp.batch_pick_sn = #{batchPickSn} and bp.batch_pick_id =
+		op.batch_pick_id and oi.order_id = op.order_id and op.status != 'CANCEL' 
+	</update>
+	
+	<update id="updateBatchOrderStatusWhenPicking" parameterType="map">
+		update
+		wms.order_info oi, wms.batch_pick bp,wms.order_process op set
+		oi.order_status = #{orderStatus},op.status=#{orderStatus},
+		oi.last_updated_user = #{lastUpdatedUser},oi.last_updated_time =
+		now()
+		where
+		bp.batch_pick_sn = #{batchPickSn} and bp.batch_pick_id =
+		op.batch_pick_id and oi.order_id = op.order_id and op.status != 'CANCEL' 
+	</update>
+
+	
+	<!-- 批量复核（根据波次号查找对应订单，发货单信息） -->
+	<select id="getAllOrderShipmentInfoByBatchOrderSn" parameterType="string" resultType="map">
+		select bp.batch_pick_id,op.order_id,
+		(select count(*) from wms.shipment s where s.order_id = op.order_id  ) as shipment_count,
+		(select count(*) from wms.shipment s1 where s1.order_id = op.order_id and packbox_product_id is not null ) as packbox_count
+		from wms.batch_pick bp 
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id
+		where bp.batch_pick_sn = #{0} and bp.batch_process_type='BATCH' and op.`status` in ('PICKING','CANCEL')  
+		GROUP BY op.order_id  
+	</select>
+	<select id="getShipmentCounts" parameterType="string" resultType="map">
+		SELECT
+			op.order_id,count(s.shipment_id) AS shipment_count,count(s.packbox_product_id) as packbox_count
+		FROM
+			wms.batch_pick bp
+		INNER JOIN wms.order_process op ON bp.batch_pick_id = op.batch_pick_id
+		LEFT JOIN wms.shipment s ON s.order_id = op.order_id
+		WHERE
+			bp.batch_pick_sn = #{0} and bp.batch_process_type='BATCH' and op.`status` in ('PICKING','CANCEL') 
+		GROUP BY
+			op.order_id
+	</select>
+	<select id="getPackShipmentCount" parameterType="string" resultType="map">
+		SELECT op.order_id,count(s.shipment_id) as shipment_count,count(s.packbox_product_id) as packbox_count 
+		from wms.batch_pick bp
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id 
+		Left JOIN wms.shipment s on s.order_id = op.order_id 
+		where bp.batch_pick_sn = #{0}
+		GROUP BY op.order_id 
+		LIMIT 1 
+	</select>
+	
+	<!-- 批量复核 查找批次中订单最多发货单数 -->
+	<select id="getMaxShipmentCount" parameterType="string" resultType="Integer">
+		select shipment_order_sequence_number from wms.shipment s 
+		inner join wms.order_process op on op.order_id = s.order_id 
+		inner join wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id 
+		where bp.batch_pick_sn = #{0} and bp.batch_process_type='BATCH' and op.`status` in ('PICKING','CANCEL')
+		order by shipment_order_sequence_number desc limit 1 
+	</select>
+
+	<update id="updateBatchOrderAction" parameterType="map">
+		insert into
+		wms.user_action_order
+		(order_id,order_status,action_type,action_note,created_user,created_time)
+		select
+		op.order_id,#{orderStatus},#{orderStatus},#{actionType},#{lastUpdatedUser},now()
+		from wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		where bp.batch_pick_sn = #{batchPickSn} and op.status != 'CANCEL'
+	</update>
+
+    <!--批量绑定码拖 -->
+	<insert id="insertpalletShipmentMappingList" parameterType="java.util.List">
+		insert into wms.pallet_shipment_mapping ( shipment_id,
+		pallet_no, bind_status, bind_user,
+		bind_time)
+		values
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.shipment_id},#{item.pallet_no},#{item.bind_status},#{item.bind_user},#{item.bind_time})
+		</foreach>
+	</insert>
+	<select id="getShipmetsBinded" parameterType="java.util.List"
+		resultType="int">
+		select
+		count(psm.shipment_id)
+		from wms.pallet_shipment_mapping psm
+		where psm.shipment_id in
+		<foreach collection="list" item="shipment_id" open="("
+			separator="," close=")">
+			#{shipment_id}
+		</foreach> and psm.bind_status='BINDED'
+	</select>
+		<select id="getShipmetsBindedByBPD"
+		resultType="int">
+		select
+		count(psm.shipment_id)
+		from wms.order_process op 
+		inner join wms.shipment st on st.order_id=op.order_id		
+		inner join wms.pallet_shipment_mapping psm on psm.shipment_id=st.shipment_id
+		where op.batch_pick_id=#{batch_pick_id}
+		and psm.bind_status='BINDED'
+	</select>
+	<select id="getMtcodeByshipmentIdList" parameterType="java.util.List"
+		resultType="string">
+		select psm.pallet_no
+		from wms.pallet_shipment_mapping psm
+		where psm.shipment_id in
+		<foreach collection="list" item="shipment_id" open="("
+			separator="," close=")">
+			#{shipment_id}
+		</foreach> and psm.bind_status='BINDED' limit 0,1
+	</select>
+	
+	<select id="findBatchShipmentIdByBatchOrderId" resultType="map">
+		select s.packbox_product_id,s.shipment_id,s.status,op.customer_id,op.order_id,op.warehouse_id,op.`status` as order_status,sd.product_id,
+		EXISTS(select s1.shipment_id from wms.shipment s1 where s1.shipment_order_sequence_number > #{1} and s1.order_id = op.order_id ) as is_max
+		from wms.order_process op 
+		inner join wms.shipment s on op.order_id = s.order_id
+		LEFT JOIN wms.shipment_detail sd on sd.shipment_id = s.shipment_id
+		where op.batch_pick_id =#{0} and s.shipment_order_sequence_number = #{1}
+		group by s.shipment_id
+	</select>
+	 
+	<select id="findShipmentOrderGoodsInfoList" resultType="map">
+		SELECT op.order_id,s.shipment_id,cast(GROUP_CONCAT(temp_table.order_goods_id ORDER BY temp_table.cou) as char) as order_goods_id_x
+		from wms.order_process op
+		INNER JOIN wms.shipment s on s.order_id = op.order_id and s.shipment_order_sequence_number = #{1}
+		INNER JOIN (select og.order_id,og.order_goods_id,(og.goods_number-sum(IFNULL(sd.goods_number,0))) as cou
+			from wms.order_process op2
+			inner join wms.order_goods og  on op2.order_id = og.order_id 
+			left join wms.shipment s on s.order_id = op2.order_id
+			LEFT JOIN wms.shipment_detail sd on sd.order_goods_id = og.order_goods_id and s.shipment_id = sd.shipment_id and sd.product_id = #{2}
+			WHERE op2.batch_pick_id = #{0} AND og.product_id = #{2} 
+			GROUP BY og.order_goods_id
+			HAVING cou >0 
+			ORDER BY cou
+			)as temp_table on temp_table.order_id = op.order_id
+		where op.batch_pick_id = #{0}
+		GROUP BY op.order_id
+		order by temp_table.cou
+	</select>
+	
+	<select id="getShipmentOrderGoodsMap" resultType="map">
+		SELECT og.order_id,
+		(select order_goods_id from wms.order_goods og2 where og2.order_id = og.order_id 
+		and og2.product_id = #{productId} ORDER BY og2.order_goods_id desc limit 1
+		) as order_goods_id,s.shipment_id 
+		from wms.order_goods og
+		INNER JOIN wms.shipment s on s.order_id = og.order_id
+		where og.product_id =  #{productId} AND s.shipment_order_sequence_number=#{maxShipmentCount} and og.order_id in 
+		<foreach collection="orderIdList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+		GROUP BY og.order_id
+	</select>
+	<update id="batchUpdatePackBoxStatus">
+		update wms.shipment set
+		<if test="productId != null">
+			packbox_product_id = #{productId},
+		</if>
+		<if test="is_out == 'N'">
+			packbox_is_out = #{is_out},packbox_created_time = #{localTime,jdbcType=TIMESTAMP},
+		</if>
+		<if test="is_out == 'Y' ">
+			packbox_is_out = #{is_out},packbox_out_time = #{localTime,jdbcType=TIMESTAMP},
+		</if>
+		<if test="is_out == 'E' ">
+			packbox_is_out = null,packbox_product_id = null,packbox_created_time =null,
+		</if>
+		last_updated_user = #{localUser,jdbcType=VARCHAR},last_updated_time =
+		#{localTime}
+		where shipment_id in 
+		<foreach collection="shipmentIdList" item="shipmentId" open="("
+			separator="," close=")">
+			#{shipmentId}
+		</foreach>
+	</update>
+	
+	<!-- xhchen,通过耗材id查询对应的skucode -->
+	<select id="getPackBoxSkuCodeByPid" parameterType="Integer" resultType="String">
+		select sku_code from wms.product where product_id = #{pid} 
+	</select>
+	
+	<select id="getBatchPickTypeByTrackingNo"
+		resultType="string">
+		select bp.batch_process_type
+		from wms.shipment st
+		inner join wms.order_process op  on st.order_id=op.order_id		
+		inner join wms.batch_pick bp on bp.batch_pick_id=op.batch_pick_id
+		where st.tracking_number=#{tracking_no}
+	</select>
+	
+	<select id="selectAllShipmentIdsByOrderIds" resultType="Integer">
+		select shipment_id from wms.shipment where order_id in 
+		<foreach collection="orderList" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</select>
+	
+	<delete id="deleteBatchShipment">
+		delete from wms.shipment where shipment_id in 
+		<foreach collection="shipmentIdList" item="shipmentId" open="("
+			separator="," close=")">
+			#{shipmentId}
+		</foreach>
+		and shipment_order_sequence_number >1
+	</delete>
+	
+	<select id="selectRecheckNumMap" resultType="map">
+		SELECT sum(goods_number) as total_number, sum(unbind_num) as unbind_number from (
+		SELECT og.goods_number,og.goods_number-sum(IFNULL(sd.goods_number,0)) as unbind_num
+		from wms.order_goods og
+		LEFT JOIN wms.shipment s on s.order_id = og.order_id
+		LEFT JOIN wms.shipment_detail sd on sd.shipment_id = s.shipment_id and sd.order_goods_id = og.order_goods_id
+		where og.order_id = #{0} and IFNULL(og.order_goods_type,"") != 'PACKBOX'
+		GROUP BY og.order_goods_id) as temp_table
+	</select>
+	
+	<insert id="batchInsertShipmentDetail" parameterType="Integer">
+		INSERT into wms.shipment_detail (shipment_id,order_goods_id,product_id,goods_name,goods_number)
+		select s.shipment_id,og.order_goods_id,og.product_id,og.goods_name,og.goods_number from wms.shipment s
+		inner join wms.order_goods og on s.order_id = og.order_id
+		where s.order_id = #{orderId}
+	</insert>
+	<delete id="batchDeleteByOrderId">
+	delete from wms.shipment where order_id in
+		<foreach collection="list" open="(" close=")" separator="," item="item">
+		#{item}
+		</foreach>
+	</delete>
+	<update id="batchUpdateShipmentStatus" parameterType="Integer">
+		update wms.shipment s
+		inner join wms.order_process op on s.order_id = op.order_id
+		set s.status = 'SHIPPED'
+		where op.order_id = #{orderId}
+	</update>
+	
+	<select id="getPackNumByBatchPickId" resultType="Integer">
+		select count(distinct s.shipment_id) from  wms.order_process p 
+		inner join wms.shipment s on p.order_id = s.order_id 
+		INNER JOIN wms.order_info oi on oi.order_id = p.order_id
+		INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id 
+		and swm.warehouse_id = p.warehouse_id and swm.paper_type = 'electronic'
+		where p.batch_pick_id = #{0}
+	</select>
+	
+	<select id="selectShipmentByTrackingNoForUpdate" resultType="com.leqee.wms.entity.Shipment" parameterType="java.lang.String" >
+	    SELECT * from wms.shipment where tracking_number = #{tracking_no} for UPDATE
+	</select>
+	
+	<select id="getShipmentByshipmentIdList" resultType="map">
+		select s.shipment_id,oi.order_id,oi.order_status,s.status,s.tracking_number 
+		from wms.order_info oi 
+		inner join wms.shipment s on s.order_id = oi.order_id 
+		where shipment_id in 
+		<foreach collection="shipmentIdList" item="shipmentId" open="("
+			separator="," close=")">
+			#{shipmentId}
+		</foreach>
+	</select>
+	<select id="selectShipmentByTrackingNumber" resultType="Integer">
+  		select order_id from wms.shipment where tracking_number = #{trackingNumber} limit 1
+	</select>
+</mapper>

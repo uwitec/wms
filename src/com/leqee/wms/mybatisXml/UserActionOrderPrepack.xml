@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionOrderPrepackDao">
+  
+  
+  <insert id="batchInsert" >
+  insert into wms.user_action_order_prepack ( order_id, 
+      order_status, action_type, action_note, 
+      created_user, created_time)
+    values 
+    <foreach collection="list" item="item" index="index" separator="," >  
+	    (#{item.order_id},#{item.order_status},
+	     #{item.action_type}, #{item.action_note}, 
+	     #{item.created_user}, #{item.created_time})
+      </foreach>
+  </insert>
+  
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.UserActionOrderPrepack">
+		insert into wms.user_action_order_prepack(
+			action_id,order_id,order_status,action_type,action_note,
+			created_user,created_time
+		)values(
+			#{action_id},#{order_id},#{order_status},#{action_type},#{action_note},
+			#{created_user},#{created_time}
+		)
+	</insert>
+  
+</mapper>

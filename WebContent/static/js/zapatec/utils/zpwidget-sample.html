@@ -1,0 +1,67 @@
+<html>
+<head>
+<script type="text/javascript" src="./zapatec.js"></script>
+<script type="text/javascript" src="./zpwidget-sample.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+
+//////////////////////////////////
+// Sample of use of ChildWidget //
+//////////////////////////////////
+
+// Source object
+var objSource = {
+  // Data in JSON format
+  // ...
+};
+
+/*
+ * Listener for custom initStart event. ChildWidget object can be accessed
+ * through "this" because function is called in scope of the object.
+ */
+function onInitStart() {
+  alert('ID ' + this.id + ': Init started.');
+}
+
+/*
+ * Listener for custom initDone event. ChildWidget object can be accessed
+ * through "this" because function is called in scope of the object.
+ */
+function onInitDone(strArg1, strArg2) {
+  alert('ID ' + this.id + ': Init done.\nArgument 1: ' + strArg1 +
+   '\nArgument 2: ' + strArg2);
+}
+
+// Initialize ChildWidget
+var myWidget = new Zapatec.ChildWidget({
+  // Standard source and sourceType options
+  source: objSource,
+  sourceType: 'json',
+  // Standard eventListeners option
+  eventListeners: {
+    // Listener for custom initStart event
+    'initStart': onInitStart,
+    // Listener for custom initDone event
+    'initDone': onInitDone
+  },
+  // Custom options
+  option1: 'new value'
+});
+
+// Test
+alert('Option1: ' + myWidget.config.option1 + '\nOption2: ' +
+ myWidget.config.option2 + '\nPath: ' + Zapatec.ChildWidget.path);
+
+// Reconfigure ChildWidget
+myWidget.reconfigure({
+  option2: 'new value'
+});
+
+// Test
+alert('Option1: ' + myWidget.config.option1 + '\nOption2: ' +
+ myWidget.config.option2 + '\nPath: ' + Zapatec.ChildWidget.path);
+
+</script>
+</body>
+</html>

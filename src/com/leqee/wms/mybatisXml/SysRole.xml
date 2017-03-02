@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.SysRoleDao">
+  <select id="selectByRoleId" parameterType="Integer"  resultType="com.leqee.wms.entity.SysRole">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_role
+  	WHERE
+  		id = #{roleId}
+  </select>
+  
+  <select id="selectAllAvailable" resultType="com.leqee.wms.entity.SysRole">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_role
+  	WHERE 
+  		available = 1
+  </select>
+  
+  <select id="selectAll" resultType="com.leqee.wms.entity.SysRole">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_role
+  </select>
+  
+  <update id="invalidateById" parameterType="Integer">
+  	UPDATE 
+  		wms.sys_role
+  	SET 
+  		available = 0
+  	WHERE id = #{roleId}
+  </update>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.SysRole" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO 
+    	wms.sys_role 
+    	(id, name, description, resource_ids, available)
+	VALUES
+		(#{id,jdbcType=INTEGER}, #{name,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, 
+		 #{resource_ids,jdbcType=VARCHAR}, #{available,jdbcType=INTEGER});
+  </insert>
+  
+  <update id="update" parameterType="com.leqee.wms.entity.SysRole">
+		UPDATE 
+			wms.sys_role
+	    SET 
+	    	name = #{name,jdbcType=VARCHAR}, 
+	        description = #{description,jdbcType=VARCHAR}, 
+		    resource_ids = #{resource_ids,jdbcType=VARCHAR},
+		    available = #{available,jdbcType=INTEGER}
+	    WHERE 
+	    	id = #{id,jdbcType=INTEGER}
+	</update>
+	
+	<select id="getRoleListByUser" resultType="map">
+		SELECT
+			sr.*,
+		IF (su.id IS NULL, 0, 1) checked
+		FROM
+			wms.sys_role sr
+		left JOIN sys_user su ON FIND_IN_SET(
+			sr.id,
+			su.role_ids
+		)
+		AND su.id = #{userId,jdbcType=INTEGER} where sr.available = 1
+	</select>
+</mapper>

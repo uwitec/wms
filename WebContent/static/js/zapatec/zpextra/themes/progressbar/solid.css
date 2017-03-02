@@ -1,0 +1,32 @@
+/* $Id: solid.css 4620 2006-10-03 13:04:11Z roman $ */
+
+.zpProgressBarSolidContainer {
+	-moz-box-sizing : border-box;
+	background-color : #FFFFFF;
+	border : 1px solid #000000;
+	display: block;
+	padding: 1px;
+}
+
+.zpProgressBarSolidContainer .internal{
+	-moz-box-sizing : border-box;
+	background-color : navy;
+	border-width: 0;
+	color: #FFFFFF;
+	font-weight: bold;
+	text-align: center;
+	font-family: Tahoma, Verdana, sans-serif;
+	height: 100%;
+}
+
+.zpProgressBarSolidContainer .labels{
+	-moz-box-sizing : border-box;
+	background-color : #FFFFFF;
+	border-width: 0;
+	color: #999999;
+	font-weight: bold;
+	text-align: center;
+	font-family: Tahoma, Verdana, sans-serif;
+	font-size: 8pt;
+	height: 14px;
+}

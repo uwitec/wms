@@ -1,0 +1,169 @@
+/*
+*
+* Copyright (c) 2004 by Zapatec, Inc.
+* http://www.zapatec.com
+* 1700 MLK Way, Berkeley, California,
+* 94709, U.S.A.
+* All rights reserved.
+*
+* CSS for home page
+*
+*/
+
+body {
+	font-family:verdana, arial, times,sans-serif;
+	font-size:12px;
+	color:#000000;
+	background-color:white;
+	width:800px;
+	margin-left:10px;
+	margin-right:auto;
+	margin-top:0px;
+}
+
+.topMenuHeader {
+	border-top: 20px solid #003066;
+	border-bottom: 3px solid #AFAFB8;
+	width:800px;
+	float:left;
+
+}
+
+.logo {
+	float:left;
+	margin-top:.5em;
+	margin-left:10px;
+	margin-bottom:.5em;
+}
+
+.menu {
+	 margin-top:10px;
+}
+
+
+.btn1
+{
+	width:100px;
+	float:right;
+	margin-bottom:-3px;
+	margin-right:0px;
+	margin-left: auto;
+
+}
+
+.btn2
+{
+
+	float:right;
+	margin-bottom:-3px;
+	margin-right:0px;
+
+}
+.homeMain
+{
+	margin-top:1px;
+	width:800px;
+	float:left;
+	border-bottom: 3px solid #AFAFB8;
+}
+
+.homeImage
+{
+
+	margin:0px;
+	float:left;
+	margin-top:0px;
+}
+
+.homeText
+{
+	background: #F0F2F5;
+	padding:5px 5px 5px 5px;
+	margin-top:-1px;
+    width:268px;   
+	height:168px;
+	margin-left:0px;
+	margin-bottom:-1px;
+	
+	float:right;
+	font-family:normal;
+	font-family: verdana, arial, Helvetica, sans-serif;
+	font-size: 12px;
+	color: #000000;
+	line-height: 16px;
+	
+
+}
+
+
+.homeColumn {
+	float:left;
+	width:800px;
+	border-bottom:18px solid white;
+}
+
+.columnContent {
+	text-align:center;
+	margin-top:0px;
+	margin-bottom:10px;
+	padding:1em 1em 2em 1.5em;
+	width:90%;
+}
+
+
+
+.homeColumn1 {
+	height:327px ;
+	background: url("../images/productbg.jpg") no-repeat;
+	float:left;
+	width:33%;
+}
+
+
+
+.footer {
+	border-top: 1px solid #6F8DB9;
+	width:800px;
+	border-bottom:10px;
+	padding:5px 5px 5px 5px;
+	float:left;
+}
+
+.content {
+	font-family: verdana, arial, Helvetica, sans-serif;
+	font-size: 12px;
+	color: #000000;
+	line-height: 16px;
+}
+.lnkblue {
+	font-family: verdana, arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #003066;
+	text-decoration: none;
+}
+.lnkblue:hover {
+	font-family: verdana, arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #003066;
+	text-decoration: underline;
+}
+
+.product {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.buyInfo {
+	font-size: 14px; 
+	padding-left:2em;
+}
+
+.productHeader {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 16px;
+	font-weight: bold;
+	text-align:center;
+}

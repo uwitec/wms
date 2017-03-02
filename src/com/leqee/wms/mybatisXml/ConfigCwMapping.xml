@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ConfigCwMappingDao">
+
+	<select id="getConfigCwMappingList" resultType="com.leqee.wms.entity.ConfigCwMapping">
+		SELECT * from wms.config_cw_mapping where physical_warehouse_id=#{physical_warehouse_id} and customer_id=#{customer_id} order by sequence_number asc
+	</select>
+	
+	<select id="getConfigCwMappingListByPhysicalWarehouseId"  resultType="com.leqee.wms.entity.ConfigCwMapping">
+	   SELECT cw.*,w.warehouse_name from wms.config_cw_mapping cw
+	    inner join wms.warehouse w on w.warehouse_id=cw.warehouse_id
+	    where cw.physical_warehouse_id=#{physical_warehouse_id}  group by cw.warehouse_id
+	</select>
+	
+	
+</mapper>

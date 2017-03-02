@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShippingDao">
+	
+  <sql id="Base_Column_List" >
+    shipping_id ,shipping_code ,shipping_name,shipping_company,is_cod ,created_user,created_time
+  </sql>
+  
+  <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.Shipping" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from shipping
+    where shipping_id = #{shippingId}
+  </select>
+  
+  <select id="selectByShippingCode" resultType="com.leqee.wms.entity.Shipping" parameterType="java.lang.String" >
+    select 
+    <include refid="Base_Column_List" />
+    from shipping
+    where shipping_code = #{shippingCode} limit 1
+  </select>
+  
+  <select id="selectAllShipping" resultType="com.leqee.wms.entity.Shipping" >
+    select  * from shipping
+  </select>
+  
+  <select id="searchAllElecShipping" resultType="map">
+  	select shipping_code ,shipping_name from wms.shipping s 
+	inner join wms.shipping_warehouse_mapping swm on swm.shipping_id = s.shipping_id
+	INNER JOIN wms.warehouse w on w.warehouse_id = swm.warehouse_id 
+	where w.physical_warehouse_id = #{0} and w.warehouse_type = 'NORMAL'
+	GROUP BY s.shipping_code
+  </select>
+  <select id="searchElecShipping" resultType="map">
+  	select
+  		s.shipping_code ,s.shipping_name,s.shipping_id 
+  	from 
+		wms.shipping_warehouse_mapping swm,wms.shipping s,wms.warehouse w
+	where swm.shipping_id = s.shipping_id
+		and w.warehouse_id = swm.warehouse_id 
+		and w.physical_warehouse_id = #{0} 
+		and w.warehouse_type = 'NORMAL'
+		and swm.paper_type='electronic'
+	GROUP BY s.shipping_code
+  </select>
+</mapper>

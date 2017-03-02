@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ReportDao">
+	<select id="getPickList" resultType="map">
+		SELECT "拣货" as type,u.username,u.realname,wc.`name`,count(DISTINCT op.order_id) as order_num,
+		count(DISTINCT og.product_id) as goods_sku_num,sum(og.goods_number) as goods_num
+		 from wms.batch_pick bp
+		INNER JOIN wms.sys_user u on u.id = bp.bind_user_id  
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id and op.customer_id != 2 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id 
+		INNER JOIN wms.order_goods og on og.order_id = op.order_id and og.order_goods_type is null
+		where bind_user_id is not null and bp.`status` = 'BINDED' 
+		and bind_time>=#{0} and bind_time <![CDATA[ < ]]> #{1} and bp.physical_warehouse_id = #{2} 
+		GROUP BY bp.bind_user_id,op.customer_id
+	</select>
+	
+	<select id="getRecheckList" resultType="map">
+		SELECT "复核" as type,u.username,u.realname,wc.`name`,count(DISTINCT op.order_id)as order_num,
+		count(DISTINCT og.product_id) as goods_sku_num,sum(og.goods_number) as goods_num
+		FROM wms.user_action_order ao
+		INNER JOIN wms.order_process op on op.order_id = ao.order_id and op.customer_id != 2 
+		INNER JOIN wms.warehouse w on w.warehouse_id = op.warehouse_id
+		INNER JOIN wms.sys_user u on u.username = ao.created_user
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id 
+		INNER JOIN wms.order_goods og on og.order_id = op.order_id and og.order_goods_type is null
+		where ao.action_note = '订单复核完成' and ao.created_time >=#{0} and ao.created_time <![CDATA[ < ]]> #{1}
+		 and op.order_type in ('SALE','RMA_EXCHANGE') and w.physical_warehouse_id = #{2}  
+		GROUP BY ao.created_user,op.customer_id
+	</select>
+	
+	<select id="getReplenishmentList" resultType="map">
+		SELECT "补货" as type,temp_table.username,temp_table.realname,temp_table.`name`,sum(temp_table.task_num) as task_sum_num,
+		sum(temp_table.goods_sku_num) as product_sku_num,sum(temp_table.goods_num) as goods_sum_num
+		from
+		(
+		select "补货(下架)" as type,u.username,u.realname,wc.`name`,count(DISTINCT t.task_id) as task_num,
+		count(DISTINCT t.product_id) as goods_sku_num,sum(t.quantity) as goods_num
+		FROM wms.task t 
+		INNER JOIN wms.sys_user u on u.id = t.first_bind_user_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id and t.customer_id !=2 
+		where t.task_type = 'REPLENISHMENT' and t.first_bind_time >=#{0} 
+		and t.first_bind_time <![CDATA[ < ]]> #{1} and t.physical_warehouse_id =#{2}  
+		group by t.first_bind_user_id,t.customer_id 
+		UNION
+		select "补货(上架)" as type,u.username,u.realname,wc.`name`,count(DISTINCT t.task_id) as task_num,
+		count(DISTINCT t.product_id) as goods_sku_num,sum(t.quantity) as goods_num
+		FROM wms.task t 
+		INNER JOIN wms.sys_user u on u.id = t.second_bind_user_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id and t.customer_id !=2 
+		where t.task_type = 'REPLENISHMENT' and t.second_bind_time >=#{0}
+		and t.second_bind_time <![CDATA[ < ]]> #{1} and t.physical_warehouse_id =#{2}  
+		group by t.second_bind_user_id,t.customer_id ) as temp_table 
+		GROUP BY temp_table.username,temp_table.`name`
+	</select>
+	
+	<select id="getCountTaskList" resultType="map">
+		SELECT "盘点" as type,temp_table.username,temp_table.realname,temp_table.`name`,SUM(temp_table.task_num) as task_sum_num,
+		max(temp_table.goods_sku_num) as product_sku_num
+		from
+		(SELECT "初盘" as type,u.username,u.realname,wc.`name`,count(DISTINCT tc.task_id) as task_num,
+		count(DISTINCT tc.product_id) as goods_sku_num
+		from wms.batch_task_count btc 
+		INNER JOIN wms.task_count tc on tc.batch_task_sn1 = btc.batch_task_sn
+		INNER JOIN wms.sys_user u on u.id = btc.binded_user_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = tc.customer_id and tc.customer_id !=2 
+		where btc.binded_time >=#{0} and btc.binded_time <![CDATA[ < ]]> #{1} and tc.physical_warehouse_id = #{2} 
+		GROUP BY btc.binded_user_id,tc.customer_id
+		UNION
+		SELECT "复盘" as type,u.username,u.realname,wc.`name`,count(DISTINCT tc.task_id) as task_num,
+		count(DISTINCT tc.product_id) as goods_sku_num
+		from wms.batch_task_count btc 
+		INNER JOIN wms.task_count tc on tc.batch_task_sn2 = btc.batch_task_sn
+		INNER JOIN wms.sys_user u on u.id = btc.binded_user_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = tc.customer_id and tc.customer_id !=2 
+		where btc.binded_time >=#{0} and btc.binded_time <![CDATA[ < ]]> #{1} and tc.physical_warehouse_id = #{2} 
+		GROUP BY btc.binded_user_id,tc.customer_id
+		UNION
+		SELECT "终盘" as type,u.username,u.realname,wc.`name`,count(DISTINCT tc.task_id) as task_num,
+		count(DISTINCT tc.product_id) as goods_sku_num
+		from wms.batch_task_count btc 
+		INNER JOIN wms.task_count tc on tc.batch_task_sn3 = btc.batch_task_sn
+		INNER JOIN wms.sys_user u on u.id = btc.binded_user_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = tc.customer_id and tc.customer_id !=2 
+		where btc.binded_time >=#{0} and btc.binded_time <![CDATA[ < ]]> #{1} and tc.physical_warehouse_id = #{2} 
+		GROUP BY btc.binded_user_id,tc.customer_id
+		)as temp_table 
+		GROUP BY temp_table.username,temp_table.`name`
+	</select>
+	
+	<select id="getMovekList" resultType="map">
+		SELECT "移库" as type,u.username,u.realname,wc.`name`,count(DISTINCT t.task_id) as task_num,
+		count(DISTINCT t.product_id ) as goods_sku_num,sum(t.quantity) as goods_num
+		from wms.task t 
+		INNER JOIN wms.sys_user u on u.id = t.first_bind_user_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id
+		WHERE t.created_time >=#{0} and t.created_time <![CDATA[ < ]]> #{1} and t.physical_warehouse_id = #{2} 
+		and t.task_type = 'MOVE' and t.customer_id != 2
+	</select>
+	
+	<select id="getFulfilledReplenishmentList" resultType="map">
+		SELECT w.warehouse_name,task_level,`name`,count(DISTINCT t.task_id) as count_task,sum(quantity) as sum_num 
+		from wms.task t
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = t.physical_warehouse_id
+		where task_type = 'REPLENISHMENT' AND t.created_time >#{0} AND t.created_time <![CDATA[ < ]]> #{1} and task_status = 'FULFILLED'
+		GROUP BY t.physical_warehouse_id,task_level,t.customer_id
+	</select>
+	
+	<select id="getOrderToDoList" resultType="map">
+		SELECT wc.`name`,wc.customer_id,
+		count(distinct oi.order_id) as ALL_ORDER,
+		SUM(IF((op.`status`='FULFILLED' || op.`status` = 'DELIVERED'),1,0) ) as ALL_FULFILLED,
+		SUM(IF(op.status='CANCEL',1,0)) AS CANCEL,
+		SUM(IF(op.status not in ('FULFILLED','DELIVERED','CANCEL'),1,0)) AS TODO,
+		SUM(IF(op.`status`='ACCEPT',1,0)) as ACCPET,
+		SUM(IF(op.`status`='BATCH_PICK',1,0)) as BATCH_PICK,
+		SUM(IF(op.`status`='PICKING',1,0)) as PICKING,
+		SUM(IF(op.`status`='RECHECKED',1,0)) as RECHECKED,
+		SUM(IF(op.`status`='WEIGHED',1,0)) as WEIGHED,
+		SUM(IF((op.`status`='FULFILLED' || op.`status` = 'DELIVERED') AND op.inventory_out_time>#{todayDate},1,0) ) as FULFILLED
+		from wms.order_info oi FORCE INDEX (multi_order_info_key)
+		STRAIGHT_JOIN wms.order_process op on op.order_id = oi.order_id 
+		STRAIGHT_JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		where oi.order_time >= #{startTime}
+			<if test="endTime != null">
+				AND oi.order_time <![CDATA[ <= ]]> #{endTime} 
+			</if>
+			and oi.physical_warehouse_id = #{physical_warehouse_id} 
+			and oi.order_type = 'SALE'  and oi.customer_id !=2 
+		GROUP BY oi.customer_id
+		order by TODO desc
+	</select>
+	
+	<select id="getReplenishmentToDoList" resultType="map">
+		SELECT c.`name`,sum(if(task_level=1,1,0)) as general_rep,sum(if(task_level=3,1,0)) as hurry_rep from wms.task t
+		STRAIGHT_JOIN wms.warehouse_customer c on c.customer_id = t.customer_id
+		where created_time>=#{startTime}  and physical_warehouse_id = #{physical_warehouse_id} 
+		and task_status in ('INIT','IN_PROCESS') AND task_type = 'REPLENISHMENT'  and t.customer_id !=2 
+		GROUP BY t.customer_id
+	</select>
+	
+	<select id="getOrderListByPayTime" resultType="map">
+		SELECT order_status,
+		case order_status
+				when 'ACCEPT' then '未处理'
+				when 'BATCH_PICK' then '已分配'
+				when 'PICKING' then '拣货中'
+				when 'RECHECKED' then '已复核'
+				when 'WEIGHED' then '已称重'
+				when 'DELIVERED' then '已发货'
+				when 'FULFILLED' then '已发货'
+				when 'CANCEL' then '已取消'
+				else '状态有误' end
+				as orderStatus,count(*) as cou,count(*) as y
+		from wms.order_info FORCE INDEX (multi_order_info_key)
+		where 
+			order_time >=#{startTime}
+			<if test="customerIdList.size() ==0"> and 1=0</if>
+			<if test="endTime != null and endTime !=''">
+				and order_time <![CDATA[ <= ]]> #{endTime}
+			</if>
+			and physical_warehouse_id = #{physicalWarehoudeId}
+			and order_type = 'SALE'  and customer_id != 2  
+			<if test="customerIdList.size() >0">
+			and customer_id in 
+				<foreach collection="customerIdList" item="customerId" index="customerId" open="("
+					close=")" separator=",">
+					#{customerId}
+				</foreach>
+			</if>
+			<if test="omsShopId != null and omsShopId !=''">
+				and oms_shop_id = #{omsShopId}
+			</if>
+		GROUP BY orderStatus
+	</select>
+	
+	<select id="selectTnsForFinishList" resultType="map">
+		SELECT tnr.tracking_number,oi.receive_name,oi.mobile_number,oi.phone_number,oi.province_name,
+		oi.city_name,oi.district_name,oi.shipping_address,s.shipping_wms_weight
+		from  wms.shipping_tracking_number_repository tnr 
+		STRAIGHT_JOIN wms.shipment s on s.tracking_number = tnr.tracking_number
+		STRAIGHT_JOIN wms.order_info oi on oi.order_id = s.order_id and oi.customer_id != 2 
+		where tnr.shipping_app_id = #{0} and tnr.`status` in ('Y','E')  and  oi.order_type ='SALE' and oi.order_status ='FULFILLED' limit 2000
+	</select>
+	
+	<select id="selectStockGoodsDeletedList" resultType="map">
+		SELECT w.warehouse_name,wc.name,
+		case  p.product_type 
+			when 'GOODS' THEN '单品'
+			WHEN 'PACKBOX' THEN '耗材'
+			when 'PREPACKAGE' THEN '套餐'
+			ELSE p.product_type end
+		AS type,
+		p.sku_code,p.barcode,p.product_name,
+		CASE ii.`status`
+			when 'DEFECTIVE' then '不良品'
+			WHEN 'NORMAL' then '良品'
+			ELSE `status` END
+		as p_status,sum(ii.quantity) as total
+		from wms.product p
+		INNER JOIN wms.inventory_item ii on ii.product_id = p.product_id 
+		STRAIGHT_JOIN wms.warehouse w on w.warehouse_id = ii.physical_warehouse_id
+		STRAIGHT_JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id
+		where p.is_delete = 'Y' and ii.quantity >0 and p.customer_id !=2 
+		GROUP BY p.product_id,ii.physical_warehouse_id,ii.`status`
+	</select>
+</mapper>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OmsOrderTransferCodeDao">
+
+	<select id="selectByProductId" parameterType="String" resultType="com.leqee.wms.entity.OmsOrderTransferCode">
+		select * from wms.oms_order_transfer_code where product_id=#{product_id} limit 1
+	</select>
+	
+	<select id="selectBySkuCode" parameterType="String" resultType="com.leqee.wms.entity.OmsOrderTransferCode">
+		select * from wms.oms_order_transfer_code where sku_code=#{sku_code}
+	</select>	
+	
+	<select id="selectByOrderId" parameterType="String" resultType="com.leqee.wms.entity.OmsOrderTransferCode">
+		select * from wms.oms_order_transfer_code where order_id=#{order_id}
+	</select>
+</mapper>

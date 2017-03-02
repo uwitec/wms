@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.SysResourceDao">
+  <select id="selectByResourceId" parameterType="Integer"  resultType="com.leqee.wms.entity.SysResource">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_resource
+  	WHERE
+  		id = #{resourceId}
+  </select>
+  
+  <select id="selectByType" parameterType="String"  resultType="com.leqee.wms.entity.SysResource">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_resource
+  	WHERE
+  		type = #{type}
+  	AND available = 1
+  	ORDER BY sequence_number ASC
+  </select>
+  
+  <select id="selectAllAvailable" resultType="com.leqee.wms.entity.SysResource">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_resource
+  	WHERE 
+  		available = 1
+  </select>
+  
+  <select id="selectAllAvailableByUser" resultType="map">
+  	SELECT 
+  		sr.*,
+  		if(su.id is null, 0, 1) checked
+  	FROM 
+  		wms.sys_resource sr
+  	left join wms.sys_user su on find_in_set(sr.id, su.resource_ids) and su.id = #{id}
+  	WHERE 
+  		sr.available = 1
+  </select>
+  
+  <select id="getResourceListByRole" resultType="map">
+  	SELECT
+		sr.*,
+	IF (srole.id IS NULL, 0, 1) checked
+	FROM
+		wms.sys_resource sr
+	LEFT JOIN wms.sys_role srole ON find_in_set(sr.id, srole.resource_ids) AND srole.id = #{roleId}
+	where 
+		sr.available = 1
+  </select>
+  
+</mapper>

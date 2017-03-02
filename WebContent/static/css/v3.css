@@ -1,0 +1,149 @@
+/* CSS Document */
+/* 清除内外边距 */
+body, h1, h2, h3, h4, h5, h6, hr, p, blockquote, /* structural elements 结构元素 */
+dl, dt, dd, ul, ol, li, /* list elements 列表元素 */
+pre, /* text formatting elements 文本格式元素 */
+fieldset,legend, button, input, textarea, /* form elements 表单元素 */
+th, td { /* table elements 表格元素 */
+    margin: 0;
+    padding: 0;
+}
+
+/* 设置默认字体 */
+body,
+button, input, select, textarea { /* for ie */
+    /*font: 12px/1 Tahoma, Helvetica, Arial, "宋体", sans-serif;*/
+    font-family: "微软雅黑","黑体";
+    font-size: 13px;
+}
+h1,h2,h3,h4,h5,h6{
+    font-family: "微软雅黑","黑体";
+}
+h1 { font-size: 18px; /* 18px / 12px = 1.5 */ }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+h4, h5, h6 { font-size: 100%; }
+
+address, cite, dfn, em, var { font-style: normal; } /* 将斜体扶正 */
+code, kbd, pre, samp, tt { font-family: "Courier New", Courier, monospace; } /* 统一等宽字体 */
+small { font-size: 12px; } /* 小于 12px 的中文很难阅读，让 small 正常化 */
+
+
+/* 重置列表元素 */
+ul, ol { list-style: none; }
+
+/* 重置文本格式元素 */
+a { text-decoration: none;}
+
+
+abbr[title], acronym[title] { /* 注：1.ie6 不支持 abbr; 2.这里用了属性选择符，ie6 下无效果 */
+    border-bottom: 1px dotted;
+    cursor: help;
+}
+
+q:before, q:after { content: ''; }
+
+/* 重置表单元素 */
+legend { color: #000; } /* for ie6 */
+fieldset, img { border: none; } /* img 搭车：让链接里的 img 无边框 */
+/* 注：optgroup 无法扶正 */
+button, input, select, textarea {
+    font-size: 100%; /* 使得表单元素在 ie 下能继承字体大小 */
+}
+/*td{text-align: center;}*/
+#track_status{position:relative;}
+#track_status ul{position:absolute;top:20px;background:#fff;border:1px solid #aaa;}
+#track_status li{line-height:25px;}
+.table_status td{padding:5px 0;}
+.main{width:810px;margin:10px 0;}
+strong:first-child a{color:red;font-size:14px;margin-left:10px;}
+textarea{font-size:12px;}
+p+p{margin-top:10px;}
+.service_box{border:1px solid #3295DD;margin:5px auto;width:960px;clear:both;overflow:hidden;}
+.service_box h2{height:26px;line-height:26px;background:#3295DD;font-size:12px;font-weight:normal;padding-left:10px;color:#fff;}
+.service_box h2 span{color:#FFCC66;}
+.service_box h2 a{color:#FFCC66;}
+/*.service_box table{ border-collapse:collapse;margin:5px;}
+.service_box table th{background:#BFE1FF;border:1px solid #c1dad7;font-weight:normal;height:22px;}
+.service_box table.user_info th{background:#BFE1FF;}
+.service_box table.price_info th{background:#EEF7FF;}
+.service_box table td{background:#fff;border:1px solid #c1dad7;height:22px;}*/
+.service_talk{clear:both;}
+.ask_reply{clear:both;}
+.ask_reply h3{font-size:12px;line-height:25px;padding-left:10px;font-weight:normal;}
+.ask_reply h3 span{color:#000;padding:0 5px;font-weight:bold;}
+.no_comment{background:#FCF8E9;}
+.summary{color:#999999;cursor:pointer;height:25px;line-height:25px;border-top:1px solid #ccc;overflow:hidden;padding:0 10px;}
+.s_content{clear:both;padding:5px 10px;line-height:150%;}
+.summary strong{color:green;margin-right:10px;}
+.summary strong.reply{color:#C400C4}
+.summary .s_first{color:#000;}
+.s_first{float:right;}
+.operate{padding:0 10px;line-height:24px;overflow:hidden;}
+.write{padding:0 10px;}
+.write textarea{border:1px solid #999;width:100%;height:60px;}
+.operate a{margin-right:10px;}
+.operate span{float:right;margin-top:10px;}
+.operate span a{color:#009900;}
+.operate .button_1{margin:10px 0;}
+.operate strong{margin-top:10px;color:red;display:none;font-weight:normal;margin-left:10px;}
+.user_info,.express_info,.back_goods{width:98.9%;text-align:center;}
+.user_info td{padding:5px;text-align:left;}
+.user_info th:last-child{width:auto;}
+
+.express_info th{width:15%;}
+.express_info th + th{width:10%;}
+.express_info th + th + th{width:16%;}
+.express_info th:last-child{width:auto;}
+.price_info{float:left;width:99%;clear:both;}
+.price_info td,.price_info th{text-align:right;padding-right:10px;}
+.action_info{float:left;width:99%;}
+.action_info td{padding:0 10px;}
+.action_info th{padding:0 10px;}
+.action_info td:first-child{width:36%;}
+.action_info td:last-child{width:36%;}
+.price_info tr:last-child td:last-child{text-align:center;}
+.price_info td:last-child a:last-child{width:60px;margin-left:5px;}
+.price_info .confirm_refund{idth:140px;height:26px;line-height:26px;color:#fff;border:1px solid #E3E3E3;background:#27ae60;display:inline-block;text-align:center;margin:14px 0;cursor:pointer;}
+.bank_info{float:left;text-align:center;}
+.back_express_info{float:left;text-align:center;width:40.5%;}
+.back_express_info td:last-child{width:10%;}
+.service_talk h3{border-top:1px solid #6687BD;height:25px;line-height:25px;background:#fff;}
+
+.popw{background:url(../images/popWindow_b.gif) bottom no-repeat;width:325px;padding-bottom:13px;position:relative;}
+.popw span{position:absolute;right:10px;top:0px;color:#000;font-size:16px;font-weight:bold;cursor:pointer;}
+.popw h2{height:23px;line-height:23px;background:url(../images/popWindow_t.gif);font-size:12px;padding-left:30px;}
+.popw .popContent{border-left:1px solid #CACCCE;border-right:1px solid #CACCCE;padding:10px;background:#fff;margin-left:1px;}
+.popw textarea{border:1px solid #999;width:300px;margin-top:10px;font-size:12px;}
+.popw .button_1{width:80px;margin-top:10px;margin-bottom:0;}
+/**/
+.button_1,.button_2{width:140px;height:26px;line-height:26px;color:#fff;border:1px solid #E3E3E3;background:#27ae60;display:inline-block;text-align:center;margin:14px 0;cursor:pointer;}
+.button_2{background:#c6c6c6;width:60px;margin:0;margin-left:10px;}
+.back_express_info .button_1:active{
+	position: relative;
+	top:1px;
+}
+.b_amount{padding:10px 5px 0 5px;}
+.b_amount input{width:100px;}
+.b_amount .button_1{width:60px;}
+.money,.bonus{margin:0 10px;}
+.price_chart{width:780px;height:160px;clear:both;}
+.price_chart table td{border:0;padding:0 5px;}
+.return_exp{padding:10px;background:#EEFCFF}
+.return_exp p{margin:0;padding:0;}
+.return_exp input{margin-right:10px;}
+.new_service{border:1px solid #6687BD;border-collapse:collapse;width:100%;margin-left:10px;}
+.new_service td{border:1px solid #6687BD;padding:5px 10px;}
+.new_service tr td:first-child{text-align:right;width:100px;}
+.new_service input[type='checkbox'],.new_service input[type='radio']{vertical-align:middle;margin-right:3px;}
+.new_service table{border:0;border-collapse:collapse;}
+#price_map{width:540px;height:150px;background:#fff;margin-left:14px;}
+#price_map td{border:0;width:auto;}
+.action_class{margin-left:5px;clear:both;float:left;margin-top:5px;}
+.action_class a{color:#000;background:#BFE1FF;display:inline-block;display -moz-inline-block;padding:5px;}
+.edit_bank_info{color:blue;margin-right:20px;}
+.edit_bank_block td{padding:5px;text-align:left;}
+.edit_bank_block tr td:first-child{text-align:right;}
+
+.rmatracker td { padding:5px;}
+.rmatracker input {vertical-align:middle;}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.LabelPrepackDao">
+	<insert id="insert" parameterType="com.leqee.wms.entity.LabelPrepack">
+		insert into wms.label_prepack(
+			label_prepack_id,task_id,status,location_id,location_barcode,packbox_num,packbox_need_out,
+			order_id,packbox_product_id,created_user,created_time,last_updated_user,last_updated_time
+		)values(
+			#{label_prepack_id},#{task_id},#{status},#{location_id},#{location_barcode},#{packbox_num},#{packbox_need_out},
+			#{order_id},#{packbox_product_id},#{created_user},#{created_time},#{last_updated_user},#{last_updated_time}
+		)
+	</insert>
+
+	<update id="updatePackBoxNeedOut">
+	   update wms.label_prepack set packbox_need_out=packbox_need_out-#{packbox_need_out} where label_prepack_id=#{label_prepack_id}
+	</update>
+</mapper>

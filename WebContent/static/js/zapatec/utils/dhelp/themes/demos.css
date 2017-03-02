@@ -1,0 +1,98 @@
+/* $Id: demos.css 6758 2007-03-26 15:17:38Z ken $ */
+.zpTreeDemosContainer .tree,
+.zpTreeDemosContainer .tree-item .tree-table td.submenu a,
+.zpTreeDemosContainer .tree-item table.tree-table{
+  font: 11px tahoma,verdana,sans-serif;
+  padding: 3px;
+}
+
+.zpTreeDemosContainer .tree-item .tree-table td.submenu a {
+text-decoration:none;
+font-weight: normal;
+color: #000000;
+}
+.zpTreeDemosContainer .tree-item .tree-table td.label:hover,
+.zpTreeDemosContainer .tree-item .tree-table td.submenu a:hover {
+color:blue;
+}
+
+.zpTreeDemosContainer .tree {
+  margin-left: 10px;
+  padding-left: 0px;
+}
+
+.zpTreeDemosContainer .tree-top {
+  padding-left: 0px;
+}
+
+.zpTreeDemosContainer .tree-item { 
+  margin-left: 0px;
+  padding-left: 17px;
+  background: transparent url("img/dot.gif") no-repeat 1px 50%;
+  border-top: solid 1px #EBEBEB;
+}
+
+.zpTreeDemosContainer .tree-item-more {
+  padding-left: 1px;
+}
+
+.zpTreeDemosContainer .tree-item td.label {
+  cursor: pointer;
+  cursor: hand;
+}
+
+.zpTreeDemosContainer .tree-item table.tree-table {
+}
+
+.zpTreeDemosContainer .tree-item table.tree-table td.label{
+  padding: 0px 2px;
+}
+
+.zpTreeDemosContainer .tree-item .tgb {
+  width: 9px; height: 9px; vertical-align: middle; cursor: default;
+}
+
+.zpTreeDemosContainer .tree-item .plus {
+  background: transparent url("img/arrow-grey.gif") no-repeat 0 50%;
+  padding-right: 7px;
+}
+
+.zpTreeDemosContainer .tree-item .minus {
+  background: transparent url("img/down-arrow-grey.gif") no-repeat 0 50%;
+  padding-right: 7px;
+}
+
+.zpTreeDemosContainer .tree-item .fetching {
+  background: transparent url("img/fetching.gif") no-repeat 0 50%;
+  padding-right: 7px;
+}
+
+.zpTreeDemosContainer .tree-item .icon {
+  padding-right: 4px;
+  cursor: pointer; 
+  cursor: hand;
+  width: 18px; 
+  height: 18px; 
+  text-align: center; 
+  vertical-align: middle;
+}
+
+.zpTreeDemosContainer .tree-item-selected table.tree-table td.label {
+  background-color: #ddd; 
+  color: #000;
+}
+
+.zpTreeDemosContainer .tree-lines-c {
+}
+
+.zpTreeDemosContainer .tree-lines-b {
+}
+
+.zpTreeDemosContainer .tree-lines-t {
+}
+
+.zpTreeDemosContainer .tree-lines-s {
+}
+
+.zpTreeDemosContainer .tree-lined {
+}

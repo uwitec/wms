@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventoryItemValueHistoryDao">
+	
+	<insert id="insert" parameterType="com.leqee.wms.entity.InventoryItemValueHistory">
+      <selectKey keyProperty="inventory_item_value_hist_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+      insert into inventory_item_value_history 
+      (inventory_item_value_hist_id, inventory_item_id, 
+      unit_cost, date_time,
+      created_user, created_time,last_updated_time)
+    values (#{inventory_item_value_hist_id,jdbcType=INTEGER},   
+      #{inventory_item_id,jdbcType=INTEGER},
+      #{unit_cost,jdbcType=DECIMAL},
+      #{date_time,jdbcType=INTEGER},
+      #{created_user,jdbcType=VARCHAR}, 
+      #{created_time,jdbcType=TIMESTAMP}, 
+      #{last_updated_time,jdbcType=TIMESTAMP})
+    </insert>
+	
+</mapper>

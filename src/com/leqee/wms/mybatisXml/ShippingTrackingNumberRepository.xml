@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.leqee.wms.dao.ShippingTrackingNumberRepositoryDao" >
+  
+  <insert id="insertTrackingNumer" parameterType="com.leqee.wms.entity.ShippingTrackingNumberRepository" >
+    insert into wms.shipping_tracking_number_repository (shipping_app_id,tracking_number, status, 
+      created_user, created_time)
+    values (#{appId,jdbcType=INTEGER}, #{trackingNumber,jdbcType=VARCHAR}, #{status,jdbcType=CHAR}, 
+      #{createdUser,jdbcType=VARCHAR}, #{createdTime,jdbcType=TIMESTAMP})
+  </insert>
+  
+  <insert id="batchInsertTnRepository" parameterType="java.util.List">
+  	insert into wms.shipping_tracking_number_repository ( shipping_app_id,tracking_number, status, 
+      created_user, created_time)
+		values
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.shipping_app_id},#{item.tracking_number},#{item.status},#{item.created_user},#{item.created_time})
+		</foreach>
+  </insert>
+  
+  
+  	<!-- 查询中通当前最大面单号 -->
+	<select id="searchMaxTrackingNumber" parameterType="Integer" resultType="java.lang.String">
+		select max(tracking_number) 
+		from wms.shipping_tracking_number_repository where shipping_app_id = #{appId,jdbcType=INTEGER} 
+	</select>
+	
+	<select id="getTrackingNumber" parameterType="java.lang.Integer" resultType="String">
+		select tracking_number from wms.shipping_tracking_number_repository where shipping_app_id =#{appId,jdbcType=INTEGER} and status = 'N' limit 1 for update
+	</select>
+	
+	<update id="updateRepositoryTrackingNumber" >
+		update wms.shipping_tracking_number_repository set status=#{1} where tracking_number = #{0}
+	</update>
+	
+	
+	<!-- 查询汇通待回传面单绑定信息 -->
+	<select id="selectShippingInfoList" resultType="map">
+		SELECT tnr.tracking_number,oi.order_id,s.shipment_id,m.ht_express_code,
+		oi.shipping_time,oi.receive_name,oi.mobile_number,oi.phone_number,oi.province_name,oi.city_name,oi.district_name,oi.shipping_address,
+		sa.app_key,sa.app_secret,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,
+		wc.`name` as  contact,wc.aftersale_phone as contact_mobile,w.address
+		from  wms.shipping_tracking_number_repository tnr 
+		INNER JOIN wms.shipping_app sa on sa.app_id = tnr.shipping_app_id and sa.apply_type = 'BATCH'
+		INNER JOIN wms.shipment s on s.tracking_number = tnr.tracking_number
+		INNER JOIN wms.order_info oi on oi.order_id = s.order_id 
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		INNER JOIN wms.shipping ws on ws.shipping_id = oi.shipping_id
+		LEFT JOIN wms.shipping_warehouse_mapping m on m.shipping_app_id = tnr.shipping_app_id and m.warehouse_id = oi.warehouse_id and m.shipping_id = oi.shipping_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		where ws.shipping_code = #{0} and  oi.order_type ='SALE' and tnr.`status` in ('Y','E') and oi.order_status ='FULFILLED'
+		 and oi.shipping_time >=date_add(now(),interval -#{1} hour) limit 1000
+	</select>
+	
+	<select id="getTrackingNumbers" resultType="String">
+		select tracking_number from wms.shipping_tracking_number_repository 
+		ignore index (shipping_app_id, status)
+		where shipping_app_id = #{0} and status= 'N' 
+		limit #{1} 
+	</select>
+	<update id="updateRepositoryTrackingNumbers" >
+		update wms.shipping_tracking_number_repository set status=#{status} where status!=#{status} and
+		<if test="trackingNumbers != null and trackingNumbers.size() != 0">
+			 tracking_number in
+			<foreach collection="trackingNumbers" item="item" open="("
+				separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+	</update>
+	
+	<select id="selectReUseTns" resultType="String">
+		SELECT
+			tnr.tracking_number
+		FROM
+			wms.shipping_tracking_number_repository tnr
+		INNER JOIN wms.shipping_app sa on sa.app_id = tnr.shipping_app_id and sa.apply_type = 'BATCH' 
+		LEFT JOIN wms.shipment s on s.tracking_number = tnr.tracking_number
+		WHERE
+			tnr.status = 'Y' and  s.shipment_id is null
+	</select>
+	
+	<select id="selectBatchAppId" resultType="map">
+		SELECT sa.app_id,sa.app_key from wms.shipping_app sa 
+		INNER JOIN wms.shipping_warehouse_mapping m on m.shipping_app_id = sa.app_id
+		where sa.apply_type = 'BATCH'
+		GROUP BY sa.app_id
+	</select>
+	<select id="selectShippingNameByAppId" resultType="map">
+		SELECT DISTINCT s.shipping_name as name,cast(GROUP_CONCAT(warehouse_id) as char) as group_wid 
+		from wms.shipping_warehouse_mapping m 
+		INNER JOIN wms.shipping s on s.shipping_id = m.shipping_id
+		 where shipping_app_id = #{0} limit 1
+	</select>
+	<select id="selectWarehouseNameByIds" resultType="map">
+		SELECT cast(GROUP_CONCAT(w.warehouse_name) as char) as group_warehouse_name,w1.warehouse_name as group_physical
+		from wms.warehouse w 
+		INNER JOIN wms.warehouse w1 on w1.warehouse_id = w.physical_warehouse_id
+		WHERE w.warehouse_id in 
+		<foreach collection="list" item="i" open="("
+			close=")" separator=",">
+			#{i}
+		</foreach>
+		 and w.is_delete = 'N'
+		GROUP BY w.physical_warehouse_id limit 1
+	</select>
+	
+</mapper>

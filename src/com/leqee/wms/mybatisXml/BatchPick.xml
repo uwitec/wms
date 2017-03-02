@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.BatchPickDao">
+	<insert id="insert" parameterType="com.leqee.wms.entity.BatchPick">
+		<selectKey keyProperty="batch_pick_id" resultType="java.lang.Integer">
+			select LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.batch_pick (batch_pick_id, batch_pick_sn, status,
+		batch_process_type, created_user, created_time,physical_warehouse_id,batch_pick_group_id,warehouse_id
+		)
+		values (#{batch_pick_id,jdbcType=INTEGER},
+		#{batch_pick_sn,jdbcType=VARCHAR}, #{status,jdbcType=CHAR},
+		#{batch_process_type,jdbcType=CHAR}, #{created_user,jdbcType=VARCHAR},
+		#{created_time,jdbcType=TIMESTAMP},#{physical_warehouse_id,jdbcType=INTEGER},#{batch_pick_group_id,jdbcType=INTEGER},#{warehouse_id,jdbcType=INTEGER}
+		)
+	</insert>
+
+	<select id="selectMaxBatchPickSn" parameterType="String"
+		resultType="String">
+		select max(batch_pick_sn) as maxBatchPickSn from wms.batch_pick where
+		batch_pick_sn >= #{curDateStartBatchPickSn} limit 1
+	</select>
+    <select id="selectAllBatchPickListByIdListForUpdate"  resultType="com.leqee.wms.entity.BatchPick">
+	    select * 
+	    from wms.batch_pick 
+	    where batch_pick_id in 
+	    <foreach collection="list" item="batch_pick_id" open="("
+				separator="," close=")">
+			 #{batch_pick_id}
+		</foreach>
+		for update    
+    </select>
+    <select id="selectAllEBatchPickByCustomerId"   resultType="com.leqee.wms.entity.BatchPick">
+        select bp.* from wms.order_process op
+        inner join wms.batch_pick bp on op.batch_pick_id=bp.batch_pick_id
+        inner join wms.order_info oi on oi.order_id=op.order_id
+        where bp.reserve_status='E' and oi.physical_warehouse_id=#{physical_warehouse_id}  and oi.customer_id=#{customer_id}
+        group by bp.batch_pick_id
+    </select>
+	<select id="selectBatchPickByBatchPickSn" parameterType="String"
+		resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_sn = #{batch_pick_sn} and print_count >= 1 limit 1
+	</select>
+
+	<update id="updatebatchPickForBindEmployee">
+		update wms.batch_pick set bind_user_id = #{0},bind_time=now(),status =
+		'BINDED' where batch_pick_id = #{1}
+	</update>
+
+	<select id="selectbatchPickById" parameterType="int" resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_id = #{batchPickId} limit 1
+	</select>
+	
+	<select id="selectbatchPickForUpdateLock" resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_id = #{0} for update limit 1
+	</select>
+
+	<select id="selectbatchPickForUpdateLockV2" resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_id = #{batch_pick_id} for update
+	</select>
+	
+	<select id="selectbatchPickBySnForRecheck" resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_sn = #{batchPickSn}
+	</select>
+	
+	<select id="selectOrdersInTask" parameterType="map" resultType="int">
+		SELECT SUM(batchpick_num) FROM wms.batch_pick_task WHERE
+		warehouse_id=#{warehouse_id} and task_time > #{time}
+	</select>
+
+	<select id="selectBatchPickTasks" parameterType="map"
+		resultType="int">
+		SELECT count(batchpick_num) FROM wms.batch_pick_task WHERE
+		warehouse_id=#{warehouse_id} and task_time > #{time}
+	</select>
+	<select id="getOrderIdByBatchPickSn" parameterType="string"
+		resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT oi.order_id,oi.order_status
+		FROM wms.batch_pick bp 
+		join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.order_info oi on oi.order_id=op.order_id
+		where bp.batch_pick_sn = #{batch_pick_sn}
+	</select>
+
+
+	<update id="updateOrderInfoStatus" parameterType="string">
+		update wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.order_info oi on oi.order_id = op.order_id
+		set oi.order_status = 'PICKING'
+		where bp.batch_pick_sn = #{batch_pick_sn}
+	</update>
+	
+	<update id="updateOrderProcessStatus" parameterType="string">
+		update wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		set op.status = 'PICKING'
+		where bp.batch_pick_sn = #{batch_pick_sn}
+	</update>
+	
+	<update id="updateBatchProcessType">
+		update wms.batch_pick set batch_process_type = #{batch_process_type} where batch_pick_id = #{batch_pick_id}
+	</update>
+	
+	<update id="updateBatchProcessTypeAndRecheckMark">
+		update wms.batch_pick set batch_process_type = "NORMAL",recheck_mark="Y" 
+		where batch_pick_id = #{0} and flow_status in ('SHIPMENT_N','SHIPMENT_E','SHIPMENT_Y')
+	</update>
+	
+	<select id="getbatchPickNumInPhySicalWareHouseToday"
+		resultType="int">
+		SELECT count(batch_pick_id) FROM wms.batch_pick
+		where created_time > #{time} and physical_warehouse_id= #{physical_warehouse_id}
+	</select>
+	
+	<select id="getorderNumInPhySicalWareHouseToday"
+		resultType="int">
+		SELECT count(op.order_id) FROM wms.batch_pick bp inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		where bp.created_time > #{time} and physical_warehouse_id= #{physical_warehouse_id}
+	</select>
+	
+	<select id="getOrdersInPhysicalWareHouseTodayForBp"
+		resultType="int">
+		SELECT count(op.order_id) FROM wms.order_process op inner join wms.warehouse wh on wh.warehouse_id = op.warehouse_id
+		where op.created_time > #{time} and wh.physical_warehouse_id= #{physical_warehouse_id} and op.status='ACCEPT' AND op.order_type='sale'
+	</select>
+	
+	
+	
+	<select id="getBatchBatchPickByBPSn"
+		resultType="com.leqee.wms.entity.BatchPick">
+		SELECT  *  
+		FROM wms.batch_pick  
+		where batch_process_type='BATCH' and batch_pick_sn = #{batch_pick_sn}
+	</select>
+	
+	<select id="getPhysicalWarehouseIdByBPId"
+		resultType="int">
+		SELECT  oi.physical_warehouse_id  
+		FROM wms.order_process op
+		inner join wms.order_info oi on op.order_id=oi.order_id   
+		where op.batch_pick_id = #{batch_pick_id} limit 0,1
+	</select>
+	
+	<select id="getAllShipmentByBPSn"
+		resultType="map">
+		SELECT   sg.shipping_id,sg.shipping_name,COUNT(st.tracking_number)  as count,
+		GROUP_CONCAT(st.tracking_number ORDER BY st.tracking_number +'') AS	tracking_Numbers,
+		GROUP_CONCAT(st.shipment_id ORDER BY st.tracking_number +'') AS shipment_ids
+		FROM wms.shipment st 
+		INNER JOIN wms.order_process op ON st.order_id = op.order_id
+		INNER JOIN wms.shipping sg ON st.shipping_id=sg.shipping_id
+		WHERE op.batch_pick_id = #{batch_pick_id} and op.status = 'WEIGHED'
+		GROUP BY shipping_name
+	</select>
+	<select id="getAllShipmentByBPSnAndShippingId"
+		resultType="int">
+		SELECT   st.shipment_id
+		FROM wms.shipment st 
+		INNER JOIN wms.order_process op ON st.order_id = op.order_id
+		WHERE op.batch_pick_id = #{batch_pick_id} and op.status = 'WEIGHED' and st.shipping_id=#{shipping_id}
+	</select>
+	<select id="getErrorNumOrders"
+		resultType="int">
+		SELECT  count(op.order_id)
+		FROM wms.order_process op  
+		where op.batch_pick_id = #{batch_pick_id} and op.status='CANCEL'
+	</select>
+		<select id="getErrorShipmentNums"
+		resultType="int">
+		SELECT  count(st.tracking_number)
+		FROM wms.order_process op
+		inner join wms.shipment st on st.order_id = op.order_id
+		where op.batch_pick_id = #{batch_pick_id} and op.status='CANCEL'
+	</select>
+	<select id="getErrorOrdersList"
+		resultType="map">
+		SELECT  op.order_id,GROUP_CONCAT(st.tracking_number ORDER BY st.tracking_number +'') AS	tracking_Numbers,count(st.tracking_number) as count
+		FROM wms.order_process op
+		inner join wms.shipment st on op.order_id=st.order_id  
+		where op.batch_pick_id = #{batch_pick_id} and op.status='CANCEL'
+		group by order_id
+	</select>
+	
+	<select id="noWeightedOrders"
+		resultType="int">
+		SELECT  count(op.order_id)
+		FROM wms.order_process op  
+		where op.batch_pick_id = #{batch_pick_id} and op.status !='WEIGHED'
+	</select>
+	<!--  未加toX类型波次单
+	<select id="getNeedAllotSaleBatchPick"
+		resultType="int">
+		select bp.batch_pick_id
+		from
+		wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.order_info oi on op.order_id = oi.order_id
+		where
+		oi.physical_warehouse_id = #{physical_warehouse_id} and op.customer_id = #{customer_id}  and bp.reserve_status= #{reserve_status}
+		<if test="isToB != '' and isToB != 2">
+		and bp.batch_process_type !='TOB'
+		</if>
+		<if test="isToB != '' and isToB != 1">
+		and bp.batch_process_type ='TOB'
+		</if>
+		group by bp.batch_pick_id
+	</select>
+	-->
+	
+	<select id="getNeedAllotSaleBatchPick"
+		resultType="int">
+		select bp.batch_pick_id
+		from
+		wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id   and bp.warehouse_id=#{warehouse_id}
+		inner join wms.order_info oi on op.order_id = oi.order_id
+		where
+		oi.physical_warehouse_id = #{physical_warehouse_id} and op.customer_id = #{customer_id}  and bp.reserve_status= #{reserve_status}
+		<if test="isToB != '' and isToB == 1">
+		and bp.batch_process_type !='TOB' and bp.batch_process_type !='TOX'
+		</if>
+		<if test="isToB != '' and isToB == 2">
+		and bp.batch_process_type ='TOB'
+		</if>
+		<if test="isToB != '' and isToB == 3">
+		and bp.batch_process_type ='TOX'
+		</if>
+		group by bp.batch_pick_id
+		limit 1000
+	</select>
+	
+	<select id="getNeedAllotSaleBatchPickV2"
+		resultType="int">
+		select bp.batch_pick_id
+		from
+		wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id   and bp.warehouse_id=#{warehouse_id}
+		inner join wms.order_info oi on op.order_id = oi.order_id
+		where
+		oi.physical_warehouse_id = #{physical_warehouse_id} and op.customer_id = #{customer_id}  and bp.reserve_status in ${reserve_status}
+		<if test="isToB != '' and isToB == 1">
+		and bp.batch_process_type !='TOB' and bp.batch_process_type !='TOX'
+		</if>
+		<if test="isToB != '' and isToB == 2">
+		and bp.batch_process_type ='TOB'
+		</if>
+		<if test="isToB != '' and isToB == 3">
+		and bp.batch_process_type ='TOX'
+		</if>
+		group by bp.batch_pick_id
+		limit 1500
+	</select>
+	
+	<update id="updateReserveStatus">
+	    update wms.batch_pick bp
+		set bp.reserve_status = #{reserve_status}
+		where bp.batch_pick_id in  
+		<foreach collection="batchpicklist" item="batchpickid" open="("
+			separator="," close=")">
+		 #{batchpickid}
+		</foreach>
+	</update>
+	
+	<select id="selectBatchOrderListForCleanTns" resultType="map">
+		SELECT op.order_id,op.`status`,bp.batch_process_type,GROUP_CONCAT(DISTINCT s.`status`) as shipment_status_group
+		FROM wms.order_process op
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.shipment s on s.order_id = op.order_id
+		where bp.batch_pick_sn = #{0}
+		GROUP BY op.order_id
+	</select>
+	
+	<select id="checkBatchPickForRecheck" resultType="map">
+		SELECT op.order_id,op.`status` as op_status,count(s.shipment_id) as count_shipment
+		from wms.batch_pick bp
+		INNER JOIN wms.order_process op on op.batch_pick_id = bp.batch_pick_id 
+		LEFT JOIN wms.shipment s on s.order_id = op.order_id 
+		where bp.batch_pick_id = #{0} 
+		GROUP BY op.order_id 
+		HAVING op_status not in('PICKING','CANCEL') or count_shipment>0 
+	</select>
+	
+	<update id="updateFlowStatusForBatchPick">
+		update wms.batch_pick set flow_status = #{toFlowStatus}
+		where batch_pick_id = #{batchPickId} and flow_status = #{fromFlowStatus} and batch_process_type='BATCH'
+	</update>
+	
+	<select id="selectToApplyFirstShipmentBatchPickIdList" parameterType="map" resultType="java.lang.Integer">
+		select batch_pick_id from wms.batch_pick 
+		where batch_pick_group_id = #{batchPickGroupId}
+		and physical_warehouse_id = #{physicalWarehouseId}
+		and flow_status in ('SHIPMENT_N','SHIPMENT_E') 
+		and created_time <![CDATA[ >= ]]> #{startDateTime}
+		AND created_time <![CDATA[ < ]]> #{endDateTime} 
+		order by batch_pick_id
+		limit 1000 
+	</select>
+	
+	<update id="updateFlowStatus">
+		update wms.batch_pick set flow_status = #{1} where batch_pick_id = #{0} and flow_status != #{1}
+	</update>
+	
+	<select id="selectBatchPickListForUpdate" resultType="com.leqee.wms.entity.BatchPick">
+		select * from wms.batch_pick where batch_pick_id in 
+		<foreach collection="batchPickList" item="batchpickid" open="("
+			separator="," close=")">
+		 #{batchpickid}
+		</foreach> for update
+	</select>
+	
+	<select id="searchTnsSequence" resultType="map">
+		SELECT @rank:=@rank+1 as pm ,A.batch_process_type,A.order_id,A.tracking_number
+     FROM     
+     ( SELECT op.order_id,s.tracking_number,bp.batch_process_type
+	from wms.order_process op
+	INNER JOIN wms.order_info oi on oi.order_id = op.order_id
+	INNER JOIN wms.shipment s on s.order_id = op.order_id
+	inner join wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+	WHERE bp.batch_pick_sn = #{0}
+	ORDER BY s.shipment_order_sequence_number,oi.shipping_id,s.tracking_number
+     ) A ,(SELECT @rank:=0) B 
+	</select>
+	
+	<select id="checkNeedBatchSnByPickSn" resultType="com.leqee.wms.entity.Product">
+		select distinct p.product_id from wms.batch_pick bp
+		inner join wms.order_process op on op.batch_pick_id = bp.batch_pick_id 
+		inner join wms.order_goods og on og.order_id = op.order_id
+		inner join wms.product p on p.product_id = og.product_id
+		where bp.batch_pick_sn = #{0} and p.is_maintain_batch_sn = 'Y' 
+	</select>
+	
+	<select id="selectReservedStatusBySn" resultType="string">
+	    select reserve_status from wms.batch_pick where batch_pick_sn=#{batch_pick_sn}
+	</select>
+	
+	<select id="getBatchSnListByOrderAndProduct" resultType="String">
+		select 
+			pl.batch_sn 
+		from 
+			order_process op 
+		inner join task t on op.batch_pick_id = t.batch_pick_id 
+		inner join product_location pl on t.from_pl_id = pl.pl_id and pl.product_id = #{product_id}
+		where op.order_id = #{order_id};
+	</select>
+	<select id="selectWarehouseIdBySn" resultType="int">
+	   select warehouse_id from wms.batch_pick where batch_pick_sn=#{batch_pick_sn}
+	</select>
+	
+	</mapper>

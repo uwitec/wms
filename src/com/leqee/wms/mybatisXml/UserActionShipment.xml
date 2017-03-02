@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionShipmentDao">
+  
+  <insert id="insertUserActionShipmentRecord" parameterType="com.leqee.wms.entity.UserActionShipment" >
+    insert into user_action_shipment ( shipment_id, status, 
+      action_type, action_note, created_user, 
+      created_time)
+    values ( #{shipment_id,jdbcType=INTEGER}, #{status,jdbcType=CHAR}, 
+      #{action_type,jdbcType=CHAR}, #{action_note,jdbcType=VARCHAR}, #{created_user,jdbcType=VARCHAR}, 
+      #{created_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+  <insert id="batchInsertUserActionShipmentRecord">
+   insert into user_action_shipment ( shipment_id, status, 
+      action_type, action_note, created_user, 
+      created_time)
+    values 
+    <foreach collection="userActionShipmentList" item="item" index="index"
+			separator=",">
+			( #{item.shipment_id,jdbcType=INTEGER}, #{item.status,jdbcType=CHAR}, 
+      #{item.action_type,jdbcType=CHAR}, #{item.action_note,jdbcType=VARCHAR}, #{item.created_user,jdbcType=VARCHAR}, 
+      #{item.created_time,jdbcType=TIMESTAMP})
+      </foreach>
+  </insert>
+</mapper>

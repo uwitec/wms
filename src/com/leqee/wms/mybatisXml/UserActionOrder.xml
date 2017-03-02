@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionOrderDao">
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.UserActionOrder" >
+    <selectKey keyProperty="action_id" resultType="java.lang.Long">
+            select LAST_INSERT_ID()
+    </selectKey>
+    insert into wms.user_action_order ( order_id, order_goods_id, 
+      order_status, action_type, action_note, 
+      created_user, created_time)
+    values (#{order_id,jdbcType=INTEGER}, #{order_goods_id,jdbcType=INTEGER}, 
+      #{order_status,jdbcType=CHAR}, #{action_type,jdbcType=CHAR}, #{action_note,jdbcType=VARCHAR}, 
+      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+  
+  <insert id="insertList" parameterType="map" >
+    insert into wms.user_action_order ( order_id, 
+      order_status, action_type, action_note, 
+      created_user, created_time)
+    values
+     <foreach collection="order_id" item="order_id" index="index" separator="," >  
+        (#{order_id},'BATCH_PICK','BATCH_PICK','成功生成波次单',#{created_user},#{created_time})  
+    </foreach> 
+  </insert>
+  
+  <insert id="batchInsert" >
+  insert into wms.user_action_order ( order_id, order_goods_id, 
+      order_status, action_type, action_note, 
+      created_user, created_time)
+    values 
+    <foreach collection="userActionOrderList" item="item" index="index" separator="," >  
+    (#{item.order_id,jdbcType=INTEGER}, #{item.order_goods_id,jdbcType=INTEGER}, 
+      #{item.order_status,jdbcType=CHAR}, #{item.action_type,jdbcType=CHAR}, #{item.action_note,jdbcType=VARCHAR}, 
+      #{item.created_user,jdbcType=VARCHAR}, #{item.created_time,jdbcType=TIMESTAMP})
+      </foreach>
+  </insert>
+  
+</mapper>

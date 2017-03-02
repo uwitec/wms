@@ -1,0 +1,33 @@
+/* $Id: default.css 4620 2006-10-03 13:04:11Z roman $ */
+
+.zpProgressBarDefaultContainer {
+	-moz-box-sizing : border-box;
+	background-color : #FFFFFF;
+	border : 1px solid #000000;
+	display: block;
+	padding: 1px;
+}
+
+.zpProgressBarDefaultContainer .internal{
+	-moz-box-sizing : border-box;
+	background-image : url('default/default.gif');
+	background-repeat : repeat;
+	background-color : #FFFFFF;
+	border-width: 0;
+	color: #FFFFFF;
+	font-weight: bold;
+	text-align: center;
+	height: 100%;
+}
+
+.zpProgressBarDefaultContainer .labels{
+	-moz-box-sizing : border-box;
+	background-color : #FFFFFF;
+	border-width: 0;
+	color: #999999;
+	font-weight: bold;
+	text-align: center;
+	font-family: Tahoma, Verdana, sans-serif;
+	font-size: 8pt;
+	height: 14px;
+}

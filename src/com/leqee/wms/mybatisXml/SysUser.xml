@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.SysUserDao">
+  <select id="selectByUsername" parameterType="String"  resultType="com.leqee.wms.entity.SysUser">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_user
+  	WHERE
+  		username = #{username} and available=1
+  </select>
+  
+  <select id="selectAll" resultType="com.leqee.wms.entity.SysUser">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_user
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.SysUser" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO 
+    	wms.sys_user 
+    	(id, username, password, salt, realname, email, role_ids, resource_ids,
+         customer_ids, warehouse_ids, department, available, created_time, last_login_time, ip_type, department_id)
+	VALUES
+		(#{id,jdbcType=INTEGER}, #{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, 
+		 #{salt,jdbcType=VARCHAR}, #{realname,jdbcType=VARCHAR}, #{email,jdbcType=VARCHAR}, 
+		 #{role_ids,jdbcType=VARCHAR}, #{resource_ids,jdbcType=VARCHAR}, #{customer_ids,jdbcType=VARCHAR}, 
+		 #{warehouse_ids,jdbcType=VARCHAR},#{department,jdbcType=VARCHAR}, #{available,jdbcType=INTEGER},
+		 #{created_time,jdbcType=TIMESTAMP}, #{last_login_time,jdbcType=TIMESTAMP}, #{ip_type,jdbcType=VARCHAR}, #{department_id,jdbcType=INTEGER});
+  </insert>
+  
+  <update id="invalidateById" parameterType="Integer">
+  	UPDATE 
+  		wms.sys_user
+  	SET 
+  		available = 0
+  	WHERE id = #{userId}
+  </update>
+  
+  <select id="selectById" parameterType="Integer"  resultType="com.leqee.wms.entity.SysUser">
+  	SELECT 
+  		*
+  	FROM 
+  		wms.sys_user
+  	WHERE
+  		id = #{userId}
+  </select>
+  
+  <update id="update" parameterType="com.leqee.wms.entity.SysUser">
+		UPDATE 
+			wms.sys_user
+	    SET 
+	    	username = #{username,jdbcType=VARCHAR}, 
+	        password = #{password,jdbcType=VARCHAR}, 
+		    salt = #{salt,jdbcType=VARCHAR}, 
+		    realname = #{realname,jdbcType=VARCHAR}, 
+		    email = #{email,jdbcType=VARCHAR}, 
+		    role_ids = #{role_ids,jdbcType=VARCHAR}, 
+		    resource_ids = #{resource_ids,jdbcType=VARCHAR}, 
+		    customer_ids = #{customer_ids,jdbcType=VARCHAR}, 
+		    warehouse_ids = #{warehouse_ids,jdbcType=VARCHAR},
+		    department = #{department,jdbcType=VARCHAR}, 
+		    available = #{available,jdbcType=INTEGER},
+		    created_time = #{created_time,jdbcType=TIMESTAMP}, 
+		    last_login_time = #{last_login_time,jdbcType=TIMESTAMP},
+		    ip_type = #{ip_type,jdbcType=VARCHAR},
+		    department_id = #{department_id,jdbcType=INTEGER}
+	    WHERE 
+	    	id = #{id,jdbcType=INTEGER}
+	</update>
+  
+</mapper>

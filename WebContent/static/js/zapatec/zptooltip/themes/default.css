@@ -1,0 +1,47 @@
+/**
+ * Zapatec Tooltip theme.
+ *
+ * Copyright (c) 2004-2006 by Zapatec, Inc.
+ * http://www.zapatec.com
+ * 1700 MLK Way, Berkeley, California,
+ * 94709, U.S.A.
+ * All rights reserved.
+ */
+
+/* $Id: default.css 4322 2006-09-04 08:49:33Z shacka $ */
+
+.zpTooltipDefault {
+  position: absolute;
+  border: 1px solid #8e8a50;
+  background-color: #fefad0;
+  color: #000;
+  padding: 0px 10px 3px 10px;
+  display: none;
+  z-index: 100;
+  font: 9px tahoma,arial,sans-serif;
+}
+
+.zpTooltipDefault .zpTooltipDefaultTitle {
+  background-color: #fefac0;
+  color: #000;
+  padding: 2px 4px;
+  margin: 1px -9px 3px -9px;
+  border-bottom: 1px solid #8e8a50;
+  font-weight: bold;
+}
+
+.zpTooltipDefaultHover {
+}
+
+.zpTooltipDefaultDfn {
+  font-size: 120%;
+  font-weight: bold;
+  margin-left: 0.5em;
+  margin-right: 1em;
+  font-weight: bold;
+  color: #00AA30;
+  border: 1px solid #00AA30;
+  background-color: #FFF;
+  padding: 0 5px;
+  z-index: 100;
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	
+	<properties>
+		<property name="dialect" value="mysql" />  
+   		 <property name="pageSqlId" value=".*Page$" />  
+	</properties>
+	
+	<!-- 添加log4j打印sql日志，added by qyyao -->
+	<!-- -->
+	<settings>
+        <setting name="logImpl" value="LOG4J"/>
+    </settings>
+    
+    <plugins>
+   	   <plugin interceptor="com.leqee.wms.page.PaginationInterceptor">    
+   		</plugin>  
+   </plugins>
+   
+	<mappers>
+	</mappers>
+	
+   
+</configuration>    

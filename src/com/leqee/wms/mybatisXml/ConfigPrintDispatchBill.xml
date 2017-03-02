@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ConfigPrintDispatchBillDao">
+	<select id="getCountRecord" parameterType="java.util.List" resultType="int">
+		select count(config_id) from config_print_dispatch_bill  where  shop_name in 
+		<foreach collection="list" item="shop_name" open="(" separator="," close=")">
+			#{shop_name}
+		</foreach>
+	</select>
+	
+	<select id="getCountPrintDispatchBill" parameterType="java.util.List" resultType="int">
+		SELECT COUNT(DISTINCT(template_file_name)) FROM config_print_dispatch_bill  WHERE  shop_name IN 
+		<foreach collection="list" item="shop_name" open="(" separator="," close=")">
+			#{shop_name}
+		</foreach>
+	</select>
+	
+	<select id="getFileName" parameterType="java.util.List" resultType="string">
+		SELECT template_file_name FROM config_print_dispatch_bill  WHERE  shop_name IN 
+		<foreach collection="list" item="shop_name" open="(" separator="," close=")">
+			#{shop_name}
+		</foreach> limit 0,1
+	</select>
+	
+	<select id="getCustomerFileName" parameterType="int" resultType="string">
+		SELECT dispatch_bill_file_name FROM warehouse_customer  WHERE  customer_id = #{customer_id}  
+	</select>
+	
+	<select id="getConfigPrintDispatch" parameterType="java.util.List" resultType="com.leqee.wms.entity.ConfigPrintDispatch">
+		select * from config_print_dispatch_bill  where  shop_name in 
+		<foreach collection="list" item="shop_name" open="(" separator="," close=")">
+			#{shop_name}
+		</foreach>
+	</select>
+	
+	<select id="getDistinctConfigPrintDispatch" parameterType="java.util.List" resultType="String">
+		select DISTINCT(template_file_name) from config_print_dispatch_bill  where  shop_name in 
+		<foreach collection="list" item="shop_name" open="(" separator="," close=")">
+			#{shop_name}
+		</foreach>
+	</select>
+	
+	<select id="getOrderDispatchNum" resultType="java.lang.Integer">
+		SELECT IF(pd.config_id is null,6,pd.page_line) as pageLine from wms.order_info oi 
+		LEFT JOIN wms.config_print_dispatch_bill pd on pd.shop_name = oi.shop_name
+		where oi.order_id = #{0} limit 1
+	</select>
+</mapper>

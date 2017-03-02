@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionWarehouseLoadDao">
+
+  
+  <insert id="insertUserActionWarehouseLoadRecord" parameterType="com.leqee.wms.entity.UserActionWarehouseLoad" >
+    insert into wms.user_action_warehouse_load ( physical_warehouse_id,
+      action_type, action_note, create_user)
+    values ( #{physical_warehouse_id,jdbcType=INTEGER},
+      #{action_type,jdbcType=VARCHAR}, #{action_note,jdbcType=VARCHAR}, #{create_user,jdbcType=VARCHAR})
+  </insert>
+  
+</mapper>

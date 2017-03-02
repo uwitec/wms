@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionTaskDao">
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.UserActionTask">
+		<selectKey keyProperty="action_id" resultType="java.lang.Long">
+            select LAST_INSERT_ID()
+	    </selectKey>
+	    insert into wms.user_action_task( task_id, task_status, action_type, action_note, 
+	      created_user, created_time)
+	    values (#{task_id,jdbcType=INTEGER},
+	      #{task_status,jdbcType=CHAR}, #{action_type,jdbcType=CHAR}, #{action_note,jdbcType=VARCHAR}, 
+	      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP})
+	</insert>
+	
+	<insert id="batchInsert">
+		insert into wms.user_action_task (task_id, task_status, action_type, action_note, 
+	      created_user, created_time)
+    values
+     <foreach collection="userActionTaskList" item="item" index="index" separator="," >  
+        (#{item.task_id,jdbcType=INTEGER},
+	      #{item.task_status,jdbcType=CHAR}, #{item.action_type,jdbcType=CHAR}, #{item.action_note,jdbcType=VARCHAR}, 
+	      #{item.created_user,jdbcType=VARCHAR}, #{item.created_time,jdbcType=TIMESTAMP}) 
+    </foreach>
+	</insert>
+
+
+	<insert id="insertList">
+	    insert into wms.user_action_task( task_id, task_status, action_type, action_note, 
+	      created_user, created_time)
+	    values 
+	      <foreach collection="list" item="item" index="index"  open=' ' 
+			separator="," close=' '>
+			(
+			#{item.task_id},
+			#{item.task_status},
+			#{item.action_type},
+			#{item.action_note},
+			#{item.created_user},
+			#{item.created_time})
+		</foreach>
+	</insert>
+</mapper>

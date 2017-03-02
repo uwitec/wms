@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ReplenishmentUrgentDao">
+
+	
+	<select id="selectConfigReplenishmentUrgentByPhysicalCustomer"  resultType="com.leqee.wms.entity.ConfigReplenishmentUrgent">
+    	select * from wms.config_replenishment_urgent where  customer_id = #{customer_id} and physical_warehouse_id= #{physical_warehouse_id} limit 0,1
+    </select>
+    
+    
+	<select id="selectByMapByPage"  resultType="Map">
+		    SELECT
+			config_id,
+			physical_warehouse_id,
+			replenishment_condition,
+			cru.customer_id,
+			wc.name,
+			cru.created_user,
+			cru.created_time,
+			last_updated_user,
+			last_updated_time
+		FROM
+			wms.config_replenishment_urgent cru
+		LEFT JOIN wms.warehouse_customer wc ON cru.customer_id = wc.customer_id
+		WHERE 1  and wc.customer_id not in ('2')
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+		  and  physical_warehouse_id = #{physical_warehouse_id}
+		 </if>
+    </select>
+    
+    
+    <select id="selectConfigReplenishmentUrgentByCustomerId" parameterType="map" resultType="com.leqee.wms.entity.ConfigReplenishmentUrgent">
+    	select * from wms.config_replenishment_urgent where customer_id in
+    	<foreach collection="customerList" item="customerList" open="("
+			separator="," close=")">
+			#{customerList}
+		</foreach>
+    	 and physical_warehouse_id= #{physical_warehouse_id} 
+    </select>
+    
+    <update id = "updateReplenishmentUrgentByUpdateReplenishmentMap" parameterType="map">
+    UPDATE wms.config_replenishment_urgent
+	SET 
+	replenishment_condition=#{replenishment_condition},
+	created_user=#{created_user},
+	created_time=#{created_time},
+	last_updated_user=#{last_updated_user},
+	last_updated_time=#{last_updated_time}
+	WHERE
+	customer_id = #{customer_id} and physical_warehouse_id = #{physical_warehouse_id}
+    </update>
+    
+    <insert id ="insertConfigReplenishmentUrgentByMap" parameterType="map">
+    insert into wms.config_replenishment_urgent (
+		config_id,physical_warehouse_id,replenishment_condition,customer_id,
+		created_user, created_time, last_updated_user, last_updated_time
+		)values(
+		#{config_id},#{physical_warehouse_id},#{replenishment_condition},#{customer_id},
+		#{created_user},#{created_time},#{last_updated_user},#{last_updated_time})
+    </insert>
+    
+    <select id="selectReplenishmentUrgentIsExist"  resultType="com.leqee.wms.entity.ConfigReplenishmentUrgent">
+    	select * from wms.config_replenishment_urgent where  customer_id = #{0} and physical_warehouse_id= #{1} limit 0,1
+    </select>
+    
+    <delete id = "deleteReplenishmentUrgent">
+	   delete  from wms.config_replenishment_urgent where customer_id = #{0}  and physical_warehouse_id= #{1}
+	</delete>
+  
+    
+    
+    
+    
+    
+</mapper>

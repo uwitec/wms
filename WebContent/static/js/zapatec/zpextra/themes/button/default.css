@@ -1,0 +1,43 @@
+/* $Id: default.css 4528 2006-09-21 15:09:59Z andrew $ */
+.zpButtonDefaultContainer, .zpButtonImageDefaultContainer{
+	padding: 0;
+	border: 0;
+}
+
+.zpButtonImageDefaultContainer .internalContainer{
+	cursor: pointer;
+	padding: 0;
+	margin: 0;
+}
+
+.zpButtonDefaultContainer .internalContainer{
+	background-color: #CCCCCC;
+	cursor: pointer;
+	padding: 0;
+	margin: 0;
+	color: #000000;
+	border: 2px solid #CCCCCC;
+}
+
+.zpButtonDefaultContainer .internalContainer img{
+	border: 0;
+}
+
+.zpButtonDefaultContainer .disabled .internalContainer{
+	filter: Alpha(Opacity=50);
+	-moz-opacity: 0.50;
+	border: 2px solid #CCCCCC;
+}
+
+.zpButtonDefaultContainer .mouseOut .internalContainer{
+	border: 2px solid #CCCCCC;
+}
+
+.zpButtonDefaultContainer .mouseOver .internalContainer{
+	border: 2px outset;
+}
+
+
+.zpButtonDefaultContainer .mouseDown .internalContainer{
+	border: 2px inset;
+}

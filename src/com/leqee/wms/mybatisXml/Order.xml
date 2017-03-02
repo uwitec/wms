@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderDao">
+	
+	<select id="selectOrderInfoByOrderId" parameterType="int" resultType="com.leqee.wms.entity.OrderInfo">
+		SELECT * from wms.order_info WHERE order_id = #{orderId};
+	</select>
+	
+	<select id="selectOrderGoodsByOrderId" parameterType="String" resultType="com.leqee.wms.entity.OrderGoods">
+		select og.* from wms.order_info oi
+		inner join wms.order_goods og on oi.order_id = og.order_id
+		where oi.order_id = #{orderId}
+	</select>
+	
+	<select id="selectOrderGoodsByOrderIdV1" parameterType="String" resultType="com.leqee.wms.entity.OrderGoods">
+		select og.* from wms.order_info oi
+		inner join wms.order_goods og on oi.order_id = og.order_id
+		INNER JOIN wms.product p on og.product_id = p.product_id
+		where oi.order_id = #{orderId} and p.product_type !='PACKBOX'
+	</select>
+	
+	<select id="selectOrderGoods"  resultType="map">
+		SELECT *  from wms.order_goods og 
+		INNER JOIN wms.product p  on og.product_id = p .product_id
+		where order_id =#{0}  and p.barcode =#{1} and og.customer_id =#{2} and p.product_type !='PACKBOX'  order by og.goods_number desc
+	</select>
+	
+	<!-- eg. 根据orderStatus查询订单信息 -->
+	<select id="selectOrderInfoListByOrderStatus" parameterType="String" resultType="map">
+		SELECT * from wms.order_info WHERE order_status = #{orderStatus};
+	</select>
+	
+	
+	<select id="selectPurchaseIsGrouping" parameterType="int" resultType="map">
+		select location_id,location_barcode,order_id,order_goods_id from wms.label_accept
+		where order_id = #{orderId} and location_kw_barcode != '' 
+	</select>
+	
+	<delete id="deletePurchaseLabel" parameterType="map">
+		delete from wms.label_accept where location_barcode in
+		<foreach collection="locationBarcodeList" item="item" open="(" separator="," close=")">
+			#{item}
+		</foreach>
+	</delete>
+	
+	
+	<select id="selectPurchaseOrderListByPage" parameterType="map" resultType="map">
+		SELECT
+			o.oms_order_sn,o.order_id, o.arrival_time,o.order_time,
+			o.order_status,o.provider_code,o.provider_name,o.note,o.last_updated_user,o.customer_id,o.currency,
+			o.batch_order_sn,o.warehouse_id, w.warehouse_name,wc.name
+		FROM 
+			wms.order_info AS o 
+			inner join wms.warehouse w on w.warehouse_id = o.warehouse_id
+			inner join wms.warehouse_customer wc on o.customer_id = wc.customer_id
+		WHERE
+			o.order_type = 'PURCHASE' and o.physical_warehouse_id = #{physical_warehouse_id}
+			<if test="customer_id != '' and customer_id != null">
+					and o.customer_id = #{customer_id}
+			</if>
+			<if test="order_sn != null">
+				and o.oms_order_sn = #{order_sn}
+			</if>
+			<if test="warehouse_id != '' and warehouse_id != null">
+					and o.warehouse_id = #{warehouse_id}
+			</if>
+			<if test="warehouseIdList != null and warehouseIdList.size() != 0">
+	        	and o.warehouse_id in
+					<foreach collection="warehouseIdList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+	     	</if>
+	     	<if test="customers != null and customers.size() != 0">
+	        	and o.customer_id in
+					<foreach collection="customers" item="item" open="(" separator="," close=")">
+						#{item.customer_id}
+					</foreach>
+	     	</if>
+			<if test="start != null">
+				and o.order_time > #{start}
+			</if>
+			<if test="end !=null">
+				and o.order_time <![CDATA[ < ]]> #{end}
+			</if>
+			<if test="arrive_time_start !=null">
+				and o.arrival_time > #{arrive_time_start}
+			</if>
+			<if test="arrive_time_end !=null">
+				and o.arrival_time <![CDATA[ < ]]> #{arrive_time_end}
+			</if>
+			<if test="order_status !=null">
+				and o.order_status = #{order_status}
+			</if>
+			<if test="provider_name !=null">
+				and o.provider_name like CONCAT('%',#{provider_name},'%' )
+			</if>
+			<if test="batch_order_sn !=null">
+				and o.batch_order_sn = #{batch_order_sn}
+			</if>
+			ORDER BY o.batch_order_sn,o.order_id,o.order_time DESC
+	</select>
+	
+	<select id="selectPurchaseBatchOrderSn" parameterType="map" resultType="map">
+		select oi.batch_order_sn,oi.order_id from wms.order_info oi
+		INNER JOIN order_goods og on oi.order_id = og.order_id where 1
+		<if test="purchaseOrderIdList != null and purchaseOrderIdList.size() != 0">
+        		and oi.order_id in
+				<foreach collection="purchaseOrderIdList" item="item" open="(" separator="," close=")">
+					#{item}
+				</foreach>
+	     </if>
+	</select>
+	
+	<select id="selectPurchaseOrderGoodsListByOrderId" parameterType="int" resultType="map">
+			select og.order_goods_id,og.goods_name, og.goods_number, og.product_id,og.batch_sn,og.goods_price,
+			p.barcode,p.is_serial,p.is_maintain_warranty,p.is_maintain_batch_sn,og.goods_name,sum(la.quantity) as quantity
+			from wms.order_goods og
+			inner join wms.product p on og.product_id = p.product_id
+			left join wms.label_accept la on la.order_goods_id = og.order_goods_id
+			where og.order_id = #{orderId}
+			group by og.order_goods_id 
+			order by og.order_goods_id
+	</select>
+	
+	<select id="selectPurchaseAcceptNum" parameterType="map" resultType="map">
+		select sum(la.arrive_number) as arrive_number,sum(la.quantity) as quantity,og.goods_number
+		from wms.label_accept la 
+		inner join wms.order_goods og on la.order_goods_id = og.order_goods_id
+		 where la.order_id =#{orderId} and la.order_goods_id = #{orderGoodsId} limit 1
+	</select>
+	
+	<select id="selectInOutNumByList" parameterType="String" resultType="map">
+		SELECT
+			og.order_id,og.order_goods_id, ifnull(sum(iid.change_quantity),0) AS in_count
+		FROM
+				wms.order_goods og
+		LEFT JOIN wms.inventory_item_detail iid ON og.order_goods_id  = iid.order_goods_id 
+		WHERE
+				og.order_id in
+				<foreach collection="list" item="orderIdList" open="("
+					separator="," close=")">
+					#{orderIdList}
+				</foreach>
+		GROUP BY og.order_id,og.order_goods_id
+		ORDER BY  og.order_id desc
+	</select>
+	
+	<select id="selectOrderInfoByGoods" parameterType="map" resultType="map"> 
+			select og.product_id,il.quantity,il.is_serial,il.serial_no,il.status_id,og.goods_price,il.warehouse_id,il.goods_barcode,p.product_type,
+			il.validity,il.batch_sn,il.location_kw_barcode,oi.provider_code,oi.provider_name,oi.currency,oi.provider_order_type,il.task_id
+			from wms.label_accept il
+			INNER JOIN wms.order_info oi on oi.order_id = il.order_id
+			inner join wms.order_goods og on oi.order_id = og.order_id and il.order_goods_id = og.order_goods_id
+			inner join wms.product p on og.product_id = p.product_id
+			where  
+			oi.order_type = 'PURCHASE' and il.location_barcode = #{tagCode} and 
+			oi.order_id = #{orderId} and og.order_goods_id = #{orderGoodsId}
+	</select>
+	
+	<select id="selectCancelOrderInfoByGoods" parameterType="map" resultType="map"> 
+			select og.goods_number,ii.physical_warehouse_id,og.product_id,p.is_serial,ii.status,og.goods_price,p.product_type,
+			ii.validity,ii.batch_sn,oi.provider_code,oi.provider_name,oi.currency,oi.provider_order_type,og.customer_id,og.warehouse_id,ii.serial_number
+			from wms.order_info oi
+			inner join wms.order_goods og on oi.order_id = og.order_id 
+			inner join wms.product p on og.product_id = p.product_id
+			left join wms.inventory_item ii  on p.product_id= ii.product_id and oi.warehouse_id = ii.warehouse_id 
+			where  
+			oi.order_status = 'cancel' and p.barcode = #{barcode} and 
+			oi.order_id = #{orderId} and og.order_goods_id = #{orderGoodsId} limit 1
+	</select>
+	
+	<select id="selectPurchaseIsOver_yanhuo" parameterType="Integer" resultType="map">
+		select oi.order_id,og.goods_number,sum(il.quantity) as quantity from 
+		wms.order_info oi
+		inner JOIN wms.order_goods og on oi.order_id = og.order_id
+		inner join wms.label_accept il on oi.order_id = il.order_id and og.order_goods_id = il.order_goods_id
+		where oi.order_id = #{order_id} 
+		group by il.product_id,og.order_goods_id
+		having goods_number != quantity
+	</select>
+	
+	<select id="selectPurchaseIsOver" parameterType="Integer" resultType="map">
+		select sum(ifnull(la.quantity,0)) as sum, og.goods_number
+		from wms.order_goods og
+		left join wms.label_accept la on og.order_goods_id = la.order_goods_id and la.status = 'SUCCESS'
+		where og.order_id = #{order_id}
+		group by og.order_goods_id
+		having og.goods_number != sum;
+	</select>
+	
+	<!-- 对某一个订单加锁 for update -->
+	<select id="getOderInfoByIdForUpdate" parameterType="String" resultType="com.leqee.wms.entity.OrderInfo">
+			select * from wms.order_info where order_id = #{order_id} for update
+	</select>
+	
+	
+	
+	<select id="selectSaleOrderGoodsMapByOrderId" parameterType="Integer" resultType="map">
+		SELECT
+      p.product_id productId ,  
+      p.barcode,
+	  case when p.is_serial= 'Y' then '有' else '无' END  as isSerial,
+      og.goods_name as goodsName,
+      og.goods_number as goodsNumber,
+			og.goods_number + ifnull(
+				sum(iid.change_quantity),
+				0
+			) AS needsDelNumber,
+			w.warehouse_name as warehouseName,
+      case when og.status_id= 'AVAILABLE' then '全新' else '二手' END  as statusId  ,
+			og.order_goods_id as orderGoodsId ,
+			oi.order_id as orderId,
+			oi.receive_name receiveName ,
+			oi.province_name provinceName ,
+			oi.city_name cityName ,
+			oi.district_name districtName ,
+			oi.shipping_address shippingAddress ,
+			oi.warehouse_id as warehouseId,
+			oi.tms_shipping_no as tmsShippingNo,
+			oi.order_type as orderType  ,
+			oi.customer_id as customerId 
+		FROM
+			wms.order_info oi
+		INNER JOIN wms.order_goods og ON oi.order_id = og.order_id
+    INNER  JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		LEFT JOIN wms.product p ON og.product_id = p.product_id
+		LEFT JOIN wms.inventory_item_detail iid ON iid.order_goods_id = og.order_goods_id
+		WHERE
+			og.order_id = #{orderId}
+		GROUP BY
+			og.order_goods_id
+	</select>
+	
+	<!--  -->
+	<select id="selectOrderInfoByIdForUpdate" resultType="com.leqee.wms.entity.OrderInfo" parameterType="java.lang.Integer" >
+	    SELECT * from wms.order_info where order_id = #{orderId} for UPDATE
+	</select>
+	
+	
+	<select id="selectPrintInfoByOrderId" parameterType="java.lang.Integer" resultType="map">
+		select oi.shipping_id,s.shipping_name,w.province_name,w.city_name,w.district_name,wc.name,
+		oi.receive_name,oi.province_name as receive_province,oi.city_name as receive_city,
+		oi.district_name as receive_district,oi.shipping_address,oi.mobile_number,oi.phone_number,
+		oi.shipment_category as oi_shipment_category,oi.aftersale_phone as oi_aftersale_phone,
+		wc.shipment_category as wc_shipment_category, wc.aftersale_phone as wc_aftersale_phone,ws.mark as ws_mark
+		 from wms.order_info oi 
+		inner join wms.warehouse w on oi.warehouse_id = w.warehouse_id 
+		inner join wms.shipping s on oi.shipping_id = s.shipping_id 
+		inner join wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		inner join wms.shipment ws on ws.order_id =oi.order_id 
+		where oi.order_id = #{orderId} limit 1
+	</select>
+	
+	
+	<select id="selectSendInfoByOrderId" parameterType="java.lang.Integer" resultType="map">
+	 	select s.shipping_name,s.is_cod,wc.name,w.province_name as send_province,w.city_name as send_city,w.district_name as send_district,
+	 	oi.aftersale_phone as oi_aftersale_phone,oi.shipment_category as oi_shipment_category,s.shipping_id,oi.order_status,
+	 	wc.aftersale_phone as w_aftersale_phone,wc.shipment_category as w_shipment_category,ws.shipment_id,s.shipping_code
+	 	from wms.order_info oi
+	 	inner join wms.warehouse w on w.warehouse_id = oi.warehouse_id 
+		inner join wms.shipping s on oi.shipping_id = s.shipping_id
+	 	inner join wms.warehouse_customer wc on wc.customer_id = oi.customer_id 
+	 	inner join wms.shipment ws on ws.order_id = oi.order_id 
+	 	where oi.order_id = #{orderId} limit 1
+	</select>
+	
+	<!-- 查询待调度出库销售订单 -->
+	<select id="selectToDeliverInvSaleOrderIdList" parameterType="map" resultType="java.lang.Integer">
+		SELECT oi.order_id 
+		FROM 
+			wms.order_info oi
+		INNER JOIN wms.order_process op on oi.order_id = op.order_id
+		WHERE 
+		oi.customer_id = #{customerId}
+		AND oi.order_type = 'SALE'
+		AND oi.order_status = 'DELIVERED'
+		AND oi.shipping_time <![CDATA[ >= ]]> #{startDateTime}
+		AND oi.shipping_time <![CDATA[ < ]]> #{endDateTime} 
+		AND op.batch_trick_status = 'DELIVERED'
+		limit 2000
+	</select>
+	
+	
+	<select id="selectToDeliverInvSaleOrderIdListFor1111" parameterType="map" resultType="java.lang.Integer">
+		SELECT oi.order_id 
+		FROM 
+			wms.order_info oi
+		INNER JOIN wms.order_process op on oi.order_id = op.order_id
+		WHERE 
+		oi.customer_id = #{customerId}
+		AND oi.order_type = 'SALE'
+		AND oi.order_status = 'PICKING'
+		AND oi.order_time <![CDATA[ >= ]]> #{startDateTime}
+		AND oi.order_time <![CDATA[ < ]]> #{endDateTime} 
+		AND op.batch_trick_status = 'SUCCESS'
+		limit 2000
+	</select>
+	
+	<!-- 查询待调度自动入库的采购订单 -->
+	<select id="selectToAutoPurchaseAcceptOrderIdList" parameterType="map" resultType="java.lang.Integer">
+		SELECT order_id 
+		FROM 
+			wms.order_info
+		WHERE 
+		customer_id = #{customerId}
+		AND physical_warehouse_id = #{physicalWarehouseId}
+		AND order_type = 'PURCHASE'
+		AND order_status = 'ACCEPT'
+		AND order_time <![CDATA[ >= ]]> #{startDateTime}
+		AND order_time <![CDATA[ < ]]> #{endDateTime} 
+		AND oms_order_type = 'PURCHASE_TRANSFER'  limit 2000
+	</select>
+	
+	<!-- 查询测试待调度自动入库上架的采购订单 -->
+	<select id="selectTestToAutoPurchaseAcceptOrderIdList" parameterType="map" resultType="java.lang.Integer">
+		SELECT order_id 
+		FROM 
+			wms.order_info
+		WHERE 
+		customer_id = #{customerId}
+		AND physical_warehouse_id = #{physicalWarehouseId}
+		AND order_type = 'PURCHASE'
+		AND order_status = 'ACCEPT'
+		AND order_time <![CDATA[ >= ]]> #{startDateTime}
+		AND order_time <![CDATA[ < ]]> #{endDateTime} limit 2000
+	</select>
+	
+	<!-- 销售，-v，-gt出库 -->
+	<select id="selectToDeliverInvOrderIdList" parameterType="map" resultType="java.lang.Integer">
+		SELECT order_id 
+		FROM 
+			wms.order_info
+		WHERE 
+		customer_id = #{customerId}
+		AND order_type in ('SALE','VARIANCE_MINUS','VARIANCE_ADD','SUPPLIER_RETURN')
+		AND order_status = 'FULFILLED'
+		AND created_time <![CDATA[ >= ]]> #{startDateTime}
+		AND created_time <![CDATA[ < ]]> #{endDateTime} limit 2000
+	</select>
+	
+	<!-- 耗材出库 -->
+	<select id="selectToDeliverInvPackBoxShipmentIdList" parameterType="map" resultType="java.lang.Integer">
+		select s.shipment_id from 
+		wms.order_info oi 
+		inner join wms.shipment s on s.order_id = oi.order_id
+		inner join wms.product p on p.product_id = s.packbox_product_id and p.is_delete='N'
+		where s.packbox_product_id is not null and s.packbox_is_out = 'N' 
+		and oi.customer_id = #{customerId}
+		AND oi.order_type = 'SALE'
+		AND oi.order_status = 'FULFILLED'
+		AND oi.shipping_time <![CDATA[ >= ]]> #{startDateTime}
+		AND oi.shipping_time <![CDATA[ < ]]> #{endDateTime} limit 2000
+	</select>
+	
+	<select id="selectToDeliverInvPackBoxShipmentIdListV2" parameterType="map" resultType="java.lang.Integer">
+		select s.shipment_id from 
+		wms.order_info oi 
+		inner join wms.shipment s on s.order_id = oi.order_id
+		inner join wms.product p on p.product_id = s.packbox_product_id and p.is_delete='N'
+		where s.packbox_product_id is not null and s.packbox_is_out = 'F' 
+		and oi.customer_id = #{customerId}
+		AND oi.order_type = 'SALE'
+		AND oi.order_status = 'FULFILLED'
+		AND oi.shipping_time <![CDATA[ >= ]]> #{startDateTime}
+		AND oi.shipping_time <![CDATA[ < ]]> #{endDateTime} limit 2000
+	</select>
+	
+	<select id="selectByOrderIdOrOrderSn" parameterType="map" resultType="com.leqee.wms.entity.OrderInfo">
+		select * from wms.order_info where 1
+		<if test="orderId != '' and orderId != null"> 
+			and order_id = #{orderId} 
+		</if>
+		<if test="orderSn != '' and orderSn != null">
+		and oms_order_sn = #{orderSn}
+		</if>
+	</select>
+	
+	
+	
+	<select id="selectOrderGoodsV1" resultType="map" >
+		SELECT pl.batch_sn,og.*,p.barcode,p.product_name,pl.validity,pl.`status`,SUM(pld.change_quantity)as totalnum from wms.order_info  oi
+		INNER JOIN wms.order_goods og on oi.order_id =og.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id
+		INNER JOIN wms.inventory_item_detail pld on pld.order_id =og.order_id and pld.order_goods_id = og.order_goods_id
+		INNER JOIN wms.inventory_item pl on pld.inventory_item_id = pl.inventory_item_id
+		where oi.order_type = 'RETURN' and oi.order_status not in ('CANCEL') and og.customer_id in ${customerString}	  
+		and oi.order_id in 
+		<foreach collection="orderIdList" item="order_id" index="index" open="(" separator="," close=")">
+				#{order_id}
+			</foreach>
+			group by oi.order_id,og.order_goods_id,pl.batch_sn,pl.validity,pl.`status`
+	</select>
+	
+	
+	
+</mapper>

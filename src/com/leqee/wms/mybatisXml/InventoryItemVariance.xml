@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventoryItemVarianceDao">
+	
+	<insert id="insert" parameterType="com.leqee.wms.entity.InventoryItemVariance">
+      <selectKey keyProperty="inventory_item_variance_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+      insert into inventory_item_variance
+      (inventory_item_variance_id, inventory_item_id, 
+      quantity,created_user, created_time,last_updated_time,comments)
+    values (#{inventory_item_variance_id,jdbcType=INTEGER},   
+      #{inventory_item_id,jdbcType=INTEGER},
+      #{quantity,jdbcType=INTEGER},
+      #{created_user,jdbcType=VARCHAR}, 
+      #{created_time,jdbcType=TIMESTAMP}, 
+      #{last_updated_time,jdbcType=TIMESTAMP},
+       #{comments,jdbcType=VARCHAR})
+    </insert>
+    
+    <insert id="batchInsert" parameterType="com.leqee.wms.entity.InventoryItemVariance">
+	     <selectKey keyProperty="inventory_item_variance_id" resultType="java.lang.Integer">
+	           select LAST_INSERT_ID()
+	     </selectKey>
+	     insert into inventory_item_variance
+	     (inventory_item_variance_id, inventory_item_id, 
+	     quantity,created_user, created_time,last_updated_time,comments)
+	   values 
+	      <foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.inventory_item_variance_id}, #{item.inventory_item_id}, 
+		      #{item.quantity}, #{item.created_user}, #{item.created_time}, 
+		      #{item.last_updated_time}, #{item.comments})
+		</foreach>
+    </insert>
+	
+</mapper>

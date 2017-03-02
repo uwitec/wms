@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventoryItemDao">
+  <sql id="Base_Column_List" >
+    inventory_item_id, physical_warehouse_id, warehouse_id, customer_id, product_id, 
+    quantity, status, unit_cost, provider_code, validity, batch_sn, serial_number, 
+    inventory_item_acct_type_id, currency, parent_inventory_item_id, root_inventory_item_id, 
+    created_user, created_time, last_updated_user, last_updated_time
+  </sql>
+  
+   <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.InventoryItem" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from inventory_item
+    where inventory_item_id = #{inventory_item_id,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.InventoryItem" >
+     <selectKey keyProperty="inventory_item_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+    insert into inventory_item (inventory_item_id, physical_warehouse_id, 
+      warehouse_id, customer_id, product_id, 
+      quantity, status, unit_cost, 
+      provider_code, validity, batch_sn, 
+      serial_number, inventory_item_acct_type_id, 
+      currency, parent_inventory_item_id, root_inventory_item_id, 
+      created_user, created_time, last_updated_user, 
+      last_updated_time)
+    values (#{inventory_item_id,jdbcType=INTEGER}, #{physical_warehouse_id,jdbcType=INTEGER}, 
+      #{warehouse_id,jdbcType=INTEGER}, #{customer_id,jdbcType=INTEGER}, #{product_id,jdbcType=INTEGER}, 
+      #{quantity,jdbcType=INTEGER}, #{status,jdbcType=VARCHAR}, #{unit_cost,jdbcType=DECIMAL}, 
+      #{provider_code,jdbcType=VARCHAR}, #{validity,jdbcType=TIMESTAMP}, #{batch_sn,jdbcType=VARCHAR}, 
+      #{serial_number,jdbcType=VARCHAR}, #{inventory_item_acct_type_id,jdbcType=VARCHAR}, 
+      #{currency,jdbcType=CHAR}, #{parent_inventory_item_id,jdbcType=INTEGER}, #{root_inventory_item_id,jdbcType=INTEGER}, 
+      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP}, #{last_updated_user,jdbcType=VARCHAR}, 
+      #{last_updated_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+  <select id="countBySerialNumber" resultType="java.lang.Integer" parameterType="java.lang.String" >
+    SELECT 
+    	COUNT(1)
+    FROM 
+    	wms.inventory_item
+    WHERE 
+    	serial_number = #{serialNumber}
+    AND quantity > 0
+  </select>
+  
+  <!-- 库存查询API：查询库存Summary  -->
+  <select id="selectInventorySummarys" resultType="com.leqee.wms.api.response.domain.InventorySummaryResDomain" parameterType="map" >
+    SELECT
+		p.sku_code,
+		ii.`status` AS status_id,
+		SUM(ii.quantity) AS quantity
+	FROM
+		wms.inventory_item ii
+		INNER JOIN wms.product p ON ii.product_id = p.product_id
+	WHERE
+		ii.customer_id = #{customerId }
+		<if test="warehouseId != null and warehouseId != ''">
+		AND ii.warehouse_id = #{warehouseId}
+		</if>
+		<if test="skuCode != null and skuCode != ''">
+		AND p.sku_code = #{skuCode}
+		</if>
+	GROUP BY ii.`status`
+  </select>
+  
+  <!-- 库存查询API：查询库存Detail -->
+  <select id="selectDetailResDomains" resultType="com.leqee.wms.api.response.domain.InventoryDetailResDomain" parameterType="java.lang.Integer" >
+    SELECT
+		p.sku_code,
+	    ii.inventory_item_id,
+	    warehouse_id,
+	    physical_warehouse_id ,
+	    quantity as quantity ,
+			ii.`status` AS status_id,
+	    ii.unit_cost,
+	    ii.provider_code,
+	    ii.validity,
+	    ii.batch_sn,
+	    ii.serial_number,
+	    ii.inventory_item_acct_type_id
+	FROM
+		wms.inventory_item ii
+		INNER JOIN wms.product p ON ii.product_id = p.product_id
+	WHERE
+		ii.customer_id = #{customerId }
+		<if test="warehouseId != null and warehouseId != ''">
+		AND ii.warehouse_id = #{warehouseId}
+		</if>
+		<if test="skuCode != null and skuCode != ''">
+		AND p.sku_code = #{skuCode}
+		</if>
+  </select>
+	
+	
+	<select id="selectByItemId" resultType="com.leqee.wms.entity.InventoryItem" parameterType="string">
+		select * from inventory_item ii where ii.inventory_item_id = #{ItemId}
+	</select>
+	
+	<update id="updateInventoryItem" parameterType="com.leqee.wms.entity.InventoryItem">
+		  update inventory_item  set
+		  physical_warehouse_id = #{physical_warehouse_id,jdbcType=INTEGER},
+	      warehouse_id = #{warehouse_id,jdbcType=INTEGER}, 
+	      customer_id = #{customer_id,jdbcType=INTEGER},
+	      product_id = #{product_id,jdbcType=INTEGER}, 
+	      quantity = #{quantity,jdbcType=INTEGER}, 
+	      status = #{status,jdbcType=VARCHAR}, 
+	      unit_cost = #{unit_cost,jdbcType=DECIMAL}, 
+	      provider_code = #{provider_code,jdbcType=VARCHAR}, 
+	      validity = #{validity,jdbcType=TIMESTAMP}, 
+	      batch_sn = #{batch_sn,jdbcType=VARCHAR}, 
+	      serial_number = #{serial_number,jdbcType=VARCHAR}, 
+	      inventory_item_acct_type_id = #{inventory_item_acct_type_id,jdbcType=VARCHAR}, 
+	      currency = #{currency,jdbcType=CHAR}, 
+	      parent_inventory_item_id = #{parent_inventory_item_id,jdbcType=INTEGER}, 
+	      root_inventory_item_id = #{root_inventory_item_id,jdbcType=INTEGER}, 
+	      created_user = #{created_user,jdbcType=VARCHAR}, 
+	      created_time = #{created_time,jdbcType=TIMESTAMP}, 
+	      last_updated_user = #{last_updated_user,jdbcType=VARCHAR}, 
+	      last_updated_time = #{last_updated_time,jdbcType=TIMESTAMP}
+	    where inventory_item_id = #{inventory_item_id}
+	</update>
+	
+	<select id="selectBySerialNumber" resultType="com.leqee.wms.entity.InventoryItem" parameterType="java.lang.String" >
+    SELECT 
+    	*
+    FROM 
+    	wms.inventory_item
+    WHERE 
+    	serial_number = #{serialNumber}
+  </select>
+  
+  <select id="selectByProductId" resultType="com.leqee.wms.entity.InventoryItem" parameterType="java.lang.Integer" >
+    SELECT 
+    	*
+    FROM 
+    	wms.inventory_item
+    WHERE 
+    	product_id =#{product_id} limit 1
+  </select>
+       
+     <update id="batchupdate">
+     update wms.inventory_item
+     set parent_inventory_item_id=inventory_item_id ,root_inventory_item_id=inventory_item_id
+     where inventory_item_id in
+     <foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item}
+	</foreach>
+     </update>
+     <select id="selectInventoryItemListV2" resultType="com.leqee.wms.entity.InventoryItem">
+           select * 
+           from wms.inventory_item
+           where physical_warehouse_id=#{physical_warehouse_id} and warehouse_id=#{warehouse_id}
+           and status=#{status}
+           and product_id in 
+           <foreach collection="list" item="productId" open="("
+			separator="," close=")">
+			#{productId}			
+		</foreach>
+		and quantity>0
+     </select>
+     <update id="updateInventoryItemByPackOut">
+     update wms.inventory_item
+     SET quantity = CASE inventory_item_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.inventory_item_id} then quantity -
+			${item0.quantity}
+		</foreach>
+		END
+		where inventory_item_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.inventory_item_id}
+		</foreach>
+     
+     </update>
+     
+</mapper>

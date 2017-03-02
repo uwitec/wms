@@ -1,0 +1,107 @@
+/* 清除内外边距 */
+body, h1, h2, h3, h4, h5, h6, hr, p, blockquote, /* structural elements 结构元素 */
+dl, dt, dd, ul, ol, li, /* list elements 列表元素 */
+pre, /* text formatting elements 文本格式元素 */
+fieldset,legend, button, input, textarea, /* form elements 表单元素 */
+th, td { /* table elements 表格元素 */
+    margin: 0;
+    padding: 0;
+}
+
+/* 设置默认字体 */
+body,
+button, input, select, textarea { /* for ie */
+    /*font: 12px/1 Tahoma, Helvetica, Arial, "宋体", sans-serif;*/
+    font: 14px/1 Tahoma, Helvetica, Arial, "\5b8b\4f53", sans-serif; /* 用 ascii 字符表示，使得在任何编码下都无问题 */
+}
+
+h1 { font-size: 18px; /* 18px / 12px = 1.5 */ }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+h4, h5, h6 { font-size: 100%; }
+
+address, cite, dfn, em, var { font-style: normal; } /* 将斜体扶正 */
+code, kbd, pre, samp, tt { font-family: "Courier New", Courier, monospace; } /* 统一等宽字体 */
+small { font-size: 12px; } /* 小于 12px 的中文很难阅读，让 small 正常化 */
+
+
+/* 重置列表元素 */
+ul, ol { list-style: none; }
+
+/* 重置文本格式元素 */
+a { text-decoration: none;color: #278296; }
+a:hover { text-decoration: underline;color: #80BDCB; }
+
+abbr[title], acronym[title] { /* 注：1.ie6 不支持 abbr; 2.这里用了属性选择符，ie6 下无效果 */
+    border-bottom: 1px dotted;
+    cursor: help;
+}
+
+q:before, q:after { content: ''; }
+
+/* 重置表单元素 */
+legend { color: #000; } /* for ie6 */
+fieldset, img { border: none; } /* img 搭车：让链接里的 img 无边框 */
+/* 注：optgroup 无法扶正 */
+button, input, select, textarea {
+    font-size: 100%; /* 使得表单元素在 ie 下能继承字体大小 */
+}
+
+/* 重置表格元素 */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+/* 重置 hr */
+hr {
+    border: none;
+    height: 1px;
+}
+
+/* 让非ie浏览器默认也显示垂直滚动条，防止因滚动条引起的闪烁 */
+html { overflow-y: scroll; }
+input{border: 1px solid #278296;margin-bottom: 10px;height: 30px;}
+input:hover{background-color: rgba(0,139,139,0.6);
+transition:background-color 0.7s;
+-webkit-transition:background-color 0.7s;
+-moz-transition:background-color 0.7s;
+-o-transition:background-color 0.7s;}
+label{cursor: pointer;}
+input[type="button"],input[type="submit"] {cursor: pointer;color:#333333;
+border-radius: 5px;
+-moz-border-radius:5px;
+-webkit-border-radius:5px;
+-o-border-radius:5px;}
+
+.all{border:1px solid #278296; width: 500px;margin: 0 auto;margin-top:5px;}
+.allpages{display: none; border: 1px solid #80BDCB;margin: 10px;width: 480px;position: relative;}
+#page1,#page3{height: 80px;background-color:#80BDCB; }
+#page1 p{width: 10em; position:absolute;top:5px; left: 50%;margin-left: -5em;font-size: 16px;}
+#page1 form,#page3 form{width: 340px;height: 30px; position: absolute;bottom:5px;left: 50%;margin-left: -160px;}
+#page3 p{width: 22em; position: absolute;left: 50%;margin-left: -10em;font-size: 16px;}
+#page_main ul{width: 340px;margin: 10px 80px;}
+#page_main p{margin-bottom: 10px;}
+#main_form{padding-left:80px;padding-top:10px;padding-bottom: 10px;position: relative;}
+#main_form img{position:absolute;top:31px;opacity: 0.6;display: none;}
+.table_gird{text-align:center;margin:10px 0;border: 1px solid #278296;}
+.table_gird tr td,.table_gird tr th{width: 5.3em;padding:0.35em;border: 1px solid #278296;}
+.over_page{height: 80px;}
+#error_msg_page{height: 150px;}
+#error_msg_page form{width:100px;height:22px;margin-left: 200px;margin-top: 22px;}
+#error_msg_page p{width: 200px;margin: 10px 150px;}
+#alldone_page p{margin:10px 200px 10px 200px;}
+#alldone_page a{display: block;margin:10px 160px 10px 160px;}
+#done_but_illness_page p{margin:0px 160px 10px 160px;}
+#done_but_illness_page a{display: block;margin: 10px 120px 10px 120px;}
+
+#box_for_show_grid{display: none;}
+
+
+
+
+
+
+
+
+
+

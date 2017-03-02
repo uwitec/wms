@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ExpressDao">
+	<select id="selectSaleOrderWarehouseShippingInfo" parameterType="java.lang.Integer" resultType="map">
+		select oi.order_id,ws.shipment_id,oi.oms_order_sn,w.warehouse_name,s.shipping_name,swm.mapping_id,swm.paper_type
+		from  wms.order_info oi
+		inner join wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		inner join wms.shipping s on s.shipping_id = oi.shipping_id
+		left join wms.shipment ws on ws.order_id = oi.order_id  
+		left join wms.shipping_warehouse_mapping swm on swm.shipping_id = oi.shipping_id and swm.warehouse_id = oi.warehouse_id
+		where oi.order_id = #{orderId} and oi.is_reserved = 'Y' and oi.order_type='SALE'
+	</select>
+
+	<select id ="selectAllTrackingNumberByOrderId" parameterType="java.lang.Integer" resultType="map">
+		select tracking_number from wms.shipment where order_id = #{orderId}
+	</select>
+	
+	<select id="getTrackingNumber" parameterType="java.lang.Integer" resultType="String">
+		select tracking_number from wms.shipping_tracking_number_repository where shipping_app_id =#{appId} and status = 'N' limit 1
+	</select>
+	
+	<update id="updateRepositoryTrackingNumber" >
+		update wms.shipping_tracking_number_repository set status=#{1} where tracking_number = #{0}
+	</update>
+	
+	<select id="getNotEnoughThermalMailnosList" resultType="map">
+		SELECT wsa.app_key,s.shipping_name,(SELECT warehouse_name from wms.warehouse ww where ww.warehouse_id =  w.physical_warehouse_id) as physical_warehouse_name,
+			GROUP_CONCAT(DISTINCT w.warehouse_name) as group_warehouse_name,
+			sum(if(tnr.`status`='N',1,0)) as unused,sum(if(tnr.`status`!='N',1,0)) as used
+		from wms.shipping_tracking_number_repository tnr
+		INNER JOIN wms.shipping_app wsa on wsa.app_id = tnr.shipping_app_id
+		INNER JOIN wms.shipping_warehouse_mapping swm on swm.shipping_app_id = tnr.shipping_app_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = swm.warehouse_id
+		INNER JOIN wms.shipping s on s.shipping_id = swm.shipping_id
+		where wsa.apply_type = 'BATCH' and w.is_delete = 'N'
+		GROUP BY wsa.app_id
+		HAVING unused <![CDATA[ < ]]> 2000
+	</select>
+	
+	
+	<select id="getThermalWarehouseShippingList" resultType="map">
+		SELECT w.warehouse_id,w.warehouse_name,GROUP_CONCAT(s.shipping_name SEPARATOR '   ' ) as shipping_name_str from wms.shipping_warehouse_mapping m
+		INNER JOIN wms.shipping s on s.shipping_id = m.shipping_id  
+		INNER JOIN wms.warehouse w on w.warehouse_id = m.warehouse_id and w.is_delete = 'N' 
+		where m.paper_type = 'electronic'
+		GROUP BY m.warehouse_id
+	</select>
+</mapper>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.BatchTaskCountDao">
+
+	<select id="getBatchTaskCount" resultType="com.leqee.wms.entity.BatchTaskCount">
+		select * from
+		wms.batch_task_count where batch_task_sn=#{batch_task_sn}
+	</select>
+
+	<update id="updateBindbatchTaskCount">
+		update wms.batch_task_count set
+		binded_user_id=#{binded_user_id},binded_time=now() 
+		where batch_task_id=#{batch_task_id}
+	</update>
+	
+	<insert id="insertBatchTaskCount">
+		<selectKey keyProperty="batch_task_id" resultType="java.lang.Integer">
+			select LAST_INSERT_ID()
+		</selectKey>
+		insert into wms.batch_task_count
+		(batch_task_sn,mark,count_sn,created_user,created_time)
+		values (#{batch_task_sn,jdbcType=VARCHAR},#{mark,jdbcType=INTEGER},
+		#{count_sn,jdbcType=VARCHAR},#{created_user,jdbcType=VARCHAR},
+		#{created_time,jdbcType=TIMESTAMP})
+	</insert>
+</mapper>

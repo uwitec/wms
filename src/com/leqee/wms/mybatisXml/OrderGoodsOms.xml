@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderGoodsOmsDao">
+	
+  <sql id="Base_Column_List" >
+    order_goods_id, order_id, warehouse_id, customer_id, product_id, goods_name, goods_number, 
+    goods_price, discount, inventory_change_number, batch_sn, status_id, tax_rate, order_goods_type, 
+    created_user, created_time, last_updated_user, last_updated_time
+  </sql>
+  
+  <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.OrderGoodsOms" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from order_goods_oms
+    where order_goods_id = #{order_goods_id,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.OrderGoodsOms" >
+   <selectKey keyProperty="order_goods_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+     INSERT INTO `wms`.`order_goods_oms` (
+		`order_goods_id`,
+		`order_id`,
+		`oms_order_goods_sn`,
+		`warehouse_id`,
+		`customer_id`,
+		`product_id`,
+		`goods_name`,
+		`goods_number`,
+		`goods_price`,
+		`discount`,
+		`inventory_change_number`,
+		`batch_sn`,
+		`status_id`,
+		`tax_rate`,
+		`order_goods_type`,
+		`group_code`,
+		`group_number`,
+		`created_user`,
+		`created_time`,
+		`last_updated_user`,
+		`last_updated_time`
+	)
+	VALUES
+		(
+		#{order_goods_id},
+		#{order_id},
+		#{oms_order_goods_sn},
+		#{warehouse_id},
+		#{customer_id},
+		#{product_id},
+		#{goods_name},
+		#{goods_number},
+		#{goods_price},
+		#{discount},
+		#{inventory_change_number},
+		#{batch_sn},
+		#{status_id},
+		#{tax_rate},
+		#{order_goods_type},
+		#{group_code},
+		#{group_number},
+		#{created_user},
+		#{created_time},
+		#{last_updated_user},
+		#{last_updated_time}
+		);
+   
+   
+   
+   
+  </insert>
+    <insert id="batchInsert" parameterType="com.leqee.wms.entity.OrderGoodsOms" >
+    insert into wms.order_goods_oms (order_goods_id, order_id,oms_order_goods_sn, warehouse_id, 
+      customer_id, product_id, goods_name, 
+      goods_number, goods_price, discount, 
+      inventory_change_number, batch_sn, status_id, 
+      tax_rate, order_goods_type, created_user, 
+      created_time, last_updated_user, last_updated_time
+      )
+    values 
+    <foreach collection="orderGoodsList" item="item" index="index"
+			separator=",">
+	(#{item.order_goods_id,jdbcType=INTEGER}, #{item.order_id,jdbcType=INTEGER}, #{item.oms_order_goods_sn,jdbcType=VARCHAR} ,  
+	#{item.warehouse_id,jdbcType=INTEGER}, 
+      #{item.customer_id,jdbcType=INTEGER}, #{item.product_id,jdbcType=INTEGER}, #{item.goods_name,jdbcType=VARCHAR}, 
+      #{item.goods_number,jdbcType=INTEGER}, #{item.goods_price,jdbcType=DECIMAL}, #{item.discount,jdbcType=DECIMAL}, 
+      #{item.inventory_change_number,jdbcType=INTEGER}, #{item.batch_sn,jdbcType=VARCHAR}, #{item.status_id,jdbcType=VARCHAR}, 
+      #{item.tax_rate,jdbcType=DECIMAL}, #{item.order_goods_type,jdbcType=CHAR}, #{item.created_user,jdbcType=VARCHAR}, 
+      #{item.created_time,jdbcType=TIMESTAMP}, #{item.last_updated_user,jdbcType=VARCHAR}, #{item.last_updated_time,jdbcType=TIMESTAMP}
+      )
+	</foreach>
+		
+  </insert>
+  <select id="selectByOrderId" resultType="com.leqee.wms.entity.OrderGoodsOms" parameterType="java.lang.Integer" >
+    SELECT 
+    	*
+    FROM 
+    	wms.order_goods_oms
+    WHERE 
+    	order_id = #{orderId}
+  </select>
+  
+  <select id="selectByOrderIdAndOrderGoodsOmsId" resultType="com.leqee.wms.entity.OrderGoodsOms" parameterType="map">
+  	select * from order_goods_oms where oms_order_goods_sn = #{omsOrderGoodsOmsSn} and order_id =#{orderId}
+  </select>
+  
+  <select id="selectGoodsInfoByOrderId" resultType="map" parameterType="java.lang.Integer">
+  	select og.order_id,og.order_goods_id,og.goods_name,og.goods_number,p.barcode,p.product_type,
+  	oi.order_status,oi.shipping_id,p.is_serial,oi.warehouse_id,bp.batch_pick_sn,bp.batch_process_type
+  	from wms.order_goods_oms og 
+  	inner join wms.order_info oi on oi.order_id = og.order_id
+	INNER JOIN wms.order_process op on op.order_id = oi.order_id
+  	inner join wms.product p on p.product_id = og.product_id 
+	LEFT JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+  	where og.order_id = #{orderId}
+  </select>
+  
+  <select id="selectByShipmentIdAndProductId" resultType="com.leqee.wms.entity.OrderGoodsOms" parameterType="map" >
+    SELECT 
+    	og.*
+    FROM 
+    	wms.order_goods_oms og
+    INNER JOIN 
+    	wms.shipment s ON s.order_id = og.order_id 
+    WHERE 
+    	s.shipment_id = #{shipmentId}
+    AND og.product_id = #{productId}
+  </select>
+  
+  <update id="deletePackGoods">
+  	delete from wms.order_goods_oms where order_id = #{0} and order_goods_type='PACKBOX'
+  </update>
+  
+  <select id="selectByOmsOrderGoodsOmsSn" resultType="com.leqee.wms.entity.OrderGoodsOms" parameterType="string">
+  		select * from wms.order_goods_oms where oms_order_goods_sn=#{oms_order_goods_sn} limit 1
+  </select>
+  <update id="updateReservedNumBack">
+  	update wms.order_reserve_detail set reserved_number = reserved_number-#{1} where order_goods_id = #{0}
+  </update>
+  
+  <select id="selectProductSkuCode" resultType="map">
+  	select og.order_id,og.product_id,p.sku_code from wms.order_goods_oms og
+  	inner join wms.product p on p.product_id = og.product_id and p.is_delete = 'N'
+  	where og.order_goods_id = #{0}
+  </select>
+  
+</mapper>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventorySummaryDetailDao">
+	
+	<sql id="Base_Column_List" >
+    inventory_summary_detail_id, serial_number, status_id, warehouse_id, product_id, unit_price, 
+    provider_code, batch_sn,customer_id, stock_quantity, created_user, created_stamp, last_updated_user, 
+    last_updated_stamp
+  </sql>
+	
+	
+      
+      <insert id="insert" parameterType="com.leqee.wms.entity.InventorySummaryDetail" useGeneratedKeys="true" keyProperty="inventory_summary_detail_id" >
+   insert into inventory_summary_detail (inventory_summary_detail_id, serial_number, 
+      status_id, warehouse_id, product_id, 
+      unit_price, provider_code, batch_sn, 
+      customer_id, stock_quantity, created_user, 
+      created_stamp, last_updated_user, last_updated_stamp
+      )
+    values (#{inventory_summary_detail_id,jdbcType=INTEGER}, #{serial_number,jdbcType=VARCHAR}, 
+      #{status_id,jdbcType=VARCHAR}, #{warehouse_id,jdbcType=INTEGER}, #{product_id,jdbcType=INTEGER}, 
+      #{unit_price,jdbcType=DECIMAL}, #{provider_code,jdbcType=VARCHAR}, #{batch_sn,jdbcType=VARCHAR}, 
+      #{customer_id,jdbcType=INTEGER}, #{stock_quantity,jdbcType=INTEGER}, #{created_user,jdbcType=VARCHAR}, 
+      #{created_stamp,jdbcType=TIMESTAMP}, #{last_updated_user,jdbcType=VARCHAR}, #{last_updated_stamp,jdbcType=TIMESTAMP}
+      )
+  </insert>
+  
+  <select id="selectByPrimaryKey" resultType="com.leqee.wms.entity.InventorySummaryDetail" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from inventory_summary_detail
+    where inventory_summary_detail_id = #{inventory_summary_detail_id,jdbcType=INTEGER}
+  </select>
+  
+     <update id="updateDetailStockQuantity"  >		
+            update wms.inventory_summary_detail 
+            set stock_quantity = stock_quantity+#{1},last_updated_stamp = now()
+            where inventory_summary_detail_id = #{0}
+            limit 1
+      </update>
+ 
+      
+   <select id="selectInventorySummaryDetailInfo" resultType="com.leqee.wms.entity.InventorySummaryDetail"  >
+     select 
+    <include refid="Base_Column_List" />
+    from inventory_summary_detail
+    where product_id = #{0} and warehouse_id =#{1} and status_id =#{2} and  unit_price =#{3} and  provider_code=#{4} 
+    and batch_sn =#{5}
+  </select>
+
+      
+
+   
+</mapper>

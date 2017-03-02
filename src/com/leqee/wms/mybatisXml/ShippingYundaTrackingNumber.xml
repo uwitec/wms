@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShippingYundaTrackingNumberDao">
+
+	<insert id="insertTrackingInfoForOther" parameterType="com.leqee.wms.entity.ShippingYundaTrackingNumber">
+		insert into wms.shipping_yunda_tracking_number (shipment_id,tracking_number, package_position,package_no,station,station_no,sender_branch_no, 
+      sender_branch, lattice_mouth_no,created_stamp)
+    values (#{0}, #{1}, #{2}, #{3}, #{4}, #{5}, #{6}, #{7}, #{8}, now())
+	</insert>
+	
+	<select id="selectPrintInfoByTrackingNumber" resultType="Map" >
+		select * from wms.shipping_yunda_tracking_number where tracking_number = #{0}
+	</select>
+
+</mapper>

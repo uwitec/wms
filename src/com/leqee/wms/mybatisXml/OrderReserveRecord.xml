@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderReserveRecordDao">
+	
+	<insert id="insert" parameterType="com.leqee.wms.entity.OrderReserveRecord" >
+     insert into order_reserve_record ( order_id, customer_id, 
+      create_time)
+    values ( #{order_id,jdbcType=INTEGER}, #{customer_id,jdbcType=INTEGER}, 
+      #{create_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+</mapper>

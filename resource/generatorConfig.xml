@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+  PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+  "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+
+<generatorConfiguration>
+
+	<properties resource="generatorConfig.properties" />
+
+	<classPathEntry location="${jdbc.path}" />
+
+	<context id="frms-mgr" targetRuntime="MyBatis3">
+		
+		<plugin type="org.mybatis.generator.plugins.EqualsHashCodePlugin" />
+		<plugin type="org.mybatis.generator.plugins.SerializablePlugin" />
+		<plugin type="org.mybatis.generator.plugins.CaseInsensitiveLikePlugin" />
+
+		<commentGenerator>
+			<property name="suppressDate" value="true" />
+			<!--去除自动生成注释 ，需要设置true-->
+			<property name="suppressAllComments" value="true" />
+		</commentGenerator>
+
+		<jdbcConnection driverClass="${jdbc.driverClassName}"
+			connectionURL="${jdbc.url}" userId="${jdbc.username}" password="${jdbc.password}">
+		</jdbcConnection>
+		<javaTypeResolver>
+			<property name="forceBigDecimals" value="true" />
+		</javaTypeResolver>
+
+		<javaModelGenerator targetPackage="com.leqee.wms.entity"
+			targetProject="wms/src">
+			<property name="enableSubPackages" value="true" />
+			<property name="trimStrings" value="true" />
+		</javaModelGenerator>
+
+		<sqlMapGenerator targetPackage="com.leqee.wms.mybatisXml"
+			targetProject="wms/src">
+			<property name="enableSubPackages" value="true" />
+		</sqlMapGenerator>
+
+		<javaClientGenerator type="XMLMAPPER" 
+			targetProject="wms/src" targetPackage="com.leqee.wms.dao.mapper">
+			<property name="enableSubPackages" value="true" />
+		</javaClientGenerator>
+		
+		<table tableName="order_info" domainObjectName="OrderInfo" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true">
+			<!-- 允许生成主键 -->
+			<generatedKey column="order_id" sqlStatement="Mysql" identity="true" />
+		</table>
+		<!--  
+		<table tableName="order_goods" domainObjectName="OrderGoods" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		<table tableName="inventory_item" domainObjectName="InventoryItem" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		<table tableName="inventory_item_detail" domainObjectName="InventoryItemDetail" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		<table tableName="product" domainObjectName="Product" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		<table tableName="warehouse" domainObjectName="Warehouse" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		<table tableName="warehouse_customer" domainObjectName="WarehouseCustomer" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" enableSelectByExample="true" selectByExampleQueryId="true"></table>
+		-->
+	</context>
+</generatorConfiguration>

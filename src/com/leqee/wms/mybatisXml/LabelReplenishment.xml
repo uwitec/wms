@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.LabelReplenishmentDao">
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.LabelReplenishment">
+		<selectKey keyProperty="label_replenishment_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      	</selectKey>
+      	insert into wms.label_replenishment(
+      		label_replenishment_id,task_id,from_location_barcode,location_id,location_barcode,created_user,created_time,pl_id,
+      		last_updated_user,last_updated_time
+      	)values(
+      		#{label_replenishment_id},#{task_id},#{from_location_barcode},#{location_id},#{location_barcode},#{created_user},now(),#{pl_id},
+      		#{last_updated_user},now()
+      	)
+	</insert>
+</mapper>

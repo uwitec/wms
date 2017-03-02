@@ -1,0 +1,38 @@
+/* $Id: default.css 4433 2006-09-14 07:53:49Z shacka $ */
+.zpDropDownDefaultContainer{
+	border: 1px solid black;
+	background-color: #EEEEEE;
+}
+
+.zpDropDownDefaultContainer .dropDownHeader{
+	background-color: #CCCCCC;
+	font-weight: bold;
+	color: white;
+}
+
+.zpDropDownDefaultContainer .noRecords{
+	text-align: center;
+	background-color: #CCCCCC;
+	font-weight: bold;
+	color: red;
+}
+
+.zpDropDownDefaultContainer tbody tr:hover,
+.zpDropDownDefaultContainer .dropDownHighlighted{
+	background-color: #CCCCCC !important;
+	cursor: pointer;
+	cursor: hand;
+}
+
+.zpDropDownDefaultContainer .dropDownOdd{
+	background-color: #EEEEEE;
+}
+
+.zpDropDownDefaultContainer .dropDownEven{
+	background-color: #E0E0E0;
+}
+
+.zpDropDownDefaultOverflowed{
+	overflow: scroll;
+	height: 200px !important;
+}

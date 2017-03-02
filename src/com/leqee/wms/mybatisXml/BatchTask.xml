@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.BatchTaskDao">
+ 
+ 	<insert id="insert" parameterType="com.leqee.wms.entity.BatchTask">
+ 		<selectKey keyProperty="batch_task_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+     	</selectKey>
+     	insert into wms.batch_task(
+     		batch_task_id,batch_task_sn,task_type,status,created_user,created_time
+     	)values(
+     		#{batch_task_id},#{batch_task_sn},#{task_type},#{status},#{created_user},now()
+     	)
+ 	</insert>
+ 	
+ 	<select id="selectBatchTaskByBatchTaskSn" resultType="map">
+ 		SELECT bt.batch_task_id,bt.batch_task_sn,count(t.task_id) as task_count,
+		GROUP_CONCAT(DISTINCT first_bind_user_id) as bind_user_group,GROUP_CONCAT(DISTINCT operate_platform) as task_platform_group
+		from wms.batch_task bt 
+		Inner JOIN wms.task t on t.batch_task_id = bt.batch_task_id
+		where bt.batch_task_sn = #{batch_task_sn} and bt.task_type='REPLENISHMENT' and t.task_status not in ('EXCEPTION','CANCEL')
+		GROUP BY bt.batch_task_id
+ 	</select>
+ 	
+ 	<select id="selectTaskIdByBatchTaskSn" resultType="map">
+ 		select t.task_id,t.task_status
+ 		from wms.batch_task bt 
+		Inner JOIN wms.task t on t.batch_task_id = bt.batch_task_id
+		where bt.batch_task_sn = #{0} and bt.task_type='REPLENISHMENT' and t.task_status not in ('EXCEPTION','CANCEL')
+ 	</select>
+</mapper>

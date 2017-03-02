@@ -1,0 +1,124 @@
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.LocationDao">
+	
+	<select id="selectLocationById" parameterType="int" resultType="com.leqee.wms.entity.Location">
+			select * from wms.location where location_id = #{locationId}
+	</select>
+	
+	<insert id="insertBHcode" parameterType="com.leqee.wms.entity.Location">
+		insert into wms.location(location_barcode,physical_warehouse_id,location_type,is_delete,
+		is_empty,created_time,created_user,last_updated_time,last_updated_user)
+		values ( #{location_barcode,jdbcType=VARCHAR}, #{physical_warehouse_id,jdbcType=INTEGER},
+		#{location_type,jdbcType=VARCHAR}, #{is_delete,jdbcType=VARCHAR}, #{is_empty,jdbcType=VARCHAR},
+		#{created_time,jdbcType=TIMESTAMP},#{created_user,jdbcType=VARCHAR}, #{last_updated_time,jdbcType=TIMESTAMP},
+		#{last_updated_user,jdbcType=VARCHAR})
+	</insert>
+	
+	<insert id="insert"  parameterType="com.leqee.wms.entity.Location">
+	<selectKey keyProperty="location_id" resultType="Integer">
+            select LAST_INSERT_ID()
+	    </selectKey>
+		insert into wms.location(location_barcode,physical_warehouse_id,location_type,is_delete,
+		is_empty,created_time,created_user,last_updated_time,last_updated_user)
+		values ( #{location_barcode,jdbcType=VARCHAR}, #{physical_warehouse_id,jdbcType=INTEGER},
+		#{location_type,jdbcType=VARCHAR}, #{is_delete,jdbcType=VARCHAR}, #{is_empty,jdbcType=VARCHAR},
+		now(),#{created_user,jdbcType=VARCHAR}, now(),
+		#{created_user,jdbcType=VARCHAR})
+	</insert>
+	
+	<select id="selectLocationIdByLocationBarCode" resultType="com.leqee.wms.entity.Location">
+		select * from wms.location where physical_warehouse_id = #{physical_warehouse_id} 
+		and location_barcode =#{location_barcode} and is_delete = 'N'
+		<if test="is_empty != '' and is_empty != null">
+			and is_empty = 'Y' 
+		</if>
+		limit 1
+	</select>
+	
+	<select id="selectLocationIdByLocationBarCodeV2" resultType="map">
+		select l.*,p.barcode,pl.validity,pl.status,pl.qty_total,pl.product_id,pl.batch_sn,pl.warehouse_id from wms.location l
+		inner join wms.product_location pl on l.location_id = pl.location_id
+		inner join wms.product p on p.product_id = pl.product_id
+		where l.physical_warehouse_id = #{physical_warehouse_id} 
+		and l.location_barcode =#{location_barcode} and l.is_delete = 'N'
+	</select>
+	
+	<select id="selectLocationIdByLocationBarcode" parameterType="String" resultType="map">
+		select location_id from wms.location where location_barcode in
+		<foreach collection="list" item="LocationBarcodeList" open="("
+			separator="," close=")">
+			#{LocationBarcodeList}
+		</foreach>
+	</select>
+	
+	<update id="updateLocationNotEmptyByLocationId" parameterType="int">
+		update wms.location set is_empty = 'N' where location_id = #{locationId} limit 1
+	</update>
+	
+	<update id="updateLocationBarByLocationId" >
+	   update wms.location set location_barcode = #{1} where location_id = #{0}
+   </update>
+	<select id="selectByLocationId" parameterType="map" resultType="Map">
+			select * from wms.location where physical_warehouse_id = #{physical_warehouse_id} 
+		and location_barcode =#{locationbarcode} and is_delete = 'N'
+	</select>
+	
+	<select id="selectByLocationMap" parameterType="map" resultType="Map">
+			select * from wms.location where physical_warehouse_id = #{physical_warehouse_id} 
+		and location_barcode in (#{from_piece_location_barcode},#{to_piece_location_barcode},#{from_box_location_barcode},#{to_box_location_barcode}) and is_delete = 'N'
+	</select>
+	
+	
+	<select id="selectAllLocationList" resultType="com.leqee.wms.entity.Location">
+		select * from wms.location where 
+		 physical_warehouse_id = #{physical_warehouse_id} and location_type= #{location_type}
+	</select>
+	
+	<update id="updateLocationIsEmpty">
+		update wms.location set is_empty = 'Y',last_updated_time = now(),last_updated_user = 'system' where location_id = #{locationId} limit 1
+	</update>
+
+	<update id="updateLocationIsEmpty1">
+		update wms.location set is_empty = 'N',last_updated_time = now(),last_updated_user = 'system' where location_id = #{locationId} limit 1
+	</update>
+	
+	<select id="checkLocationTypeByBarcode" resultType="com.leqee.wms.entity.Location">
+		select *
+		from wms.location 
+		where physical_warehouse_id = #{physicalWarehouseId} and is_delete = 'N' and location_barcode in 
+		<foreach collection="locationBarcodeList" item="locationBarcode" open="("
+			separator="," close=")">
+			#{locationBarcode}
+		</foreach>
+	</select>
+
+	
+	<select id="selectLocationByLocationType" resultType="com.leqee.wms.entity.Location">
+		select * from wms.location where 
+		 physical_warehouse_id = #{0} and location_type= #{1} limit 1
+	</select>
+	
+	<select id="getLocationIdInVariance" resultType="int">
+		select location_id from wms.location where 
+		physical_warehouse_id = #{physical_warehouse_id} and location_type= #{location_type} and is_delete='N' limit 1
+	</select>
+	
+	<select id="getLocationIdInVarianceNum" resultType="int">
+		select count(location_id) from wms.location where 
+		physical_warehouse_id = #{physical_warehouse_id} and location_type= #{location_type} and is_delete='N'
+	</select>
+	
+	<select id="getCountLocationsByPhysicalAndId"  resultType="com.leqee.wms.entity.Location">
+	     select * 
+	     from wms.location 
+	     where physical_warehouse_id = #{physical_warehouse_id} and location_barcode= #{location_barcode} and is_delete='N' limit 1
+	</select>
+	
+	
+	<select id="selectLocationIdForTest" resultType="int">
+		select location_id from wms.location where physical_warehouse_id = #{physical_warehouse_id} and
+		can_mix_product = 1 and can_mix_batch = 1 and location_type in ('PIECE_PICK_LOCATION','BOX_PICK_LOCATION') limit 10
+	</select>
+</mapper>

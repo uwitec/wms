@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.RegionDao">
+  
+ 
+  
+  <!-- 通过名称查询对应的Region --> 
+  <select id="selectByName" parameterType="String"
+		resultType="com.leqee.wms.entity.Region">
+		select * from wms.region where region_name = #{name} limit 1 ;
+	</select>
+	
+  <!-- 通过名称查询对应的Region --> 
+  <select id="selectLikeName" parameterType="String"
+		resultType="com.leqee.wms.entity.Region">
+		select * from wms.region where region_name like #{name} limit 1 ;
+	</select>
+	
+   <select id="selectAllProvince" 
+		resultType="com.leqee.wms.entity.Region">
+		select * from wms.region where parent_id=1;
+	</select>
+	
+   <select id="selectByNameAndParentId"  parameterType="map"
+		resultType="com.leqee.wms.entity.Region">
+		select * from wms.region where region_name = #{name} and parent_id = #{parentId}  limit 1 ;
+	</select>
+	
+	<insert id ="insertRegion" parameterType="com.leqee.wms.entity.Region">
+		insert into wms.region (region_id,parent_id,region_name,region_type,agency_id)
+		values (#{region_id},#{parent_id},#{region_name},#{region_type},#{agency_id})
+	</insert>
+	
+	<update id ="updateRegion" parameterType="com.leqee.wms.entity.Region">
+		update wms.region set parent_id=#{parent_id},region_name=#{region_name},region_type=#{region_type},agency_id=#{agency_id}
+		where region_id=#{region_id}
+	</update>
+	
+	<select id="selectRegionByRegionId"  parameterType="short"
+		resultType="com.leqee.wms.entity.Region">
+		select * from wms.region where region_id = #{region_id} limit 1 ;
+	</select>
+	
+	
+	
+</mapper>

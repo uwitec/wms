@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.WarehouseCustomerDao">
+	<select id="selectByAppKey" parameterType="String"  resultType="com.leqee.wms.entity.WarehouseCustomer">
+		select * from warehouse_customer where app_key = #{appKey} limit 1
+	</select>
+	
+	<!-- 
+	<select id="selectByCustomerId" parameterType="Integer"  resultType="com.leqee.wms.entity.WarehouseCustomer">
+		select * from wms.warehouse_customer where customer_id = #{customerId} limit 1
+	</select>
+	 -->
+	 
+	<select id="selectByCustomerId" parameterType="Integer"  resultType="com.leqee.wms.entity.WarehouseCustomer">
+          SELECT 
+            customer_id,
+            NAME,
+            app_key,
+            app_secret,
+            address,
+            contact,
+            mobile,
+            phone,
+            email,
+            shipment_category,
+            aftersale_phone,
+            IF(IFNULL(dispatch_bill_file_name,'dispatch_common')='','dispatch_common',IFNULL(dispatch_bill_file_name,'dispatch_common')) as dispatch_bill_file_name,
+            group_id,
+            created_user,
+            create_time 
+          FROM
+            wms.warehouse_customer WHERE customer_id = #{customerId} limit 1  
+	</select>
+	
+	<select id="selectAllInit" resultType="com.leqee.wms.entity.WarehouseCustomer">
+          SELECT 
+            customer_id,
+            NAME,
+            app_key,
+            app_secret,
+            address,
+            contact,
+            mobile,
+            phone,
+            email,
+            shipment_category,
+            aftersale_phone,
+            IF(IFNULL(dispatch_bill_file_name,'dispatch_common')='','dispatch_common',IFNULL(dispatch_bill_file_name,'dispatch_common')) as dispatch_bill_file_name,
+            group_id,
+            created_user,
+            create_time 
+          FROM
+            wms.warehouse_customer
+	</select>
+
+	
+	<select id="selectAllCustomerId"   resultType="java.lang.Integer">
+		select customer_id from warehouse_customer 
+		where 1=1 
+		${con}
+	</select>
+	
+	<select id="selectAll"   resultType="com.leqee.wms.entity.WarehouseCustomer">
+		select * from wms.warehouse_customer 
+	</select>
+	<select id="selectAllId" resultType="java.lang.Integer">
+		select customer_id from wms.warehouse_customer 
+	</select>
+	
+	<!-- 根据groupId查找customerId列表 -->
+	<select id="selectCustomerIdListByGroupId" parameterType="java.lang.Integer"  resultType="java.lang.Integer">
+		select customer_id from warehouse_customer where group_id = #{groupId}
+	</select>
+	
+	<select id="selectCustomerIdByName" parameterType="String"  resultType="java.lang.Integer">
+		select customer_id  from wms.warehouse_customer where name = #{customerName} 
+	</select>
+	<select id="selectAllCustomerIdsV2" resultType="java.lang.Integer">
+		select customer_id  from wms.warehouse_customer
+	</select>
+	
+	<select id="getWarehouseCustomerListByUser" resultType="map">
+		SELECT
+			wc.*,
+		IF (su.id IS NULL, 0, 1) checked
+		FROM
+			wms.warehouse_customer wc
+		LEFT JOIN sys_user su ON FIND_IN_SET(
+			wc.customer_id,
+			su.customer_ids
+		)
+		AND su.id = #{id} ;
+	</select>
+	
+</mapper>

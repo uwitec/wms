@@ -1,0 +1,150 @@
+<?xml version ="1.0" encoding= "UTF-8" ?>
+
+<!-- START SNIPPET: beans -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:jaxws="http://cxf.apache.org/jaxws"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd 
+    http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd
+    http://www.springframework.org/schema/context             
+    http://www.springframework.org/schema/context/spring-context-2.5.xsd     
+    http://www.springframework.org/schema/tx
+    http://www.springframework.org/schema/tx/spring-tx.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop.xsd     
+    ">
+
+	<!-- 获得applicationContext -->
+
+	<import resource="applicationContext-job.xml" />
+	<import resource="datasource.xml" /> <!-- 顺序不可变！在上的为Master数据库，可读写。默认调用 -->
+	<import resource="datasource-slave.xml" /><!-- 顺序不可变！在下的为slave数据库，只可读。调用时注入Resource -->
+	<import resource="urlBean.xml" />
+	<import resource="applicationContext-shiro.xml" />
+
+	<!-- 开注解,这里要把controler下面的 controller去除，他们是在spring3-servlet.xml中配置的，如果不去除会影响事务管理的。 -->
+	<context:annotation-config />
+	<context:component-scan base-package="com.leqee.wms">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+	<!-- 主库 -->
+	<bean id="sqlSessionFactoryMaster" class="com.leqee.oms.commons.log.db.SpringLogPointSqlSessionFactory">
+		<property name="sqlSessionFactory">
+			<bean class="org.mybatis.spring.SqlSessionFactoryBean">
+				<property name="dataSource" ref="dataSourceMaster" />
+				<property name="configLocation" value="classpath:SQLMapConfig.xml" />
+				<property name="mapperLocations" value="classpath:com/leqee/wms/mybatisXml/*.xml" />
+			</bean>
+		</property>
+	</bean>
+	
+	<!-- Spring自动扫描基础包下面的dao -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.leqee.wms.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryMaster" />
+	</bean>
+
+	<bean id="sqlSessionMaster" class="org.mybatis.spring.SqlSessionTemplate"
+		scope="prototype">
+		<constructor-arg index="0" ref="sqlSessionFactoryMaster" />
+	</bean>
+
+	<tx:advice id="txAdviceMaster" transaction-manager="transactionManagerMaster">
+		<tx:attributes>
+			<tx:method name="*" propagation="REQUIRED" rollback-for="Exception" />
+		</tx:attributes>
+	</tx:advice>
+
+	<bean id="transactionManagerMaster"
+		class="com.leqee.oms.commons.log.db.SpringTransactionManagerLogPointProxy">
+		<property name="transactionManager">
+			<bean
+				class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+				<property name="dataSource" ref="dataSourceMaster" />
+			</bean>
+		</property>
+	</bean>
+
+	<tx:annotation-driven transaction-manager="transactionManagerMaster"
+		proxy-target-class="true" />
+
+	<aop:config>
+		<aop:pointcut id="allMethod"
+			expression="execution(* com.leqee.wms.biz.impl.*.*(..)) || execution(* com.leqee.wms.api.biz.impl.*.*(..)) " />
+		<aop:advisor advice-ref="txAdviceMaster" pointcut-ref="allMethod" />
+	</aop:config>
+
+	<!-- 从库 -->
+	<bean id="sqlSessionFactorySlave" class="com.leqee.oms.commons.log.db.SpringLogPointSqlSessionFactory">
+		<property name="sqlSessionFactory">
+			<bean class="org.mybatis.spring.SqlSessionFactoryBean">
+				<property name="dataSource" ref="dataSourceSlave" />
+				<property name="configLocation" value="classpath:SQLMapConfig.xml" />
+				<property name="mapperLocations" value="classpath:com/leqee/wms/mybatisXml/*.xml" />
+			</bean>
+		</property>
+	</bean>
+
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.leqee.wms.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactorySlave" />
+	</bean>
+
+
+	<bean id="sqlSessionSlave" class="org.mybatis.spring.SqlSessionTemplate" scope="prototype">
+		<constructor-arg index="0" ref="sqlSessionFactorySlave" />
+	</bean>
+	
+	<tx:advice id="txAdviceSlave" transaction-manager="transactionManagerSlave">
+		<tx:attributes>
+			<tx:method name="*" read-only="true" />
+		</tx:attributes>
+	</tx:advice>
+
+	<bean id="transactionManagerSlave"
+		class="com.leqee.oms.commons.log.db.SpringTransactionManagerLogPointProxy">
+		<property name="transactionManager">
+			<bean
+				class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+				<property name="dataSource" ref="dataSourceSlave" />
+			</bean>
+		</property>
+	</bean>
+
+	<!-- <tx:annotation-driven transaction-manager="transactionManagerSlave"
+		proxy-target-class="true" />
+	<aop:config>
+		<aop:pointcut id="allMethod"
+			expression="execution(* com.leqee.wms.biz.impl.*.*(..)) || execution(* com.leqee.wms.api.biz.impl.*.*(..)) " />
+		<aop:advisor advice-ref="txAdviceSlave" pointcut-ref="allMethod" />
+	</aop:config> -->
+
+	
+	<!-- 代理controller 记录controller入口的日志 -->
+	<bean id="controllerLogListener" class="com.leqee.oms.commons.log.sal.AggregationCostLogListener" />
+	<bean id="controllerCostLogBean" class="com.leqee.oms.commons.log.db.SpringMethodContextAop">
+		<property name="logListener" ref="controllerLogListener" />
+	</bean>
+	<aop:config>
+		<aop:aspect ref="controllerCostLogBean">
+			<aop:pointcut id="controllerCostLog" expression="execution(* com.leqee.wms.controller.*Controller.*(..))" />
+			<aop:around pointcut-ref="controllerCostLog" method="around" />
+		</aop:aspect>
+	</aop:config>
+	
+	<!-- 代理Job 记录Job入口的日志 -->
+	<bean id="jobLogListener" class="com.leqee.oms.commons.log.sal.AggregationCostLogListener" />
+	<bean id="jobCostLogBean" class="com.leqee.oms.commons.log.db.SpringMethodContextAop">
+		<property name="logListener" ref="jobLogListener" />
+	</bean>
+	<aop:config>
+		<aop:aspect ref="jobCostLogBean">
+			<aop:pointcut id="jobCostLog" expression="execution(* com.leqee.wms.job.*Job.*(..))" />
+			<aop:around pointcut-ref="jobCostLog" method="around" />
+		</aop:aspect>
+	</aop:config>
+</beans>

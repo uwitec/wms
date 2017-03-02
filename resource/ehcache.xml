@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ehcache name="es">
+
+    <diskStore path="java.io.tmpdir"/>
+
+    <!-- 登录记录缓存 锁定10分钟 -->
+    <cache name="passwordRetryCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+
+    <cache name="authorizationCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+
+    <cache name="authenticationCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+
+    <cache name="shiro-activeSessionCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="shiro-activeSessionCaches"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+        <cache name="shiro-sfactiveSessionCaches"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="shopNameCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToLiveSeconds="3600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="shopNameFileCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToLiveSeconds="3600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+
+    
+    <cache name="dashboardCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToLiveSeconds="600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="monitorCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToLiveSeconds="600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="isPhysicalOutSourceCache"
+           maxEntriesLocalHeap="100"
+           eternal="false"
+           timeToLiveSeconds="10000"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="customerShopCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToLiveSeconds="3600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+   
+   <cache name="isDouble11Cache"
+           maxEntriesLocalHeap="100"
+           eternal="false"
+           timeToLiveSeconds="1800"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="isBatchByShipmentCache"
+           maxEntriesLocalHeap="100"
+           eternal="false"
+           timeToLiveSeconds="1800"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    
+    <cache name="configCwMappingCache"
+           maxEntriesLocalHeap="512"
+           eternal="false"
+           timeToLiveSeconds="3600"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+    <cache name="limitIpCache"
+           maxEntriesLocalHeap="2000"
+           eternal="false"
+           timeToIdleSeconds="3600"
+           timeToLiveSeconds="0"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+    
+     <cache name="isWeighPackBoxCache"
+           maxEntriesLocalHeap="100"
+           eternal="false"
+           timeToLiveSeconds="1800"
+           overflowToDisk="false"
+           statistics="true">
+    </cache>
+</ehcache>

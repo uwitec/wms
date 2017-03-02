@@ -1,0 +1,56 @@
+/* $Id: winxp.css 4535 2006-09-21 21:22:31Z smaxim $ */
+.zpButtonWinxpContainer, .zpButtonImageDefaultContainer{
+  padding: 0;
+  border: 0;
+}
+
+.zpButtonImageWinxpContainer .internalContainer{
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.zpButtonWinxpContainer .internalContainer{
+  background-color: #CCCCCC;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  color: #000000;
+  border: 2px solid #CCCCCC;
+  
+}
+
+.zpButtonWinxpContainer .internalContainer img{
+  border: 0;
+  }
+
+.zpButtonWinxpContainer .disabled .internalContainer{
+  filter: Alpha(Opacity=50);
+  -moz-opacity: 0.50;
+  border: 2px solid #CCCCCC;
+}
+
+/*Mouseout img*/
+.zpButtonWinxpContainer .mouseOut .internalContainer{
+   background:url(winxp/out.png) repeat-x;
+   border: 1px solid #7d7e8a;
+   height:24px;
+   padding:2px 3px;
+}
+
+/*Mouseover img*/
+.zpButtonWinxpContainer .mouseOver .internalContainer{
+  background:url(winxp/over.png) repeat-x;
+  border: 1px solid #7d7e8a;
+  height:24px;
+  padding:2px 3px;      
+}
+
+/*Mousedown img*/
+.zpButtonWinxpContainer .mouseDown .internalContainer{
+   background:url(winxp/pressed.png) repeat-x;
+   border: 1px solid #7d7e8a;
+   height:24px;
+   padding:2px 3px;
+}
+

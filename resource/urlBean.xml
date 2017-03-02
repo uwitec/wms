@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans 	http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+<bean id="shippingUrlUtil" class="com.leqee.wms.util.ShippingUrlUtil">
+  <property name="htServerUrl">
+    <value>http://183.129.172.49/ems/api/process</value>
+  </property>
+  <property name="ytoServerUrl">
+    <value>http://58.32.246.71:8000/</value>
+  </property>
+  <property name="ztoServerUrl">
+    <value>http://testpartner.zto.cn/partner/interface.php</value>
+  </property>
+  <property name="ztoMarkServerUrl">
+    <value>http://testpartner.zto.cn/client/interface.php</value>
+  </property>
+  <property name="sfServerUrl">
+    <value>http://218.17.248.244:11080/bsp-oisp/</value>
+  </property>
+  <property name="ydServerUrl">
+    <value>http://orderdev.yundasys.com:10110/cus_order/order_interface/</value>
+  </property>
+  <property name="stoServerUrl">
+    <value>http://vip.sto.cn/PreviewInterfaceAction.action</value>
+  </property>
+  <property name="depponServerUrl">
+  	<value>http://58.40.17.67:10168/dop-interface-async/dop-standard-ewborder/ewaybillSaveOrder.action</value>
+  </property>
+  <property name="emsServerUrl">
+  	<value>http://os.ems.com.cn:8081/zkweb/bigaccount/getBigAccountDataAction.do</value>
+  </property>
+  
+ </bean>
+
+
+</beans>

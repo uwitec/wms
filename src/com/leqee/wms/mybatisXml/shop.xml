@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ShopDao">
+  
+  <!-- 通过名称查询对应的shop --> 
+  <select id="selectByShopId" parameterType="String" resultType="com.leqee.wms.entity.Shop">
+		select * from wms.shop where oms_shop_id =#{oms_shop_id} limit 1 ;
+	</select>
+	
+	<select id="selectShopsList" resultType="com.leqee.wms.entity.Shop">
+		select * from wms.shop  ;
+	</select>
+	
+	
+	 <select id="selectByShopName" parameterType="String" resultType="com.leqee.wms.entity.Shop">
+		select * from wms.shop where oms_shop_id =#{0} and shop_name=#{1} limit 1 ;
+	</select>
+	
+	
+	<insert id ="insertShop" parameterType="com.leqee.wms.entity.Shop">
+		insert into wms.shop (shop_id,customer_id,oms_shop_id,shop_name,created_user,created_time,last_updated_user,last_updated_time)
+		values (#{shop_id},#{customer_id},#{oms_shop_id},#{shop_name},#{created_user},#{created_time},#{last_updated_user},#{last_updated_time})
+	</insert>
+	
+	<update id ="updateShop" parameterType="com.leqee.wms.entity.Shop">
+		update wms.shop set customer_id=#{customer_id},shop_name=#{shop_name},last_updated_time=#{last_updated_time}
+		where oms_shop_id=#{oms_shop_id}
+	</update>
+	
+	<select id="selectAll" resultType="com.leqee.wms.entity.Shop">
+	    select * from wms.shop
+	</select>
+	
+	<insert id="batchInsert">
+	    insert into wms.shop
+		(customer_id,shop_name,oms_shop_id,last_updated_time)
+		values
+		<foreach collection="list" item="item" index="index"
+			separator=",">
+			(#{item.customer_id}, #{item.shop_name},
+			#{item.oms_shop_id},now())
+		</foreach>
+	</insert>
+	
+	<insert id="batchUpdate">
+	    UPDATE wms.shop
+		SET shop_name = CASE oms_shop_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator=" when " close="  ">
+			${item2.oms_shop_id} then #{item2.shop_name}
+		</foreach>
+		END,last_updated_time=now()
+		where oms_shop_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.oms_shop_id}
+		</foreach>
+	</insert>
+</mapper>

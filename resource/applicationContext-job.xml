@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa-1.0.xsd">
+	
+	
+	<bean id="schedulerFactoryBean" 
+		class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="configLocation" value="classpath:quartz.properties"/>
+	</bean>
+	
+	<!-- 使用MethodInvokingJobDetailFactoryBean，任务类可以不实现Job接口，通过targetMethod指定调用方法-->
+	<!--  
+	<bean id="taskJob" class="com.leqee.wms.job.TestJob"/>
+	<bean id="batchPickTaskJob" class="com.leqee.wms.job.BatchPickTaskJob"/>
+	<bean id="reserveJob" class="com.leqee.wms.job.ReserveJob"/>
+	<bean id="applyTrackingNumbersJob" class="com.leqee.wms.job.ApplyTrackingNumbersJob"/>
+	
+	<bean id="jobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work"/>
+	    <property name="name" value="job_work_name"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="taskJob"/> </property>
+	    <property name="targetMethod"> <value>run</value> </property>
+	</bean>
+	<bean id="batchPickTaskJobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work1"/>
+	    <property name="name" value="job_work_name1"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="batchPickTaskJob"/> </property>
+	    <property name="targetMethod"> <value>run</value> </property>
+	</bean>
+	-->
+	<!-- 
+	<bean id="reserveDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work2"/>
+	    <property name="name" value="job_work_name2"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="reserveJob"/> </property>
+	    <property name="targetMethod"> <value>reserveOrders</value> </property>
+	</bean>
+	
+	<bean id="reserveFinishDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work3"/>
+	    <property name="name" value="job_work_name3"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="reserveJob"/> </property>
+	    <property name="targetMethod"> <value>FinishedOrderInventoryReservation</value> </property>
+	</bean>
+	
+	<bean id="modifySummaryQuantiryDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work4"/>
+	    <property name="name" value="job_work_name4"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="reserveJob"/> </property>
+	    <property name="targetMethod"> <value>modifyErrorStockAndAvailityQuantiry</value> </property>
+	</bean>
+	 -->
+	<!-- 快递面单拉取 -->
+	<!-- 
+	<bean id="applyTrackingNumbersDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="group" value="job_work5"/>
+	    <property name="name" value="job_work_name5"/>
+	    <property name="concurrent" value="false"/>
+	    <property name="targetObject"> <ref bean="applyTrackingNumbersJob"/> </property>
+	    <property name="targetMethod"> <value>applyTrackingNumbers</value> </property>
+	</bean>
+	 -->
+	<!--  调度触发器 -->
+	<!-- 
+	<bean id="myTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name"/>
+	    <property name="group" value="work_default"/>
+	    <property name="jobDetail"> <ref bean="jobDetail" /> </property>
+	    <property name="cronExpression"> <value>0 0 10 * * ?</value> </property>
+	</bean>
+	<bean id="batchPickTaskJobTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name1"/>
+	    <property name="group" value="work_default1"/>
+	    <property name="jobDetail"> <ref bean="batchPickTaskJobDetail" /> </property>
+	    <property name="cronExpression"> <value>0 */10 * * * ?</value> </property>
+	</bean>
+	
+	<bean id="reserveJobTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name2"/>
+	    <property name="group" value="work_default2"/>
+	    <property name="jobDetail"> <ref bean="reserveDetail" /> </property>
+	    <property name="cronExpression"> <value>10 10 * * * ?</value> </property>
+	</bean>
+	
+	<bean id="reserveFinishJobTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name3"/>
+	    <property name="group" value="work_default3"/>
+	    <property name="jobDetail"> <ref bean="reserveFinishDetail" /> </property>
+	    <property name="cronExpression"> <value>0 0,0,30,45 22,23 * * ?</value> </property>
+	</bean>
+	
+	<bean id="modifySummaryQuantiryJobTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name4"/>
+	    <property name="group" value="work_default4"/>
+	    <property name="jobDetail"> <ref bean="modifySummaryQuantiryDetail" /> </property>
+	    <property name="cronExpression"> <value>0 0,1 1,2 * * ?</value> </property>
+	</bean>
+	
+	<bean id="applyTrackingNumbersJobTrigger"
+	      class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="name" value="work_default_name5"/>
+	    <property name="group" value="work_default5"/>
+	    <property name="jobDetail"> <ref bean="applyTrackingNumbersDetail" /> </property>
+	    <property name="cronExpression"> <value>0 0 0 1 * ?</value> </property>
+	</bean>
+	 -->
+	
+	<!-- 调度工厂 -->
+	<!-- 
+	<bean id="scheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+	    <property name="triggers">
+	        <list>
+	            <ref bean="myTrigger"/>
+	            <ref bean="batchPickTaskJobTrigger"/>
+	            <ref bean="reserveJobTrigger"/>
+	            <ref bean="reserveFinishJobTrigger"/>
+	            <ref bean="modifySummaryQuantiryJobTrigger"/>
+	            <ref bean="applyTrackingNumbersJobTrigger"/>
+	        </list>
+	    </property>
+	</bean>
+	 -->
+</beans>

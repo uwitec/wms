@@ -1,0 +1,66 @@
+.table {
+    width:100%;
+    font:14px;
+    color:#333333;
+    text-align:center;
+    border-collapse:collapse;
+}
+
+.table td,.table th{
+    border:1px solid #333333;
+    padding: 10px;
+}
+
+.message {
+    background: #eee;
+    border: 1px solid #eee;
+    margin: 10px 0;
+    padding: 10px;
+}
+
+.form-group {
+    margin: 10px 0 0 30px;
+}
+
+.form-group label {
+    width: 130px;
+    float: left;
+}
+
+option{
+    font-size: 14px;
+    padding:2px 5px;
+}
+
+#form-sysUser-edit {
+	display: inline-block;
+	/* width: 60%; */
+}
+
+#form-sysUser-edit input {
+    height: 30px;
+    line-height: 20px;
+    vertical-align: center;
+}
+
+#form-sysRole-edit {
+	display: inline-block;
+    width: 60%;
+}
+
+#form-sysRole-edit input {
+    height: 30px;
+    line-height: 20px;
+    vertical-align: center;
+}
+
+#form-edit {
+	display: inline-block;
+    width: 60%;
+}
+
+#form-edit input {
+    height: 30px;
+    line-height: 20px;
+    vertical-align: center;
+}

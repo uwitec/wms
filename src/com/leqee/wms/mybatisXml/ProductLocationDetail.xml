@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ProductLocationDetailDao">
+
+	<insert id="insert" parameterType="com.leqee.wms.entity.ProductLocationDetail">
+		insert into wms.product_location_detail(
+			product_location_detail_id,pl_id,change_quantity,task_id,description,
+			created_user,created_time,last_updated_user,last_updated_time,order_id,order_goods_id
+		)values(
+			#{product_location_detail_id},#{pl_id},#{change_quantity},#{task_id},#{description},
+			#{created_user},now(),#{last_updated_user},now(),#{order_id},#{order_goods_id}
+		)
+	</insert>
+	
+	<insert id="insertList">
+		insert into wms.product_location_detail(
+			pl_id,change_quantity,description,task_count_id,count_sn,
+			created_user,created_time,last_updated_user,last_updated_time
+		)values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.pl_id},
+			#{item.change_quantity},
+			#{item.description},
+			#{item.task_count_id},#{item.count_sn},
+			#{item.created_user},
+			now(),#{item.last_updated_user},
+			now())
+		</foreach>
+	</insert>
+	
+	<insert id="batchInsert">
+		insert into wms.product_location_detail(
+			pl_id,change_quantity,description,task_count_id,count_sn,
+			created_user,created_time,last_updated_user,last_updated_time,order_id
+		)values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.pl_id},
+			#{item.change_quantity},
+			#{item.description},
+			#{item.task_count_id},#{item.count_sn},
+			#{item.created_user},
+			now(),#{item.last_updated_user},
+			now(),#{item.order_id})
+		</foreach>
+	</insert>
+	
+	<insert id="batchInsert2">
+		insert into wms.product_location_detail(
+			pl_id,change_quantity,description,task_count_id,count_sn,
+			created_user,created_time,last_updated_user,last_updated_time,order_id,order_goods_id
+		)values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.pl_id},
+			#{item.change_quantity},
+			#{item.description},
+			#{item.task_count_id},#{item.count_sn},
+			#{item.created_user},
+			now(),#{item.last_updated_user},
+			now(),#{item.order_id},#{item.order_goods_id})
+		</foreach>
+	</insert>
+	
+	<insert id="batchInsert3">
+		insert into wms.product_location_detail(
+			pl_id,change_quantity,description,task_count_id,task_id,count_sn,
+			created_user,created_time,last_updated_user,last_updated_time,order_id,order_goods_id
+		)values
+		<foreach collection="list" item="item" index="index" open=' '
+			separator="," close=' '>
+			(#{item.pl_id},
+			#{item.change_quantity},
+			#{item.description},
+			#{item.task_count_id},#{item.task_id},#{item.count_sn},
+			#{item.created_user},
+			now(),#{item.last_updated_user},
+			now(),#{item.order_id},#{item.order_goods_id})
+		</foreach>
+	</insert>
+	
+	<select id="selectProductLocationDetailByOrderId"  resultType="Integer">
+	  SELECT SUM(pll.change_quantity) from wms.product_location pl 
+		INNER JOIN  wms.product_location_detail  pll on pl.pl_id =pll.pl_id 
+		INNER JOIN wms.product p on pl.product_id =p.product_id 
+		where order_id =#{0} and p.barcode=#{1}  and p.customer_id =#{2} and pll.description in ('订单取消上架','订单一键取消上架')
+	</select>
+	
+	<select id="selectProductLocationDetailByOrderIdV1"  resultType="Integer">
+	  SELECT sum(change_quantity) as productlocationdetailtotal  from   wms.product_location_detail  
+		where order_id =#{0}   and order_goods_id =#{1} and description ='订单取消扣减中转区库存'  group by order_goods_id
+	</select>
+	
+	<select id="selectUnPackageProductLocationDetailByOrderId"  resultType="Integer">
+	  select sum(change_quantity) from wms.product_location_detail where order_id =#{order_id}  and description ='拆解单扣减套餐商品库存'
+	</select>
+	
+	
+	
+	<select id="selectPackageProductLocationDetailByOrderId"  resultType="Integer">
+	  select sum(change_quantity) from wms.product_location_detail where order_id =#{order_id}  and description ='预打包上架'
+	</select>
+	
+	
+	<select id="selectProductDetailByOrderId" parameterType="Integer" resultType="com.leqee.wms.entity.ProductLocationDetail">
+	  select * from wms.product_location_detail where order_id =#{order_id} and description in ('订单取消上架','订单一键取消上架')
+	</select>
+	
+	<select id="selectSumTotalByOrderId"  resultType="Integer">
+	  SELECT sum(change_quantity) from wms.product_location_detail where order_id = #{0} and order_goods_id =#{1} and change_quantity > 0
+	</select>
+	
+	
+	
+</mapper>

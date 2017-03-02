@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ConfigMailDao">
+	<select id="getToMailsByType" resultType="String">
+		select mail
+		from wms.config_mail
+		where physical_warehouse_id= #{physical_warehouse_id} and customer_id=
+		#{customer_id} and type= #{type}
+	</select>
+	
+	<select id="getCountConfigs" resultType="map">
+		select count(*) as count,id
+		from wms.config_mail
+		where physical_warehouse_id= #{physical_warehouse_id} and customer_id=
+		#{customer_id} and type= #{type}
+	</select>
+	
+	<update id="update">
+		update wms.config_mail set mail=#{mail}
+		where physical_warehouse_id= #{physical_warehouse_id} and customer_id=
+		#{customer_id} and type= #{type}
+	</update>
+	
+	<insert  id="insert">
+	insert wms.config_mail(type,customer_id,physical_warehouse_id,mail) values(#{type},#{customer_id},#{physical_warehouse_id},#{mail})
+	</insert>
+	
+	
+	<select id="getAllConfigMailTypeAndNames" resultType="com.leqee.wms.entity.ConfigMail">
+		select cm.*,cmt.name
+		from wms.config_mail cm
+		inner join wms.config_mail_type cmt
+		where cm.type= cmt.type
+		group by cm.type
+	</select>
+</mapper>

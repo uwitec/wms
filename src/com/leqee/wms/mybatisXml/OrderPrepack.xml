@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.OrderPrepackDao">
+	
+	
+	<select id="selectOrderPrepackByOrderSn" parameterType="String" resultType="map">
+		select op.order_id,p.barcode,op.pack_type,op.prepackage_product_id,p.product_name,op.qty_need,op.qty_actual from wms.order_prepack op
+		INNER JOIN wms.product p on op.prepackage_product_id = p.product_id
+		where op.order_sn = #{order_sn} and op.status in ('IN_PROCESS','PART_FULFILLED') and op.type=#{type}
+	</select>
+	
+	<select id="selectProductPrePackage" parameterType="Integer"  resultType="map">
+		SELECT p.barcode,ppk.number,p.product_name from wms.product_prepackage ppk
+		INNER JOIN wms.product p on ppk.component_product_id = p.product_id
+		where ppk.prepackage_product_id =#{prepackage_product_id}
+	</select>
+	
+	<select id="selectPrePackageList" parameterType="Integer" resultType="map">
+		SELECT * from wms.order_prepack op 
+		INNER JOIN wms.product_prepackage pp on op.prepackage_product_id =pp.prepackage_product_id
+		INNER JOIN wms.product p on pp.component_product_id = p.product_id
+		where op.order_id =#{order_id} 
+	</select>
+	
+	<select id="getTaskIdByOrderId"  resultType="com.leqee.wms.entity.Task">
+		SELECT t.* from wms.order_prepack op 
+		INNER JOIN wms.task t on op.order_id = t.order_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		INNER JOIN wms.location l  on pl.location_id = l.location_id
+		where op.order_id =#{0} and t.product_id =#{1} and t.task_type='PREPACK_PICK' ORDER BY l.location_barcode for update
+	</select>
+	
+	<select id="selectOrderPrepackByOrderId" parameterType="Integer" resultType="map">
+		select * from wms.order_prepack op
+		INNER JOIN wms.product p on op.prepackage_product_id = p.product_id
+		where order_id = #{order_id} for update
+	</select>
+	
+	<select id="selectOrderPrepackByOrderIdForUpdate" parameterType="Integer" resultType="com.leqee.wms.entity.OrderPrepack">
+		select * from wms.order_prepack op
+		INNER JOIN wms.product p on op.prepackage_product_id = p.product_id
+		where order_id = #{order_id} for update
+	</select>
+	
+	<select id="selectOrderPrepackByOrderSnV1" parameterType="String" resultType="map">
+		select p.barcode,p.product_name,op.qty_actual*pp.number as qty_actual,pp.component_product_id,lp.location_barcode from wms.order_prepack op 
+		INNER JOIN wms.product_prepackage pp on  op.prepackage_product_id =pp.prepackage_product_id
+		INNER JOIN wms.product p on p.product_id = pp.component_product_id
+		INNER JOIN wms.task t on t.product_id = p.product_id and t.task_type = 'PREPACK_PUT_AWAY' 
+		INNER JOIN wms.label_prepack lp on t.task_id=lp.task_id 
+		where    op.order_sn = #{0} and  t.order_id = #{1} ;
+	</select>
+	
+	<select id="selectOrderPrepackByOrderSnV2" parameterType="String" resultType="map">
+		select * from wms.order_prepack op
+		inner JOIN wms.product p on op.prepackage_product_id = p.product_id
+    	INNER JOIN wms.label_prepack lp on lp.order_id= op.order_id
+		where order_sn = #{order_sn}
+	</select>
+	
+
+	<select id="getAllPackProduct" resultType="map">
+		SELECT op.order_id,op.type,op.qty_need,pp.component_product_id AS product_id,sum(pp.number) as number
+			FROM wms.order_prepack  op 
+			INNER JOIN wms.product_prepackage  pp ON pp.prepackage_product_id=op.prepackage_product_id
+			WHERE op.status in ('INIT','RESERVE_FAILED') and op.type=#{type}
+			<if test="physical_warehouse_id != null and physical_warehouse_id > 0">
+			AND op.physical_warehouse_id=#{physical_warehouse_id}
+			</if>
+			<if test="warehouse_id != null and warehouse_id > 0">
+			AND op.warehouse_id=#{warehouse_id}
+			</if>
+			<if test="customer_id != null and customer_id > 0">
+			AND op.customer_id=#{customer_id}
+			</if>
+			group by op.order_id,product_id
+	</select>
+	
+	<select id="selectOrderPrePackagePackById" resultType="map">
+		SELECT op.order_id,op.type,op.qty_need,pp.component_product_id AS product_id,pp.number
+			FROM wms.order_prepack  op 
+			INNER JOIN wms.product_prepackage  pp ON pp.prepackage_product_id=op.prepackage_product_id
+			WHERE op.status in ('INIT','RESERVE_FAILED') and op.order_id=#{orderId}
+	</select>
+	
+	<update id="batchUpdateStatus">
+	    update wms.order_prepack
+	    set status = #{status}
+	    where order_id in 
+		<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+	</update>
+	<select id="selectProductPrePackageForUpdate" resultType="com.leqee.wms.entity.OrderPrepack">
+		select * from wms.order_prepack 
+		where order_id in
+		<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+			#{orderId}
+		</foreach>
+		for update
+	</select>
+	<select id="selectOrderPrePackageForUpdate" resultType="com.leqee.wms.entity.OrderPrepack">
+		SELECT *
+			FROM wms.order_prepack 
+			WHERE status in ('INIT','RESERVE_FAILED') and type=#{type}
+			<if test="physical_warehouse_id != null and physical_warehouse_id > 0">
+			AND physical_warehouse_id=#{physical_warehouse_id}
+			</if>
+			<if test="warehouse_id != null and warehouse_id > 0">
+			AND warehouse_id=#{warehouse_id}
+			</if>
+			<if test="customer_id != null and customer_id > 0">
+			AND customer_id=#{customer_id}
+			</if>
+			for update
+	</select>
+	<select id="selectOrderPrePackageForUpdateById"  resultType="com.leqee.wms.entity.OrderPrepack">
+	    SELECT *
+			FROM wms.order_prepack 
+			WHERE order_id=#{orderId}
+			for update
+	</select>
+	<select id="selectOrderPrePackageByIdListForUpdate" resultType="com.leqee.wms.entity.OrderPrepack">
+	     SELECT *
+			FROM wms.order_prepack 
+			WHERE order_id in 
+			<foreach collection="list" item="item" open="("
+			separator="," close=")">
+				#{item.order_id}
+			</foreach>
+			for update
+	</select>
+	
+	<select id="selectUnPackageList"  resultType="com.leqee.wms.entity.Task">
+		SELECT t.* from wms.order_prepack op 
+		INNER JOIN wms.task t on op.order_id = t.order_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		INNER JOIN wms.location l  on pl.location_id = l.location_id
+		where op.order_id =#{0} and t.product_id =#{1} and t.task_type='PREPACK_PICK' ORDER BY l.location_barcode for update
+	</select>
+	
+	<select id="selectOrderPrepackByOmsTaskSn" resultType="com.leqee.wms.entity.OrderPrepack">
+		select 
+			*
+		from 
+			wms.order_prepack
+		where
+			oms_task_sn=#{oms_task_sn}
+		limit 1
+	</select>
+	
+	<select id="selectMeetConditionOrderPrepack" resultType="com.leqee.wms.entity.OrderPrepack">
+		select 
+			op.*,p.sku_code as prepackageProductSkuCode
+		from 
+			wms.order_prepack op
+    	INNER JOIN wms.product p on op.prepackage_product_id = p.product_id
+		where
+			p.sku_code in 
+     	 <foreach collection="groupCodeList" item="groupCode" open="("
+			separator="," close=")">
+			 #{groupCode}
+		  </foreach>
+     
+	      and   #{payTime}  <![CDATA[ > ]]> op.activity_start_time   
+	      and  #{payTime}  <![CDATA[ <= ]]>  op.activity_end_time  
+	      and op.physical_warehouse_id = #{physicalWarehouseId} 
+	      and status = 'FULFILLED'
+	      and op.type = 'PACK'
+	      and ((ignore_qty_used = 'N' AND qty_used <![CDATA[ < ]]> qty_actual ) OR  ignore_qty_used = 'Y')
+	</select>
+	
+	<update id="updateQtyUsed" >
+	    update wms.order_prepack
+	    set qty_used =  qty_used + #{qtyNeedThisTime}
+	    where order_id = #{orderId}
+	         <!-- and ((ignore_qty_used = 'N' AND qty_used + #{qtyNeedThisTime}  <![CDATA[ <= ]]> qty_actual ) OR  ignore_qty_used = 'Y') -->
+	</update>
+	
+	<select id="selectProductPrepackageByPrepackageProductId" resultType="com.leqee.wms.entity.ProductPrepackage">
+		SELECT
+			*
+		FROM
+			wms.product_prepackage
+		WHERE
+			prepackage_product_id = #{prepackage_product_id}
+			order by component_product_id , number
+	</select>
+	
+	<select id="selectOrderPrepackByCustomerId" resultType="com.leqee.wms.entity.OrderPrepack">
+		select
+			*
+		from 
+			wms.order_prepack
+		where
+			customer_id=#{customer_id}
+	</select>
+	
+	<select id="selectSumTotal" resultType="Integer">
+		SELECT SUM(pld.change_quantity) from wms.product_location_detail pld
+		INNER JOIN  wms.task t on t.task_id= pld.task_id 
+		where pld.order_id =#{0}  and t.product_id =#{1} and t.task_type='PREPACK_PICK' group by t.product_id
+	</select>
+	
+	<select id="selectMaxOrderId" resultType="Integer">
+		select
+			ifnull(max(order_id) ,1 )
+		from 
+			wms.order_prepack 
+	</select>
+	
+	<select id="selectOrderPrepackByParam" resultType="com.leqee.wms.entity.OrderPrepack">
+		select 
+			*
+		from 
+			wms.order_prepack
+		where 
+			customer_id=#{customerId}
+			and last_updated_time <![CDATA[ >= ]]> #{startTime}
+			and last_updated_time <![CDATA[ < ]]> #{endTime}
+			and status='FULFILLED'
+	</select>
+	
+	<insert id="insertOrUpdate" parameterType="com.leqee.wms.entity.OrderPrepack">
+		insert into wms.order_prepack(
+			order_sn,
+			oms_task_sn,
+			physical_warehouse_id,
+			warehouse_id ,
+			customer_id,
+			type,
+			pack_type,
+			status,
+			prepackage_product_id,
+			packbox_product_id,
+			qty_need,
+			qty_actual,
+			qty_used,
+			ignore_qty_used,
+			activity_start_time,
+			activity_end_time,
+			note,
+			created_user,
+			created_time,
+			last_updated_user,
+			last_updated_time
+		)values(
+			#{order_sn},
+			#{oms_task_sn},
+			#{physical_warehouse_id},
+			#{warehouse_id} ,
+			#{customer_id},
+			#{type},
+			#{pack_type},
+			#{status},
+			#{prepackage_product_id},
+			#{packbox_product_id},
+			#{qty_need},
+			#{qty_actual},
+			#{qty_used},
+			#{ignore_qty_used},
+			#{activity_start_time},
+			#{activity_end_time},
+			#{note},
+			#{created_user},
+			#{created_time},
+			#{last_updated_user},
+			#{last_updated_time}
+		)
+		ON DUPLICATE KEY UPDATE
+			order_sn= #{order_sn},
+			oms_task_sn= #{oms_task_sn},
+			physical_warehouse_id= #{physical_warehouse_id},
+			customer_id= #{customer_id},
+			type= #{type},
+			pack_type=#{pack_type},
+			status= #{status},
+			prepackage_product_id= #{prepackage_product_id},
+			qty_need= #{qty_need},
+			qty_actual= #{qty_actual},
+			qty_used= #{qty_used},
+			ignore_qty_used= #{ignore_qty_used},
+			activity_start_time= #{activity_start_time},
+			activity_end_time= #{activity_end_time},
+			created_user= #{created_user},
+			created_time= #{created_time},
+			last_updated_user= #{last_updated_user},
+			last_updated_time= #{last_updated_time}
+	</insert>
+	<select id="getNeedToOutPrepackMap" resultType="map">
+		select 
+			*
+		from 
+			wms.order_prepack op
+			inner join wms.label_prepack lp on op.order_id=lp.order_id
+		where 
+			op.physical_warehouse_id=#{physical_warehouse_id}
+			and op.customer_id=#{customer_id}
+			and op.status='FULFILLED'
+			and op.last_updated_time <![CDATA[ >= ]]> #{start}
+			and op.type='PACK' 
+			and lp.packbox_need_out>0
+	</select>
+	
+	<update id="updateStatus">
+		update wms.order_prepack set status= #{status} where oms_task_sn= #{oms_task_sn}
+	</update>
+	
+	<update id="updateQtyActual">
+	    update wms.order_prepack
+	    set qty_actual = qty_actual+#{1}
+	    where order_id = #{0}
+	</update>
+	
+	<select id="selectOrderPrepacks" parameterType="Integer" resultType="com.leqee.wms.entity.ProductPrepackage">
+		SELECT * from wms.product_prepackage where component_product_id =#{component_product_id} 
+	</select>
+	
+	<select id="selectQtyUseNumber" parameterType="Integer" resultType="Integer">
+		SELECT SUM(goods_number) as gnum from wms.order_goods og 
+		INNER JOIN wms.product p on og.product_id = p.product_id 
+		INNER JOIN wms.order_info oi on oi.order_id =og.order_id  
+		where og.product_id =#{0} and p.product_type  ='PREPACKAGE' and oi.order_status ='FULFILLED' and 
+		oi.physical_warehouse_id =#{1}
+		group by p.product_id
+	</select>
+	
+	<select id="selectQtyActualNumber" parameterType="Integer" resultType="Integer">
+		SELECT SUM(qty_actual) as qnum from wms.order_prepack where prepackage_product_id =#{0} 
+		and type = 'PACK'   and physical_warehouse_id =#{1}
+	</select>
+	
+	<select id="selectUnpackNumber" parameterType="Integer" resultType="Integer">
+		SELECT SUM(qty_actual) from wms.order_prepack where prepackage_product_id =#{0} 
+		and type = 'UNPACK'  and physical_warehouse_id =#{1}
+	</select>
+
+	<select id="selectOrderPrepackByPrepackageProductIdAndPayTime" parameterType="Map" resultType="com.leqee.wms.entity.OrderPrepack">
+		select * from wms.order_prepack where 
+		prepackage_product_id = #{PrepackageProductId} 
+		and #{payTime} <![CDATA[ > ]]> activity_start_time
+		and #{payTime} <![CDATA[ <= ]]> activity_end_time
+		and status = 'FULFILLED'
+		and type = 'PACK'
+		and physical_warehouse_id = #{physicalWarehouseId} 
+		<if test="packType != null">
+			and pack_type = #{packType}
+		</if>
+	</select>
+	
+	<select id="selectComponentProductIdAndNumByPrepackageProductId" parameterType="Integer" resultType="Map">
+		select component_product_id,number from wms.product_prepackage where prepackage_product_id = #{prepackageProductId}
+	</select>
+	
+	<select id="getPrepackByBarcode"  resultType="Map">
+		SELECT  wc.name,op.prepackage_product_id,p.barcode,p.product_name,
+		SUM(if(op.type = 'PACK',op.qty_used,0))+SUM(if(op.type = 'UNPACK',op.qty_actual,0))-SUM(if(op.type = 'PACK',op.qty_actual,0)) as neednumber,
+		SUM(if(op.type = 'PACK',op.qty_need,0)) as shenqingnumber,
+		SUM(if(op.type = 'PACK',op.qty_actual,0)) as actualnumber
+		from wms.product p
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id
+		INNER JOIN wms.order_prepack op on op.prepackage_product_id =p.product_id
+		where p.barcode =#{0}  and op.physical_warehouse_id =#{1} and op.status in ('PART_FULFILLED','FULFILLED')
+		GROUP BY op.prepackage_product_id
+	</select>
+	
+	<select id="getPrepackByOrderId" parameterType="Integer" resultType="Map">
+		SELECT order_goods_id,product_id,goods_number from wms.order_goods where order_goods_type = 'PREPACKAGE' and order_id =#{order_id}
+
+	</select>
+	
+	<select id="selectOrderPrepackByPrepackageProductId" parameterType="Integer" resultType="com.leqee.wms.entity.OrderPrepack">
+		SELECT *  from wms.order_prepack where prepackage_product_id =#{prepackage_product_id}
+
+	</select>
+	
+	
+	<select id="selectOrderPrepackByOrderSnV3" parameterType="String" resultType="map">
+		SELECT * from wms.order_prepack where order_sn =#{order_sn}
+	</select>
+	
+	<select id="selectPrePackageListV1" parameterType="Integer" resultType="map">
+		SELECT * from wms.order_prepack op 
+		INNER JOIN wms.product_prepackage pp on op.prepackage_product_id =pp.prepackage_product_id
+		INNER JOIN wms.product p on pp.component_product_id = p.product_id
+		where op.order_id =#{order_id} group by pp.component_product_id
+	</select>
+	
+	
+</mapper>

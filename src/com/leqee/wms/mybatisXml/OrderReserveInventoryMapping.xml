@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.leqee.wms.dao.OrderReserveInventoryMappingDao" >
+  <resultMap id="BaseResultMap" type="com.leqee.wms.entity.OrderReserveInventoryMapping" >
+    <constructor >
+      <idArg column="mapping_id" jdbcType="INTEGER" javaType="java.lang.Integer" />
+      <arg column="order_goods_id" jdbcType="INTEGER" javaType="java.lang.Integer" />
+      <arg column="inventory_item_id" jdbcType="INTEGER" javaType="java.lang.Integer" />
+      <arg column="quantity" jdbcType="INTEGER" javaType="java.lang.Integer" />
+    </constructor>
+  </resultMap>
+  
+  <sql id="Base_Column_List" >
+    mapping_id, order_goods_id, inventory_item_id, quantity
+  </sql>
+  
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select 
+    <include refid="Base_Column_List" />
+    from order_reserve_inventory_mapping
+    where mapping_id = #{mapping_id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from order_reserve_inventory_mapping
+    where mapping_id = #{mapping_id,jdbcType=INTEGER}
+  </delete>
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.OrderReserveInventoryMapping" >
+    insert into order_reserve_inventory_mapping ( order_goods_id, inventory_item_id,oms_order_goods_sn,order_goods_oms_id,order_id,product_id,
+      quantity)
+    values ( #{order_goods_id,jdbcType=INTEGER}, #{inventory_item_id,jdbcType=INTEGER}, #{oms_order_goods_sn,jdbcType=VARCHAR},#{order_goods_oms_id,jdbcType=INTEGER},
+      #{order_id,jdbcType=INTEGER},#{product_id,jdbcType=INTEGER},#{quantity,jdbcType=INTEGER})
+  </insert>
+  
+  <select id="batchInsert">
+      insert into order_reserve_inventory_mapping ( order_goods_id, inventory_item_id,oms_order_goods_sn,order_goods_oms_id,order_id,product_id,
+      quantity) values 
+	    <foreach collection="list" item="item" index="index" open=' '
+				separator="," close=' '>
+				(#{item.order_goods_id},
+				#{item.inventory_item_id},
+				#{item.oms_order_goods_sn},
+				#{item.order_goods_oms_id},
+				#{item.order_id},
+				#{item.product_id},
+				#{item.quantity}
+				)
+		</foreach>
+  </select>
+  
+  <insert id="insertSelective" parameterType="com.leqee.wms.entity.OrderReserveInventoryMapping" >
+    insert into order_reserve_inventory_mapping
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="mapping_id != null" >
+        mapping_id,
+      </if>
+      <if test="order_goods_id != null" >
+        order_goods_id,
+      </if>
+      <if test="inventory_item_id != null" >
+        inventory_item_id,
+      </if>
+      <if test="quantity != null" >
+        quantity,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="mapping_id != null" >
+        #{mapping_id,jdbcType=INTEGER},
+      </if>
+      <if test="order_goods_id != null" >
+        #{order_goods_id,jdbcType=INTEGER},
+      </if>
+      <if test="inventory_item_id != null" >
+        #{inventory_item_id,jdbcType=INTEGER},
+      </if>
+      <if test="quantity != null" >
+        #{quantity,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.leqee.wms.entity.OrderReserveInventoryMapping" >
+    update order_reserve_inventory_mapping
+    <set >
+      <if test="order_goods_id != null" >
+        order_goods_id = #{order_goods_id,jdbcType=INTEGER},
+      </if>
+      <if test="inventory_item_id != null" >
+        inventory_item_id = #{inventory_item_id,jdbcType=INTEGER},
+      </if>
+      <if test="quantity != null" >
+        quantity = #{quantity,jdbcType=INTEGER},
+      </if>
+    </set>
+    where mapping_id = #{mapping_id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.leqee.wms.entity.OrderReserveInventoryMapping" >
+    update order_reserve_inventory_mapping
+    set order_goods_id = #{order_goods_id,jdbcType=INTEGER},
+      inventory_item_id = #{inventory_item_id,jdbcType=INTEGER},
+      quantity = #{quantity,jdbcType=INTEGER}
+    where mapping_id = #{mapping_id,jdbcType=INTEGER}
+  </update>
+  
+  <update id="updateReserveNumBack">
+  	update wms.order_reserve_inventory_mapping set quantity=quantity-#{1} where mapping_id=#{0}
+  </update>
+</mapper>

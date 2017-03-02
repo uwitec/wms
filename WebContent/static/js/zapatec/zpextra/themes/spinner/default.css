@@ -1,0 +1,36 @@
+/* $Id */
+
+.zpSpinnerDefaultTable {
+  border-color: #fff #adaa9c #adaa9c #fff;
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+  border-right: 1px solid;
+}
+
+.zpSpinnerDefaultInput {
+  text-align: right;
+  font-weight: bold;
+  border-right: 1px solid;
+  padding: 0 1px 0 3px;
+}
+
+.zpSpinnerDefaultUp {
+  width: 11px;
+  background: transparent url("default/scroller-up.gif") no-repeat 50% 50%;
+  height: 0.5em;
+}
+
+.zpSpinnerDefaultDown {
+  width: 11px;
+  background: transparent url("default/scroller-down.gif") no-repeat 50% 50%;
+  height: 0.5em;
+}
+
+.zpSpinnerDefaultHover {
+  background-color: #aaa;
+}
+
+.zpSpinnerDefaultPressed {
+  background-color: #555;
+}

@@ -1,0 +1,33 @@
+@CHARSET "UTF-8";
+
+{literal}
+	div {
+		border:1px solid black;font-family: 黑体;
+	}
+	div.right-top {		
+		border-right:0px solid black;
+		border-top:0px solid black;
+	}
+	div.left-top {		
+		border-left:0px solid black;
+		border-top:0px solid black;
+	}
+	div.left {		
+		border-left:0px solid black;
+	}	
+	div.right {		
+		border-right:0px solid black;
+	}	
+	div.left-bottom {		
+		border-left:0px solid black;
+		border-bottom:0px solid black;
+	}
+	div.right-bottom {		
+		border-right:0px solid black;
+		border-bottom:0px solid black;
+	}
+	div.inside {
+		border:0px solid black;
+	}
+	
+{/literal}

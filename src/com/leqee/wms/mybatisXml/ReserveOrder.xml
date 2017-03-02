@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ReserveOrderDao">
+
+   
+	
+   <select id="getLastSyncInventoryItemDetailId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+			select inventory_item_detail_id 
+			from wms.inventory_sync_record
+		    where customer_id = #{customerId} 
+			order by created_stamp desc limit 1 
+   </select>
+   
+    <select id="getLastSyncDetailId"  resultType="java.lang.Integer">
+			select inventory_item_detail_id 
+			from wms.inventory_sync_record
+			order by created_stamp desc limit 1 
+   </select>
+   
+   <!-- 
+   <select id="getLastSyncDetailIdByCustomerId"  resultType="java.lang.Integer">
+			select inventory_item_detail_id 
+			from wms.inventory_sync_record 
+			where customer_id=#{customer_id}
+			order by inventory_sync_record desc limit 1 
+   </select>
+    -->
+   <select id="getLastSyncDetailIdByCustomerId"  resultType="java.lang.Integer">
+		(SELECT inventory_item_detail_id 
+			FROM wms.inventory_sync_record 
+			WHERE customer_id=#{customer_id}
+			ORDER BY inventory_sync_record DESC
+			LIMIT 1)	
+         UNION 			
+	   (SELECT inventory_item_detail_id 
+			FROM wms.inventory_sync_record 
+			WHERE customer_id=0
+			ORDER BY inventory_sync_record DESC		
+			 LIMIT 1)
+		LIMIT 1
+   </select>
+   
+    <select id="getMaxIncreasedDetailIdByCustomerId" resultType="java.lang.Integer">
+			select inventory_item_detail_id 
+			from wms.inventory_item_detail 
+			where customer_id=#{customer_id}
+			order by inventory_item_detail_id desc limit 1 
+   </select>
+   
+   <select id="getMaxIncreasedDetailId"  resultType="java.lang.Integer">
+			select inventory_item_detail_id 
+			from wms.inventory_item_detail
+			order by inventory_item_detail_id desc limit 1 
+   </select>
+   
+   <select id="getIncrementInventoryItem"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,iid.change_quantity,ii.warehouse_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id > #{0} and  ii.customer_id = #{1}
+			order by iid.created_time
+   </select>
+   
+    <select id="getReservedOrderIdForSale"  resultType="java.lang.Integer">
+			SELECT order_id
+			from wms.order_process op
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type = 'SALE' 
+			and op.created_time>=date_add(now(),interval - 30 day)
+			and op.customer_id= #{customerId} limit 2500
+   </select>
+   
+    <select id="getReservedOrderIdForSaleAfter" resultType="java.lang.Integer">
+			SELECT order_id
+			from wms.order_process op
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type = 'SALE' 
+			and op.created_time >= date_add(now(),interval - 30 day)
+			and op.customer_id=#{0} 
+			and op.order_id &gt; #{1}
+			and not exists (
+						 select 1 from
+						 wms.order_reserve_detail od 
+						 inner join wms.inventory_summary im ON od.product_id = im.product_id and od.warehouse_id = im.warehouse_id and im.status_id = od.inventory_status
+						 left join wms.inventory_goods_freeze igf ON im.product_id = igf.product_id and im.warehouse_id = igf.warehouse_id and igf.status = 'OK'	
+						 where od.order_id = op.order_id
+						 and od.status ='N' 
+						 and od.goods_number &gt; im.available_to_reserved - ifnull(igf.reserve_number,0)+	IFNULL(od.reserved_number,0)	
+						 limit 1
+					 )
+			limit 2500
+   </select>
+   
+    <select id="getReservedOrderIdForSaleBefore" resultType="java.lang.Integer">
+			SELECT order_id
+			from wms.order_process op
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type = 'SALE' 
+			and op.created_time >= date_add(now(),interval - 30 day)
+			and op.customer_id= #{0} 
+			and op.order_id &lt;= #{1}
+			and not exists (
+						 select 1 from
+						 wms.order_reserve_detail od 
+						 inner join wms.inventory_summary im ON od.product_id = im.product_id and od.warehouse_id = im.warehouse_id and im.status_id = od.inventory_status
+						 left join wms.inventory_goods_freeze igf ON im.product_id = igf.product_id and im.warehouse_id = igf.warehouse_id and igf.status = 'OK'	
+						 where od.order_id = op.order_id
+						 and od.status ='N' 
+						 and od.goods_number &gt; im.available_to_reserved - ifnull(igf.reserve_number,0)+	IFNULL(od.reserved_number,0)	
+						 limit 1
+					 )
+	        limit 2500
+   </select>
+   
+   <select id="getReservedOrderIdForGT"  resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,og.goods_number as gnum
+			from wms.order_process op
+            INNER JOIN wms.order_goods og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SUPPLIER_RETURN')
+			and op.customer_id=#{customerId}
+			${condition}
+			order by op.order_id
+			limit 1500
+   </select>
+   <!-- add by dlyao -->
+   <select id="getReservedOrderIdForGTAndVarianceMinus"  resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_process op
+            INNER JOIN wms.order_goods og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SUPPLIER_RETURN','VARIANCE_MINUS')
+			and op.customer_id=#{customer_id}
+			${condition}
+			group by product,og.order_id
+			order by op.order_id
+			limit 1500
+   </select>
+   <select id="getReservedOrderIdListForGTAndVarianceMinusByHzl"  resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_goods og inner join (select op.order_id,op.order_type
+			from wms.order_process op
+			where op.reserve_status in ('N','E')
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SUPPLIER_RETURN','VARIANCE_MINUS')
+			and op.customer_id=#{customer_id}
+			${condition}
+			order by op.order_id
+			limit 1000) op on op.order_id = og.order_id
+			group by product,og.order_id
+			order by op.order_id;
+   </select>
+   
+   <select id="getReservedOrderIdListForGTAndVarianceMinus"  resultType="Integer">
+       SELECT op.order_id
+			from wms.order_process op
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SUPPLIER_RETURN','VARIANCE_MINUS')
+			and op.customer_id=#{customer_id}
+			${condition}
+			order by op.order_id
+			limit 1000
+			
+   </select>
+      <select id="getReservedOrderIdForGTAndVarianceMinusV2"  resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_process op
+            INNER JOIN wms.order_goods og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and op.order_id in 
+			<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+				#{orderId}
+		    </foreach>
+			group by product,og.order_id
+			order by op.order_id
+   </select>
+   <!-- add by dlyao -->
+   <select id="getReservedOrderIdForSaleOrder"   resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_process op
+            INNER JOIN wms.order_goods_oms og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SALE')
+			and op.customer_id=#{customer_id}
+			${condition}
+			group by product,og.order_id
+			order by op.order_id
+			limit 1500
+   </select>
+   
+      <select id="getReservedOrderIdForSaleOrderByHzl"   resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_goods_oms og inner join (select op.order_id,op.order_type
+			from wms.order_process op
+			where op.reserve_status = #{reserve_status}
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type = 'SALE'
+			and op.customer_id=#{customer_id}
+			${condition}
+			order by op.order_id
+			limit 1000) op on op.order_id = og.order_id
+			group by product,og.order_id
+			order by op.order_id;
+   </select>
+   
+   <select id="getReservedOrderIdListForSaleOrder" resultType="Integer">
+       SELECT op.order_id
+			from wms.order_process op
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ('SALE')
+			and op.customer_id=#{customer_id}
+			${condition}
+			order by op.order_id
+			limit 1000
+   </select>
+   
+   <select id="getReservedOrderIdForSaleOrderV2"  resultType="map">
+			SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,sum(og.goods_number) as gnum,op.order_type
+			from wms.order_process op
+             INNER JOIN wms.order_goods_oms og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and op.order_id in 
+			<foreach collection="list" item="orderId" open="("
+			separator="," close=")">
+				#{orderId}
+		    </foreach>
+			group by product,og.order_id
+			order by op.order_id
+   </select>
+   
+    <select id="lockInventorySummaryForReserve"  resultType="com.leqee.wms.entity.InventorySummary">
+		SELECT inventory_summary_id ,serial_number ,
+		status_id ,warehouse_id ,product_id ,
+		stock_quantity ,
+		available_to_reserved ,created_user ,
+		created_stamp ,last_updated_user ,last_updated_stamp 
+		from wms.inventory_summary 
+		where inventory_summary_id = #{inventorySummaryId}
+		for update		
+   </select>
+   
+   <select id="getInventorySummaryById"  resultType="com.leqee.wms.entity.InventorySummary">
+		SELECT inventory_summary_id ,serial_number ,
+		status_id ,warehouse_id ,product_id ,
+		stock_quantity ,
+		available_to_reserved,created_user ,
+		created_stamp ,last_updated_user ,last_updated_stamp 
+		from wms.inventory_summary 
+		where inventory_summary_id = #{inventorySummaryId}
+		for update		
+   </select>
+   
+     <select id="getDeliverOrderIdForFinishReserve"  resultType="java.lang.Integer">		
+		select op.order_id
+		from wms.order_process op
+		where 
+		op.status in ('FULFILLED')
+		and op.reserve_status = 'Y'	
+		limit 10000		
+     </select>
+     
+     <select id="getLastReservedOrderId"  resultType="java.lang.Integer">		
+		select orr.order_id
+		from wms.order_reserve_record orr
+		where orr.customer_id = #{0}
+		order by create_time desc 
+		limit 1		
+     </select>
+     
+     
+     <select id="getOrderIdForReserve"  parameterType="Map"   resultType="Map">		
+		    SELECT op.order_id,CAST(concat(ogo.product_id,'_',ogo.warehouse_id,'_',if(ogo.status_id='NORMAL',1,0)) as char) as product,sum(ogo.goods_number) as gnum
+			from wms.order_process op
+            INNER JOIN wms.order_goods_oms ogo on op.order_id = ogo.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ( 'SALE' )
+			${condition}
+			and op.customer_id=#{customerId}
+			${nextOrders}
+			group by op.order_id,ogo.product_id	
+			order by op.order_id 
+			limit 1500
+     </select>
+     
+      <select id="getPrepackOrderIdForReserve"  parameterType="Map"   resultType="Map">		
+		    SELECT op.order_id,CAST(concat(ogo.product_id,'_',ogo.warehouse_id,'_',if(ogo.status_id='NORMAL',1,0)) as char) as product,ogo.goods_number as gnum
+			from wms.order_process op
+            INNER JOIN wms.order_goods ogo on op.order_id = ogo.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in ( 'SALE' )
+			${condition}
+			and op.customer_id=#{customerId}
+			${nextOrders}	
+			group by op.order_id,og.product_id	
+			order by op.order_id 
+			limit 1500
+     </select>
+     
+     
+     
+     <delete id="deleteOrderReserveDetailByOrderId" >		
+		    delete from wms.order_reserve_detail where order_id = #{0}
+     </delete>
+     
+     <select id="getIncrementInventoryItems"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,sum(iid.change_quantity) as change_quantity,
+			ii.warehouse_id,ii.customer_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id &gt; #{0} and <![CDATA[  iid.inventory_item_detail_id <= #{1} 
+			and iid.change_quantity > 0 ]]> 
+            group by ii.product_id,ii.warehouse_id,ii.status
+     </select>
+     
+     <select id="getIncrementInventoryItemsByCustomerId"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,sum(iid.change_quantity) as change_quantity,
+			ii.warehouse_id,ii.customer_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id &gt; #{0} and <![CDATA[  iid.inventory_item_detail_id <= #{1} 
+			and iid.change_quantity > 0 ]]>  and iid.customer_id = #{2}
+            group by ii.product_id,ii.warehouse_id,ii.status
+     </select>
+     
+     <select id="getMinusInventoryItems"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,sum(iid.change_quantity) as change_quantity,
+			ii.warehouse_id,ii.customer_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id &gt; #{0} and <![CDATA[  iid.inventory_item_detail_id <= #{1} 
+			and iid.change_quantity < 0 ]]> 
+            group by ii.product_id,ii.warehouse_id,ii.status
+     </select>
+     
+     <select id="getMinusInventoryItemsByCustomerId"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,sum(iid.change_quantity) as change_quantity,
+			ii.warehouse_id,ii.customer_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id &gt; #{0} and <![CDATA[  iid.inventory_item_detail_id <= #{1} 
+			and iid.change_quantity < 0 ]]> and iid.customer_id = #{2}
+            group by ii.product_id,ii.warehouse_id,ii.status
+     </select>
+     
+      <select id="getIncrementInventoryItemsDetail"  resultType="com.leqee.wms.entity.InventorySyncItem">
+			select iid.inventory_item_detail_id,ii.product_id,sum(iid.change_quantity) as change_quantity,ii.warehouse_id,ii.customer_id,ii.status,
+			ii.unit_cost,ii.provider_code,ii.batch_sn
+			from wms.inventory_item_detail as iid
+			inner join wms.inventory_item as ii on iid.inventory_item_id = ii.inventory_item_id
+			where iid.inventory_item_detail_id &gt; #{0} and <![CDATA[  iid.inventory_item_detail_id <= #{1} ]]> 
+            group by ii.product_id,ii.warehouse_id,ii.status,ii.unit_cost,ii.provider_code,ii.batch_sn
+     </select>
+     
+     <select id="getOrderNotEnoughAndHasInstorageByCustomerId"  resultType="Map">		
+		    SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,og.goods_number as gnum
+			from wms.order_process op
+            INNER JOIN wms.order_goods og on op.order_id = og.order_id
+			where op.reserve_status = 'E'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type in( 'SALE','VARIANCE_MINUS') 
+			${condition}
+			and op.customer_id=#{customerId}
+			order by op.order_type desc , op.order_id
+			limit 1500
+     </select>
+     
+     
+     <select id="getReservedOrderIdForV"  resultType="Map">		
+		    SELECT op.order_id,CAST(concat(og.product_id,'_',og.warehouse_id,'_',if(og.status_id='NORMAL',1,0)) as char) as product,og.goods_number as gnum
+			from wms.order_process op
+            INNER JOIN wms.order_goods og on op.order_id = og.order_id
+			where op.reserve_status = 'N'
+		    and op.status = 'ACCEPT' 
+			and (op.warehouse_id is not null) 
+			and (op.warehouse_id != '')
+			and op.order_type ='VARIANCE_MINUS' 
+			${condition}
+			and op.customer_id=#{customerId}
+			order by op.order_id
+			limit 1500
+     </select>
+     
+      <select id="checkProductIsSerial"  resultType="java.lang.String">		
+		   select is_serial from wms.product where product_id = #{product_id}
+      </select>
+      
+       <select id="getAvailaleInventoryListForDeliver"  resultType="com.leqee.wms.entity.InventoryAvailaleReserve">		
+		       select * from ( 
+				 select ii.inventory_item_id, ii.quantity, ii.created_time,ii.product_id,
+				 ifnull( 
+				  (select ifnull(sum(im.quantity),0)  
+				   from wms.order_reserve_inventory_mapping im 
+				  inner join wms.order_process op ON im.order_id = op.order_id 
+				  where im.inventory_item_id = ii.inventory_item_id 
+				  and op.status not in ('FULFILLED','CANCEL')), 0) 
+				   as reserved_quantity,
+				  ii.validity 
+				  from wms.inventory_item ii 
+		       where ii.warehouse_id = #{warehouse_id} 
+		       and ii.product_id = #{product_id} 
+		       and ii.status = #{status_id}
+		       and ii.quantity >= 1
+		       )  t 
+		       where quantity > reserved_quantity
+		       order by validity,created_time;
+       </select>
+     
+     
+     <select id="getAvailaleInventoryListForDeliverV1"  resultType="com.leqee.wms.entity.InventoryAvailaleReserve">		
+		   select * from ( 
+				 select ii.inventory_item_id, ii.quantity, ii.created_time,
+				 ifnull( 
+				  (select ifnull(sum(im.quantity),0)  
+				   from wms.order_reserve_inventory_mapping im 
+				  inner join wms.order_reserve_detail ird ON im.order_goods_oms_id=ird.order_goods_oms_id 
+				  inner join wms.order_process op ON ird.order_id = op.order_id 
+				  where im.inventory_item_id = ii.inventory_item_id  and ird.status='Y'
+				  and op.status in ('ACCEPT','BATCH_PICK','PICKING','RECHECKED','WEIGHED','DELIVERED')), 0) as reserved_quantity,
+				  ii.validity 
+				  from wms.inventory_item ii 
+		       where ii.warehouse_id = #{warehouse_id} 
+		       and ii.product_id = #{product_id} 
+		       and ii.status = #{status_id}
+		       ${condition}
+		       and ii.quantity > 0
+		       )  t 
+		       where quantity > reserved_quantity
+		       order by validity,created_time;
+       </select>
+   	
+</mapper>

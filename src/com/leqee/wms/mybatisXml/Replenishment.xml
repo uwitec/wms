@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.ReplenishmentDao">
+
+	<select id="selectByMapByPage" parameterType="Map" resultType="Map">
+		select crp.customer_id ,wc.name,barcode,product_name,piece_location_max_quantity,piece_location_min_quantity,box_location_max_quantity
+		,box_location_min_quantity,from_piece_location_barcode,to_piece_location_barcode,from_box_location_barcode,to_box_location_barcode
+		from wms.config_replenishment  as crp
+		inner join wms.product as p  on  crp.product_id = p.product_id
+		inner join wms.warehouse_customer wc on crp.customer_id = wc.customer_id
+		where 1
+		<if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+		  and  crp.physical_warehouse_id = #{physical_warehouse_id}
+		 </if>
+		<if test="customer_id != '' and customer_id != null">
+		  and  crp.customer_id = #{customer_id}
+		 </if>
+		 <if test="barcode != '' and barcode != null">
+		    and p.barcode = #{barcode}
+		 </if>
+		 <if test="product_name != '' and product_name != null">
+		    and p.product_name = #{product_name}
+		 </if>
+		  </select>
+		  
+	<!-- 得到补货任务列表 by hzhang1 -->
+	<select id="selectReplenishmentTaskByPage" parameterType="map"  resultType="map">
+		select t.task_id,wc.name,case t.task_level
+		when 1 then '一般补货'
+		when 3 then '紧急补货'
+		else '其他' end as task_level,ifnull(bt.batch_task_sn,'-') as batch_task_sn,CONVERT(t.created_time,char(64)) as created_time,
+		l.location_barcode,p.barcode,p.product_name,t.quantity,
+		ifnull(ll.location_barcode,"") as to_location_barcode,
+		case t.task_status
+		when 'INIT' then '未处理'
+		when 'BINDED' then '已分配'
+		when 'IN_PROCESS' then '执行中'
+		when 'UNSHELVE' then '执行中（已下架）'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		else '状态有误' end as task_status,
+		case t.cancel_reason 
+		when 2 then '数量异常'
+		when 3 then '质量异常'
+		else '-' end as cancel_reason,
+		t.last_updated_user,pl.validity,pl.batch_sn,w.warehouse_id,w.warehouse_name
+		from wms.task t 
+		inner join wms.product p on p.product_id = t.product_id
+		inner join wms.product_location pl on pl.pl_id = t.from_pl_id
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		left join wms.location ll on t.to_location_id = ll.location_id
+		inner join wms.warehouse_customer wc on t.customer_id = wc.customer_id
+		left join wms.batch_task bt on t.batch_task_id = bt.batch_task_id
+		left join wms.label_replenishment lr on lr.task_id = t.task_id
+		where 
+		t.physical_warehouse_id = #{physical_warehouse_id} and
+		t.task_type = #{task_type}
+		<if test="task_id != '' and task_id != null">
+		    and t.task_id = #{task_id}
+		</if>
+		<if test="customer_id != '' and customer_id != null">
+		  	and  t.customer_id = #{customer_id}
+		</if>
+		<if test="warehouse_id != '' and warehouse_id != null">
+		  	and  pl.warehouse_id = #{warehouse_id}
+		</if>
+		<if test="customers != null and customers.size() != 0">
+        	and t.customer_id in
+				<foreach collection="customers" item="item" open="(" separator="," close=")">
+					#{item.customer_id}
+				</foreach>
+     	</if>
+		<if test="location_type != '' and location_type != null">
+		    and ll.location_type = #{location_type}
+		</if>
+		<if test="task_level != '' and task_level != null">
+		    and t.task_level = #{task_level}
+		</if>
+		<if test="print_status != '' and print_status != null">
+		  	and  t.task_status != 'INIT'
+		</if>
+		<if test="print_status_n != '' and print_status_n != null">
+		  	and  t.task_status = 'INIT'
+		</if>
+		<if test="task_status != '' and task_status != null and task_status != 'N_FULFILLED'.toString()">
+		    and t.task_status = #{task_status}
+		</if>
+		<if test="task_status != '' and task_status != null and task_status == 'N_FULFILLED'.toString()">
+		    and t.task_status in ('INIT','BINDED','IN_PROCESS','UNSHELVE')
+		</if>
+		<if test="batch_task_sn != '' and batch_task_sn != null">
+		    and bt.batch_task_sn = #{batch_task_sn}
+		</if>
+		<if test="start_time != '' and start_time != null">
+		    and t.created_time > #{start_time}
+		</if>
+		GROUP BY t.task_id
+		order by l.location_barcode
+	</select>
+	
+	
+	<!-- 通过波次单得到补货任务列表 by dlyao -->
+	<select id="getReplenishmentTaskByBatchPickSnByPage" parameterType="map"  resultType="map">
+	
+	
+	    SELECT t.task_id,wc.name,case t.task_level
+		when 1 then '一般补货'
+		when 3 then '紧急补货'
+		else '其他' end as task_level,ifnull(bt.batch_task_sn,'-') as batch_task_sn,CONVERT(t.created_time,char(64)) as created_time,
+		l.location_barcode,p.barcode,p.product_name,t.quantity,
+		ifnull(ll.location_barcode,"") as to_location_barcode,
+		case t.task_status
+		when 'INIT' then '未处理'
+		when 'BINDED' then '已分配'
+		when 'IN_PROCESS' then '执行中'
+		when 'UNSHELVE' then '执行中（已下架）'
+		when 'CANCEL' then '已取消'
+		when 'FULFILLED' then '已完成'
+		else '状态有误' end as task_status,
+		case t.cancel_reason 
+		when 2 then '数量异常'
+		when 3 then '质量异常'
+		else '-' end as cancel_reason,
+		t.last_updated_user,pl.validity,pl.batch_sn,w.warehouse_id,w.warehouse_name
+	    FROM wms.batch_pick bp
+	    INNER JOIN wms.order_process op ON op.batch_pick_id=bp.batch_pick_id
+        INNER JOIN wms.order_goods og ON og.order_id=op.order_id
+		INNER JOIN wms.task t ON t.product_id=og.product_id
+		inner join wms.product p on p.product_id = t.product_id
+		inner join wms.product_location pl on pl.pl_id = t.from_pl_id
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.warehouse w on w.warehouse_id = bp.warehouse_id
+		left join wms.location ll on t.to_location_id = ll.location_id
+		inner join wms.warehouse_customer wc on t.customer_id = wc.customer_id
+		left join wms.batch_task bt on t.batch_task_id = bt.batch_task_id
+		left join wms.label_replenishment lr on lr.task_id = t.task_id
+		WHERE bp.batch_pick_sn=#{batch_pick_sn}   
+		AND t.task_type=#{task_type}  
+		AND t.task_level=#{task_level}  
+		AND t.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="start_time != '' and start_time != null">
+		    and t.created_time > #{start_time}
+		</if>
+		AND t.task_status!='CANCEL'
+		AND t.task_status!='FULFILLED'
+		GROUP BY t.task_id
+		order by t.created_time desc,l.pick_seq desc
+	</select>
+
+	<select id="selectReplenishmentIsExist"  parameterType="map" resultType="com.leqee.wms.entity.ConfigReplenishment">
+    	select * from wms.config_replenishment where customer_id= #{customer_id} and product_id = #{product_id}  and physical_warehouse_id = #{physical_warehouse_id} 
+    	
+    </select>
+    <select id="selectReplenishmentByCustomerId"  resultType="com.leqee.wms.entity.ConfigReplenishment">
+    	select * from wms.config_replenishment where product_id = #{0} and customer_id = #{1}
+    	
+    </select>
+    <update id ="updateReplenishmentByUpdateReplenishmentMap" parameterType="map">
+    update wms.config_replenishment set piece_location_max_quantity = #{piece_location_max_quantity},from_piece_location_barcode=#{from_piece_location_barcode},
+    to_piece_location_barcode = #{to_piece_location_barcode},from_box_location_barcode = #{from_box_location_barcode},to_box_location_barcode =#{to_box_location_barcode},
+    piece_location_min_quantity= #{piece_location_min_quantity},box_location_max_quantity=#{box_location_max_quantity},box_location_min_quantity=#{box_location_min_quantity},
+    created_user=#{created_user}, last_updated_user=#{last_updated_user}, last_updated_time=#{last_updated_time}
+    where product_id= #{product_id} and customer_id= #{customer_id} and physical_warehouse_id = #{physical_warehouse_id}
+    </update>
+    
+    
+    <insert id="insertConfigReplenishment"  parameterType="java.util.List" >
+		insert into wms.config_replenishment (
+			config_id,product_id,physical_warehouse_id,  customer_id,from_piece_location_barcode, to_piece_location_barcode,piece_location_max_quantity, 
+			piece_location_min_quantity, from_box_location_barcode, to_box_location_barcode, box_location_max_quantity, box_location_min_quantity,
+            created_user, created_time, last_updated_user, last_updated_time
+		)values
+			<foreach collection="list" item="item" index="index" separator="," >
+			(#{item.config_id},#{item.product_id},#{item.physical_warehouse_id}, #{item.customer_id},#{item.from_piece_location_barcode}, #{item.to_piece_location_barcode},
+			#{item.piece_location_max_quantity}, #{item.piece_location_min_quantity},  #{item.from_box_location_barcode},#{item.to_box_location_barcode}, #{item.box_location_max_quantity}, 
+			#{item.box_location_min_quantity},  #{item.created_user},#{item.created_time}, #{item.last_updated_user}, #{item.last_updated_time})
+		</foreach>
+		
+	</insert>
+	
+	<insert id="insertConfigReplenishmentByMap"  parameterType="com.leqee.wms.entity.ConfigReplenishment" >
+		insert into wms.config_replenishment (
+			config_id,product_id,physical_warehouse_id,  customer_id,from_piece_location_barcode, to_piece_location_barcode,piece_location_max_quantity, 
+			piece_location_min_quantity, from_box_location_barcode, to_box_location_barcode, box_location_max_quantity, box_location_min_quantity,
+            created_user, created_time, last_updated_user, last_updated_time
+		)values(
+			#{config_id},#{product_id},#{physical_warehouse_id},  #{customer_id},#{from_piece_location_barcode}, #{to_piece_location_barcode},
+			#{piece_location_max_quantity}, #{piece_location_min_quantity},  #{from_box_location_barcode},#{to_box_location_barcode}, #{box_location_max_quantity}, 
+			#{box_location_min_quantity},  #{created_user},#{created_time}, #{last_updated_user}, #{last_updated_time} 
+		)
+	</insert>
+	
+	
+	
+	
+	<delete id ="deleteReplenishment">
+	   delete  from wms.config_replenishment where customer_id = #{0} and product_id = #{1} and physical_warehouse_id= #{2}
+	</delete>
+
+	
+	<!-- 根据taskId得到补货任务  by hzhang1 -->
+	<select id="selectReplenishmentTaskById" parameterType="map" resultType="map">
+		select t.product_id,t.quantity,pl.warehouse_id,pl.status,pl.validity,pl.serial_number,pl.batch_sn,pl.location_id,l.location_barcode,l.location_id as location_id2
+		from wms.task t
+		inner join wms.product_location pl on t.from_pl_id = pl.pl_id
+		inner join wms.location l on l.location_id = t.to_location_id
+		where t.task_id = #{taskId} and t.physical_warehouse_id = #{physicalWarehouseId}
+	</select>
+	
+	<!-- 判断库位是否可以混放商品 by hzhang1 -->
+	<select id="selectLocationIsCanMix" parameterType="map" resultType="map">
+		select l.*,pl.product_id,pl.validity,pl.status,pl.qty_total,pl.warehouse_id from wms.location l
+		left join wms.product_location pl on pl.location_id = l.location_id
+		where l.location_id = #{locationId}
+	</select>
+	
+	<!-- 根据商品的详细信息得到ProductLocation by hzhang1 -->
+	<select id="selectProductLocation" parameterType="map" resultType="com.leqee.wms.entity.ProductLocation">
+		select * from wms.product_location
+		where product_id = #{productId}
+		<if test="locationId != '' and locationId != null">
+			and location_id = #{locationId}
+		</if>
+		<if test="status != '' and status != null"> 
+			and status = #{status} 
+		</if>
+		<if test="validity != '' and validity != null">
+			and validity = #{validity} 
+		</if>
+		<if test="serialNumber != '' and serialNumber != null">
+			and serial_number = #{serialNumber}
+		</if>
+		limit 1
+	</select>
+	
+	<!-- 根据目标库位查找得到ProductLocation by hzhang1 -->
+	<select id="selectProductLocationByLocation" parameterType="map"  resultType="map">
+		select lr.* from wms.product_location lr
+		inner join wms.location l on l.location_id = lr.location_id
+		where l.location_barcode = #{locationBarcode} and product_id = #{productId}
+		<if test="locationType != '' and locationType != null"> 
+			and l.location_type = #{locationType}
+		</if>
+		<if test="status != '' and status != null"> 
+			and status = #{status} 
+		</if>
+		<if test="batchSn != null"> 
+			and batch_sn = #{batchSn} 
+		</if>
+		<if test="warehouseId != '' and warehouseId != null">
+			and warehouse_id = #{warehouseId}
+		</if>
+		<if test="validity != '' and validity != null">
+			and validity = #{validity} 
+		</if>
+		<if test="serialNumber != '' and serialNumber != null">
+			and serial_number = #{serialNumber}
+		</if> limit 1
+	</select>
+	
+	<!-- RF补货下架时更新ProductLocation by hzhang1 -->
+	<update id="updateReplenishmentFromProductLocationMinus" parameterType="map">
+		update wms.product_location set qty_total = qty_total - #{quantity} ,
+		last_updated_user = #{actionUser},last_updated_time = now()
+		where pl_id = #{plId}
+	</update>
+	
+	<!-- RF补货上架时更新ProductLocation by hzhang1 -->
+	<update id="updateReplenishmentFromProductLocationAdd" parameterType="map">
+		update wms.product_location set qty_total = qty_total + #{quantity},qty_available = qty_available + #{quantity},
+		last_updated_user = #{actionUser},last_updated_time = now()
+		where pl_id = #{plId}
+	</update>
+	
+	<!-- RF补货根据补货标签加载标签内的商品信息 by hzhang1 -->
+	<select id="selectReplenishmentByBhCode" parameterType="map"  resultType="map">
+		select t.task_id,t.task_type,t.quantity,p.barcode,p.product_name,lr.from_location_barcode,pl.pl_id,pl.product_location_status,pl.batch_sn,
+		pl.product_id,pl.status,CONVERT(pl.validity,char(64)) as validity,pl.serial_number,l.location_id,l.location_barcode as to_location_barcode,
+		pl.warehouse_id,w.warehouse_name
+		from wms.label_replenishment lr
+		inner join wms.task t on lr.task_id = t.task_id
+		inner join wms.product_location pl on pl.pl_id = lr.pl_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		left join wms.location l on t.to_location_id = l.location_id
+		inner join wms.product p on pl.product_id = p.product_id
+		where lr.location_barcode = #{bhCode} and t.physical_warehouse_id = #{physicalWarehouseId}
+		and t.task_status not in ('CANCEL','FULFILLED')
+	</select>
+	
+
+	<select id="getSameBHCodeNum" resultType="java.lang.Integer">
+		select count(location_barcode)
+		from `wms`.`location`
+		where location_type='REPLENISH_SEQ' and location_barcode in
+		<foreach collection="codelist" item="code" index="index" open="("
+			close=")" separator=",">
+			#{code}
+		</foreach>
+	</select>
+	
+	<select id="selectReplenishmentListByProductIdList"  resultType="com.leqee.wms.entity.ConfigReplenishment">
+    	select * from wms.config_replenishment where  customer_id = #{customer_id} and physical_warehouse_id= #{physical_warehouse_id}
+    <if test="product_id_list != null">
+    	and product_id in 
+    	<foreach collection="product_id_list" item="productId" open="("
+			separator="," close=")">
+		 #{productId}
+	</foreach>
+    </if>	
+    </select>
+    
+    
+    <select id="selectGeneralCustomerByPhysicalWarehouseId" resultType="Integer">
+    	SELECT DISTINCT customer_id from wms.config_replenishment
+		where physical_warehouse_id = #{0} and (piece_location_min_quantity>0 or box_location_min_quantity>0)
+    </select>
+    
+    <select id="getAvailableQtyByLocationType" resultType="Integer">
+    	SELECT ifnull(sum(qty_available),0) as boxAvailableQty from wms.product_location pl
+		INNER JOIN wms.location l on l.location_id = pl.location_id
+		where pl.qty_available >0 and l.is_delete = 'N' and pl.product_id = #{productIdReplenish} 
+		and l.physical_warehouse_id = #{physicalWarehouseId}
+		 and pl.product_location_status = 'NORMAL' and pl.`status` = 'NORMAL' and l.location_type=#{locationType};
+    </select>
+    
+    <select id="getReplenishQtyByProductLocationType" resultType="Integer">
+    	SELECT ifnull(sum(t.quantity),0) as sumReplenish 
+		from wms.task t 
+		INNER JOIN wms.product_location pl on pl_id = t.from_pl_id 
+		INNER JOIN wms.location l on pl.location_id = l.location_id and t.physical_warehouse_id = l.physical_warehouse_id
+		where  t.product_id = #{productIdReplenish} 
+		and t.task_type = 'REPLENISHMENT' and t.task_status in ('INIT','BINDED','IN_PROCESS','UNSHELVE') 
+		and t.physical_warehouse_id = #{physicalWarehouseId} and l.location_type = #{locationType}
+		<if test="taskType == 'General'">
+			and t.task_level=1 
+		</if> 
+    </select>
+    
+    <update id="updateScheduleQueueReplenish">
+    	update wms.schedule_queue_replenishment set 
+    	<if test="status != 'INIT'">
+    	queue_status = #{status},
+    	</if>
+    	task_count=task_count+#{taskCount},task_ids=IF(task_ids is NULL,#{taskIdStr},CONCAT(task_ids,#{taskIdStr})),last_updated_time=now()
+    	where queue_id = #{queueId}
+    </update>
+    
+    <select id="selectGeneralBestLocation" resultType="map">
+    	SELECT l.location_id,l.location_barcode,GROUP_CONCAT(DISTINCT CONCAT(pl.product_id,'_',l.can_mix_batch,'_',unix_timestamp(pl.validity))) AS product_validity_group
+    	from wms.location l 
+		LEFT JOIN  wms.product_location pl on pl.location_id = l.location_id  and pl.qty_total>0
+		where l.physical_warehouse_id = #{physicalWarehouseId}
+		and l.location_type = #{locationType}
+		and (l.location_barcode <![CDATA[ <= ]]> #{toLocationBarcode} and l.location_barcode>= #{fromLocationBarcode} )
+		 and l.location_id not in (select DISTINCT location_id from wms.product_location pl2 where pl2.product_id = #{productId} and pl2.product_location_status!='NORMAL' )
+		GROUP BY l.location_id
+    </select>
+    
+    <select id="getInitReplenishTask" resultType="map">
+    	SELECT
+			IFNULL(sum(t.quantity),0) AS init_replenish,
+			IFNULL(GROUP_CONCAT(DISTINCT t.task_id), '') AS init_task
+		FROM
+			wms.location AS l
+		LEFT JOIN wms.product_location pl on pl.location_id = l.location_id
+		LEFT JOIN wms.task t ON t.physical_warehouse_id = l.physical_warehouse_id
+		AND t.task_type = 'REPLENISHMENT'
+		AND t.task_status ='INIT'
+		AND t.task_level = 1
+		AND t.from_pl_id = pl.pl_id
+		AND t.product_id = #{productId}
+		WHERE
+			l.is_delete = 'N'
+		AND l.location_type = #{locationType}
+		AND l.physical_warehouse_id = #{physicalWarehouseId}
+		AND (
+			l.customer_id IS NULL
+			OR l.customer_id = #{customerId}
+		) 
+    </select>
+</mapper>

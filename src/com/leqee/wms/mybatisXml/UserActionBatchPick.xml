@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.UserActionBatchPickDao">
+  
+  <insert id="insert" parameterType="com.leqee.wms.entity.UserActionBatchPick" >
+    <selectKey keyProperty="action_id" resultType="java.lang.Long">
+            select LAST_INSERT_ID()
+    </selectKey>
+    insert into wms.user_action_batch_pick (action_id, batch_pick_id, status, 
+      action_type, action_note, created_user, 
+      created_time)
+    values (#{action_id,jdbcType=BIGINT}, #{batch_pick_id,jdbcType=INTEGER}, #{status,jdbcType=CHAR}, 
+      #{action_type,jdbcType=CHAR}, #{action_note,jdbcType=VARCHAR}, #{created_user,jdbcType=VARCHAR}, 
+      #{created_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+   <insert id="batchInsert" >
+     insert into wms.user_action_batch_pick ( batch_pick_id, status, 
+     action_type, action_note, 
+      created_user, created_time)
+    values 
+    <foreach collection="userActionBatchPickList" item="item" index="index" separator="," >  
+    (#{item.batch_pick_id,jdbcType=INTEGER}, #{item.status,jdbcType=CHAR}, 
+      #{item.action_type,jdbcType=CHAR}, #{item.action_note,jdbcType=VARCHAR}, 
+      #{item.created_user,jdbcType=VARCHAR}, #{item.created_time,jdbcType=TIMESTAMP})
+      </foreach>
+  </insert>
+</mapper>

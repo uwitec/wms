@@ -1,0 +1,2516 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.leqee.wms.dao.InventoryDao">
+	
+  
+	 <!-- 对某一个inventory_item加锁 for update -->
+	 <select id="getInventoryItemByIdForUpdate" parameterType="Integer"  resultType="com.leqee.wms.entity.InventoryItem">
+			select * from wms.inventory_item where inventory_item_id = #{inventoryItemId} for update
+	 </select>
+	 
+	  <select id="selectByProductId" parameterType="Integer"  resultType="com.leqee.wms.entity.InventoryItem">
+			select * from wms.inventory_item where product_id =#{product_id} limit 1
+	 </select>
+	 
+	 
+	 <!--检查订单商品出库数和未出库数 -->
+	 <select id="checkOrderProductOutNumber" parameterType="map" resultType="map">
+			select CAST( og.goods_number AS CHAR ) goods_number,ifnull(sum(-iid.change_quantity),0) as out_num
+			from wms.order_goods og 
+			left join wms.inventory_item_detail iid ON og.order_goods_id = iid.order_goods_id
+			left join wms.inventory_item ii ON ii.inventory_item_id = iid.inventory_item_id
+			where og.order_goods_id = #{orderGoodsId} and og.product_id = #{productId}
+			group by og.order_goods_id limit 1
+	 </select>
+	 
+	 <!--获取符合条件的inventory_item出库 -->
+	 <select id="getInventoryItemsForDeliver" parameterType="map" resultType="map">
+			SELECT
+				ii.inventory_item_id,
+				ii.quantity
+			FROM
+				wms.inventory_item ii 
+			WHERE
+			    ii.quantity > 0
+				and ii.product_id = #{product_id}
+				and ii.warehouse_id = #{warehouse_id}
+				and ii.status = #{status} 
+				${cond} 
+			GROUP BY
+				ii.inventory_item_id 
+			ORDER BY
+				ii.validity;
+	 </select>
+	 
+	 
+	 <update id="updateInventoryItemInOrOut" parameterType="map" >
+			update wms.inventory_item 
+			set quantity=quantity-#{need},
+			last_updated_user = #{last_updated_user},
+			last_updated_time = now()
+			where inventory_item_id = #{inventory_item_id}
+	 </update>
+	
+		
+	<select id="getNeedOutNumByOrder" parameterType="Integer" resultType="map">
+		SELECT
+			og.goods_number,
+			og.order_goods_id,
+			og.product_id,
+			og.status_id,
+			og.order_goods_type,
+			oi.warehouse_id,
+			oi.customer_id,
+			p.customer_id AS product_customer_id
+		FROM
+			wms.order_info oi
+		INNER JOIN wms.order_goods og ON oi.order_id = og.order_id
+		INNER JOIN wms.product p ON p.product_id = og.product_id
+		WHERE
+			oi.order_id = #{orderId} and (og.order_goods_type is null or og.order_goods_type != 'PACKBOX')
+	</select>
+	
+	<select id="getNeedOutPackBoxNumByOrder" parameterType="Integer" resultType="map">
+		SELECT
+			og.order_id,
+			og.goods_number,
+			og.order_goods_id,
+			og.product_id,
+			og.status_id,
+			og.order_goods_type,
+			og.warehouse_id,
+			oi.customer_id,
+			oi.physical_warehouse_id,
+			p.customer_id AS product_customer_id
+		FROM
+			wms.shipment s
+		inner join wms.shipment_detail sd on s.shipment_id = sd.shipment_id
+		INNER JOIN wms.order_goods og ON sd.order_goods_id = og.order_goods_id
+		inner join wms.order_info oi on oi.order_id = og.order_id
+		INNER JOIN wms.product p ON p.product_id = og.product_id
+		WHERE
+			s.shipment_id = #{shipmentId} and og.order_goods_type = 'PACKBOX'
+	</select>
+	
+	<select id="getInventoryItemsForDelivery" resultType="com.leqee.wms.entity.InventoryItem" parameterType="map" >
+		SELECT * from wms.inventory_item ii where 
+	     ii.product_id = #{productId}
+	     and ii.status = #{fromStatusId}
+	     and ii.warehouse_id = #{fromWarehouseId}
+	     and ii.customer_id = #{customerId}
+	     <![CDATA[
+	     and ii.quantity > 0
+	     ]]>
+	     <if test="unitCost != null">
+			 and ii.unit_cost = #{unitCost}
+	     </if>
+	     <if test="batchSn != null">
+			 and ii.batch_sn = #{batchSn}
+	     </if>
+	     <if test="serialNos != null and serialNos.size() != 0">
+	        and ii.serial_number in
+					<foreach collection="serialNos" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+	     </if>
+	     order by ii.validity, ii.inventory_item_id
+	</select>
+	<!-- LIMIT #{thisTurnOutNum} -->
+	
+	
+	<select id="inventoryItemHasReserved" resultType="map">
+		select m.inventory_item_id,sum(m.quantity) as quantity from wms.order_reserve_inventory_mapping m
+		inner join wms.order_info oi on m.order_id = oi.order_id
+		inner join wms.inventory_item ii on ii.inventory_item_id = m.inventory_item_id
+		inner JOIN wms.product p on p.product_id = m.product_id
+		where oi.order_type in ('SUPPLIER_RETURN','VARIANCE_ADD','VARIANCE_MINUS') and p.product_type = 'PACKBOX'
+		AND oi.order_status != 'FULFILLED' and m.product_id = #{productId} and ii.warehouse_id = #{warehouseId}
+		group by m.inventory_item_id
+	</select>
+	
+	<select id="getInventoryItemsForTransferForV" resultType="com.leqee.wms.entity.InventoryItem" parameterType="map" >
+		SELECT ii.* from wms.inventory_item ii where 
+	     ii.product_id = #{productId}
+	     and ii.status = #{fromStatusId}
+	     and ii.warehouse_id = #{fromWarehouseId}
+	     and ii.customer_id = #{customerId}
+	     <![CDATA[
+	     and ii.quantity > 0
+	     ]]>
+	     <if test="unitCost != '' and unitCost != null">
+			 and ii.unit_cost = #{unitCost}
+	     </if>
+	     <if test="batchSn !='' and batchSn != null">
+			 and ii.batch_sn = #{batchSn}
+	     </if>
+	     <if test="serialNos != null and serialNos.size() != 0">
+	        and ii.serial_number in
+					<foreach collection="serialNos" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+	     </if>
+	    LIMIT #{thisTurnOutNum}
+	</select>
+	
+	<update id="subQuantityByInventoryItemId" parameterType="map" >
+    update inventory_item
+    set 
+      quantity = quantity - #{need},
+      last_updated_user = #{actionUser},
+      last_updated_time = #{lastUpdatedTime}
+    where inventory_item_id = #{inventoryItemId}
+  </update>
+	
+	<!-- inventoryItem 表插入 -->
+	<insert id="insert" parameterType="com.leqee.wms.entity.InventoryItem">
+      <selectKey keyProperty="inventory_item_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+    insert into inventory_item (inventory_item_id, physical_warehouse_id, 
+      warehouse_id, customer_id, product_id, 
+      quantity, status, unit_cost, 
+      provider_code, validity, batch_sn, 
+      serial_number, inventory_item_acct_type_id, 
+      currency, parent_inventory_item_id, root_inventory_item_id, 
+      created_user, created_time, last_updated_user, 
+      last_updated_time)
+    values (#{inventory_item_id,jdbcType=INTEGER}, #{physical_warehouse_id,jdbcType=INTEGER}, 
+      #{warehouse_id,jdbcType=INTEGER}, #{customer_id,jdbcType=INTEGER}, #{product_id,jdbcType=INTEGER}, 
+      #{quantity,jdbcType=INTEGER}, #{status,jdbcType=VARCHAR}, #{unit_cost,jdbcType=DECIMAL}, 
+      #{provider_code,jdbcType=VARCHAR}, #{validity,jdbcType=TIMESTAMP}, #{batch_sn,jdbcType=VARCHAR}, 
+      #{serial_number,jdbcType=VARCHAR}, #{inventory_item_acct_type_id,jdbcType=VARCHAR}, 
+      #{currency,jdbcType=CHAR}, #{parent_inventory_item_id,jdbcType=INTEGER}, #{root_inventory_item_id,jdbcType=INTEGER}, 
+      #{created_user,jdbcType=VARCHAR}, #{created_time,jdbcType=TIMESTAMP}, #{last_updated_user,jdbcType=VARCHAR}, 
+      #{last_updated_time,jdbcType=TIMESTAMP})
+  </insert>
+  
+  <update id="updateRootItemId" parameterType="int">
+  		update wms.inventory_item set root_inventory_item_id=#{itemId} where inventory_item_id = #{itemId} limit 1
+  </update>
+  
+  <select id="selectSerialNoIsExist" parameterType="string" resultType="string">
+  		select serial_number from wms.inventory_item where serial_number in
+		<foreach collection="list" item="serialNoList" open="("
+			separator="," close=")">
+			#{serialNoList}
+		</foreach>
+  </select>
+  
+  <select id="selectRootInventoryItemId" parameterType="map" resultType="string">
+  		select distinct ii.inventory_item_id
+		from inventory_item_detail iid, inventory_item ii where iid.order_id = #{orderId}
+		and iid.inventory_item_id = ii.inventory_item_id and ii.product_id = #{productId}
+		and iid.order_goods_id = #{orderGoodsId}
+  </select>
+  
+  
+  <select id="getFreezeGoodsListByPage" parameterType="map" resultType="map">
+		select r.*,p.product_name,p.sku_code,w.warehouse_name,p.barcode 
+		from wms.inventory_goods_freeze r
+		inner join wms.product p on r.product_id = p.product_id
+		inner join wms.warehouse w on r.warehouse_id = w.warehouse_id
+		where r.status = 'OK' and r.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customerId != '' and customerId != null">
+				and r.customer_id = #{customerId}
+		</if>
+		<if test="warehouseIdList != null and warehouseIdList.size() != 0">
+	        	and r.warehouse_id in
+					<foreach collection="warehouseIdList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+	     	</if>
+		<if test="skuCode != '' and skuCode != null">
+				and p.sku_code = #{skuCode}
+		</if>
+			<if test="goodsName != '' and goodsName != null">
+					and p.product_name  like CONCAT('%',#{goodsName},'%' )  
+		</if>
+		<if test="barcode != '' and barcode != null">
+				and p.barcode = #{barcode}
+		</if>
+  </select>
+  
+  <select id="getNowNumber" parameterType="map" resultType="int">
+  	select sum(quantity) as now_number
+	from wms.inventory_item
+	where status = 'NORMAL' and warehouse_id = #{warehouse_id} and product_id = #{product_id} and physical_warehouse_id =#{physical_warehouse_id}
+  </select>
+  
+  <select id="getIsExistFreezeGood" parameterType="map" resultType="map">
+  	select * from wms.inventory_goods_freeze where product_id = #{product_id} 
+  	and warehouse_id = #{warehouse_id} and physical_warehouse_id =#{physical_warehouse_id} limit 1
+  </select>
+  
+  <insert id="insertFreeze" parameterType="com.leqee.wms.entity.InventoryGoodsFreeze" >
+  	<selectKey keyProperty="mapping_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+      insert into wms.inventory_goods_freeze
+      (mapping_id,customer_id,product_id,warehouse_id,reserve_number,status,created_user,
+      created_time,last_updated_user,last_updated_time,freeze_reason,physical_warehouse_id) 
+      values(
+      	#{mapping_id,jdbcType=INTEGER},#{customer_id,jdbcType=INTEGER},#{product_id,jdbcType=INTEGER},
+      	#{warehouse_id,jdbcType=INTEGER},#{reserve_number,jdbcType=INTEGER},#{status,jdbcType=VARCHAR},#{created_user,jdbcType=VARCHAR},
+      	#{created_time,jdbcType=TIMESTAMP},#{last_updated_user,jdbcType=VARCHAR},
+      	#{last_updated_time,jdbcType=TIMESTAMP},#{freeze_reason,jdbcType=VARCHAR},#{physical_warehouse_id,jdbcType=INTEGER}
+      )
+  
+  </insert>
+  
+  <update id="updateFreeze" parameterType="com.leqee.wms.entity.InventoryGoodsFreeze" >
+  	   update wms.inventory_goods_freeze
+       set customer_id = #{customer_id},product_id = #{product_id},warehouse_id = #{warehouse_id},
+       reserve_number =#{reserve_number},status =#{status},last_updated_user=#{last_updated_user},
+      last_updated_time=now(),freeze_reason=#{freeze_reason}
+      where mapping_id = #{mapping_id}
+  </update>
+  
+  <delete id="deleteFreeze" parameterType="int" >
+  		delete from wms.inventory_goods_freeze where mapping_id = #{mapping_id} limit 1
+  </delete>
+
+  
+  
+  <!-- 关于库存查询相关的操作 -->
+  <select id="getSaleGoodsInventory" parameterType="map" resultType="map">
+  		SELECT  
+  			convert(CONCAT_WS('_', og.product_id, o.warehouse_id,'NORMAL') ,char(64)) AS product_warehouse_status_id,
+	        o.order_status,
+	        sum(og.goods_number) as order_number
+		FROM
+	       wms.order_info o 
+	       inner join wms.order_goods AS og ON o.order_id = og.order_id 
+		WHERE
+			o.is_reserved in ('Y','F') AND o.order_status not in('FULFILLED','CANCEL')                          
+		    AND o.order_type in ('SALE','RMA_EXCHANGE','SHIP_ONLY')
+		    and o.physical_warehouse_id = #{physical_warehouse_id}
+		    <if test="customer_id != '' and customer_id != null">
+				and o.customer_id = #{customer_id}
+			</if> 
+			AND exists(select 1 from wms.product p where p.product_id = og.product_id and p.is_delete = 0 )
+		    AND not exists(select 1 from wms.inventory_item_detail iid where iid.order_goods_id = og.order_goods_id limit 1) 
+			AND o.order_time >=date_add(now(),interval -1 month)
+			<if test="brand_name != '' and brand_name != null">
+				 AND exists(select 1 from wms.product p where p.product_id = og.product_id and p.is_delete = 'N' and p.brand_name = #{brand_name}) 
+			</if> 
+			<if test="productIdList != '' and productIdList != null">
+				and og.product_id in 
+				<foreach collection="productIdList" item="productIdList" open="("
+						separator="," close=")">
+						#{productIdList}
+				</foreach>
+			</if>
+			<if test="warehouseIdList != '' and warehouseIdList != null">
+				and o.warehouse_id in 
+				<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+						separator="," close=")">
+						#{warehouseIdList}
+				</foreach>
+			</if>
+			group by og.product_id, o.warehouse_id,o.order_status order by null
+  </select>
+  
+  <select id="getFreezeGoodsInventory" parameterType="map" resultType="map">
+ 		SELECT convert(concat_ws('_',p.product_id,ii.warehouse_id,ii.status),char(64)) as product_warehouse_status_id,  
+			ii.serial_number as is_serial,
+			sum(ii.quantity) as storage_count,IFNULL(igf.reserve_number,0) as reserve_number
+		from wms.product p 
+		INNER JOIN wms.inventory_item ii on ii.product_id = p.product_id 
+		LEFT JOIN wms.inventory_goods_freeze igf ON igf.product_id = p.product_id
+		AND igf.warehouse_id = ii.warehouse_id  
+		AND igf.status = 'OK' AND ii.status = 'NORMAL'
+		where 
+		ii.status IN ('NORMAL','DEFECTIVE')  and ii.physical_warehouse_id = #{physical_warehouse_id}
+		<if test="customer_id != '' and customer_id != null">
+			and p.customer_id = #{customer_id}
+		</if>
+		<if test="staus_id != '' and status_id != null">
+			and ii.status = #{status_id}
+		</if> 
+		<if test="barcode != '' and barcode != null">
+			and p.barcode = #{barcode}
+		</if> 
+		<if test="sku_code != '' and sku_code != null">
+			and p.sku_code = #{sku_code}
+		</if> 
+		<if test="goods_name != '' and goods_name != null">
+					and p.product_name  like CONCAT('%',#{goods_name},'%' )  
+		</if>
+		<if test="is_show_urikitamono != '' and  is_show_urikitamono != null">
+			AND ii.quantity > 0
+		</if> 
+		<if test="warehouseIdList != '' and warehouseIdList != null">
+				and ii.warehouse_id in 
+				<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+						separator="," close=")">
+						#{warehouseIdList}
+				</foreach>
+		</if>
+		GROUP BY product_warehouse_status_id
+  </select>
+  
+  <select id="getSupplyGoodsInventory" parameterType="map" resultType="map">
+		SELECT 
+		     sum(temp.num) as supplier_return_number,
+		     convert(CONCAT_WS('_', temp.product_id,temp.warehouse_id,temp.status_id) ,char(64)) AS product_warehouse_status_id
+		from 
+			 (  select 
+			      og.goods_number + sum(ifnull(iid.change_quantity,0)) as num,
+			      og.product_id,oi.warehouse_id,og.status_id,oi.order_id,oi.order_time
+			      FROM  
+		            wms.order_info AS oi 
+		   	        INNER JOIN wms.order_goods AS og ON oi.order_id = og.order_id 
+		            LEFT  JOIN wms.inventory_item_detail iid on iid.order_goods_id = og.order_goods_id
+	               	WHERE oi.order_time > SUBDATE(now(),INTERVAL 1 MONTH) 
+				        and   oi.order_type = 'SUPPLIER_RETURN'  and oi.is_reserved = 'Y'
+				        and oi.physical_warehouse_id = #{physical_warehouse_id}
+				        <if test="customer_id != '' and customer_id != null">
+								and oi.customer_id = #{customer_id}
+						</if>
+						<if test="brand_name != '' and brand_name != null">
+							   AND exists(select 1 from wms.product p where p.product_id = og.product_id and p.is_delete = 'N' and p.brand_name = #{brand_name}) 
+						</if> 
+						<if test="staus_id != '' and status_id != null">
+							and og.status_id = #{status_id}
+						</if> 
+						<if test="productIdList != '' and productIdList != null">
+							and og.product_id in 
+							<foreach collection="productIdList" item="productIdList" open="("
+									separator="," close=")">
+									#{productIdList}
+							</foreach>
+						</if>
+						<if test="warehouseIdList != '' and warehouseIdList != null">
+							and oi.warehouse_id in 
+							<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+									separator="," close=")">
+									#{warehouseIdList}
+							</foreach>
+						</if>
+				   GROUP BY og.order_goods_id,og.status_id
+			     )  as temp    
+		GROUP BY product_warehouse_status_id  
+  </select>
+  
+  <select id="getVarianceGoodsInventory" parameterType="map" resultType="map">
+  		SELECT 
+			sum(temp.num) as variance_number,
+			convert(CONCAT_WS('_', temp.product_id,temp.warehouse_id,temp.status_id) ,char(64)) AS product_warehouse_status_id
+		from ( 
+			select 
+				og.goods_number + sum(ifnull(iid.change_quantity,0)) as num,
+				og.product_id,oi.warehouse_id,og.status_id,oi.order_id,oi.order_time
+			FROM  
+					wms.order_info AS oi 
+					INNER JOIN wms.order_goods AS og ON oi.order_id = og.order_id 
+					LEFT  JOIN wms.inventory_item_detail iid on iid.order_goods_id = og.order_goods_id
+					WHERE oi.order_time > SUBDATE(now(),INTERVAL 1 MONTH) 
+					and oi.order_type in ('VARIANCE_ADD','VARIANCE_MINUS')  and oi.is_reserved = 'Y'
+					and oi.physical_warehouse_id = #{physical_warehouse_id}
+					<if test="customer_id != '' and customer_id != null">
+							and oi.customer_id = #{customer_id}
+					</if>
+					<if test="brand_name != '' and brand_name != null">
+						   AND exists(select 1 from wms.product p where p.product_id = og.product_id and p.is_delete = 'N' and p.brand_name = #{brand_name}) 
+					</if> 
+					<if test="staus_id != '' and status_id != null">
+						and og.status_id = #{status_id}
+					</if> 
+					<if test="productIdList != '' and productIdList != null">
+						and og.product_id in 
+						<foreach collection="productIdList" item="productIdList" open="("
+								separator="," close=")">
+								#{productIdList}
+						</foreach>
+					</if>
+					<if test="warehouseIdList != '' and warehouseIdList != null">
+						and oi.warehouse_id in 
+						<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+								separator="," close=")">
+								#{warehouseIdList}
+						</foreach>
+					</if>
+		 GROUP BY og.order_goods_id,og.status_id
+		)  as temp    
+		GROUP BY product_warehouse_status_id  
+  </select>
+  
+  <select id="getPurchaseGoodsInventory" parameterType="map" resultType="map">
+  		SELECT 
+		    sum(temp.num) as purchase_number,convert(CONCAT_WS('_', temp.product_id,temp.warehouse_id,'NORMAL'),char(64)) AS product_warehouse_status_id
+		from 
+			( select og.goods_number - sum(ifnull(iid.change_quantity,0)) as num,og.product_id,o.warehouse_id
+				FROM wms.order_info AS o 
+					 INNER JOIN wms.order_goods AS og ON o.order_id = og.order_id
+					 left join wms.inventory_item_detail iid on iid.order_goods_id = og.order_goods_id
+				WHERE
+					o.order_type = 'PURCHASE' 
+					AND o.order_status != 'FULFILLED'
+					and o.physical_warehouse_id = #{physical_warehouse_id}
+					<if test="customer_id != '' and customer_id != null">
+						   and o.customer_id = #{customer_id}
+					</if>
+					<if test="brand_name != '' and brand_name != null">
+						   AND exists(select 1 from wms.product p where p.product_id = og.product_id and p.is_delete = 'N' and p.brand_name = #{brand_name}) 
+					</if>
+					<if test="productIdList != '' and productIdList != null">
+						and og.product_id in 
+						<foreach collection="productIdList" item="productIdList" open="("
+								separator="," close=")">
+								#{productIdList}
+						</foreach>
+					</if>
+					<if test="warehouseIdList != '' and warehouseIdList != null">
+						and o.warehouse_id in 
+						<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+								separator="," close=")">
+								#{warehouseIdList}
+						</foreach>
+					</if>
+					group by og.order_goods_id
+			) as temp    
+			GROUP BY product_warehouse_status_id
+  </select>
+ 
+ 
+  <select id="getInventoryLocation" parameterType="map" resultType="map">
+  		SELECT 
+			convert(concat_ws('_',p.product_id,il.warehouse_id,il.status_id),char(64))as product_warehouse_status_id_location,
+			group_concat(distinct il.location_kw_barcode SEPARATOR ';') as location_barcode
+		FROM wms.label_accept il 
+			inner join wms.location l on il.location_kw_barcode = l.location_barcode
+			left join wms.product  p on il.product_id = p.product_id
+		WHERE 1
+			<if test="customer_id != '' and customer_id != null">
+				   and il.customer_id = #{customer_id}
+			</if>
+			<if test="warehouseIdList != '' and warehouseIdList != null">
+					and il.warehouse_id in 
+					<foreach collection="warehouseIdList" item="warehouseIdList" open="("
+							separator="," close=")">
+							#{warehouseIdList}
+					</foreach>
+			</if>
+			AND il.STATUS_ID IN ('NORMAL','DEFECTIVE') 
+			AND il.quantity > 0  AND l.location_type = 'PICK_LOCATION'
+		group by product_warehouse_status_id_location
+  
+  </select>
+   <select id="selectInventoryProductFreeze" resultType="com.leqee.wms.entity.InventoryGoodsFreeze" >
+  		select * from wms.inventory_goods_freeze where product_id = #{0} and warehouse_id = #{1} limit 1
+  </select>
+ 
+ 
+  <!-- 耗材查询 -->  
+   <select id="getPackBoxInventory" parameterType="map" resultType="map">
+   		SELECT wc.name,p.customer_id,p.product_name,w.warehouse_name,p.product_id,ii.warehouse_id,p.barcode,
+			ifnull((select il.location_barcode from wms.label_accept il
+				left join wms.location l ON il.location_id = l.location_id
+				where il.physical_warehouse_id = w.physical_warehouse_id 
+				and il.product_id = p.product_id and l.location_type in ('PICK_LOCATION','STOCK_LOCATION')
+				limit 1),'') as location_barcode,
+			ii.status,sum(ii.quantity) as total_number
+			FROM wms.product p
+			inner JOIN wms.inventory_item AS ii ON p.product_id = ii.product_id
+			inner JOIN wms.warehouse w ON ii.warehouse_id = w.warehouse_id
+			INNER JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id
+			and p.is_delete='N'
+			AND ii.quantity > 0
+			and p.product_type = 'PACKBOX'
+			<if test="customer_id != '' and customer_id != null">
+				   and wc.customer_id = #{customer_id}
+			</if>
+			group by p.product_id
+   </select>
+   
+   
+   <!-- 生成Location容器 -->
+   <insert id="insertLocation" parameterType="com.leqee.wms.entity.Location">
+      <selectKey keyProperty="location_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      </selectKey>
+      insert into wms.location
+      (location_id,physical_warehouse_id,location_barcode,is_delete,
+      location_type,created_user,created_time,customer_id)
+      values(
+      #{location_id},#{physical_warehouse_id},#{location_barcode},#{is_delete},
+      #{location_type},#{created_user},now(),#{customer_id}
+      )
+    </insert>
+    
+    <select id="selectLocationByCode" parameterType="string" resultType="com.leqee.wms.entity.Location">
+    	select * from wms.location where location_barcode = #{locationBarcode} and is_delete = 'N' 
+    	and physical_warehouse_id = #{physicalWarehouseId} 
+    	<if test="locationType != '' and locationType != null">
+    		and location_type = #{locationType}
+    	</if>
+    </select>
+    
+    <select id="selectLocationByCodeV1" parameterType="string" resultType="com.leqee.wms.entity.Location">
+    	select * from wms.location where location_barcode = #{locationBarcode} and is_delete = 'N' 
+    	and physical_warehouse_id = #{physicalWarehouseId} and location_type in('PIECE_PICK_LOCATION','RETURN_LOCATION','QUALITY_CHECK_LOCATION')
+    </select>
+    
+    <select id="selectProductLocation" parameterType="map" resultType="com.leqee.wms.entity.ProductLocation">
+    	select * from wms.product_location
+		where product_id = #{productId} 
+		<if test="status != '' and status != null"> 
+			and status = #{status} 
+		</if>
+		<if test="validity != '' and validity != null">
+			and validity = #{validity} 
+		</if>
+		<if test=" batchSn != null">
+			and batch_sn = #{batchSn}
+		</if>
+		<if test="serialNumber != '' and serialNumber != null">
+			and serial_number = #{serialNumber}
+		</if>
+		<if test="warehouseId != '' and warehouseId != null">
+			and warehouse_id = #{warehouseId}
+		</if>
+		<if test="locationId != '' and locationId != null">
+			and location_id = #{locationId}
+		</if> limit 1
+    </select>
+    
+    <select id="selectLocationIsExist"  parameterType="map" resultType="com.leqee.wms.entity.Location">
+    	select * from wms.location where location_barcode = #{locationBarcode} and physical_warehouse_id = #{physicalWarehouseId}
+    	and is_delete = 'N' 
+    	<if test="customerId != '' and customerId != null">
+    		and customer_id = #{customerId}
+    	</if>
+    </select>
+    
+    <select id="selectByTagCode" parameterType="string" resultType="map">
+		select p.product_name as goods_name,p.product_id,il.physical_warehouse_id,il.warehouse_id,il.customer_id,il.order_id,
+		il.order_goods_id,il.status_id,p.product_type,il.batch_sn,IFNULL(il.validity,'') as validity,
+		il.quantity as goods_number,il.location_barcode as tag_code,il.location_id,il.location_kw_barcode,w.warehouse_name
+		from wms.label_accept il
+		inner join wms.product p on il.product_id = p.product_id
+		INNER JOIN wms.location l on l.location_id = il.location_id
+		inner join wms.warehouse w on w.warehouse_id = il.warehouse_id
+		where l.location_type = 'PURCHASE_SEQ' and l.is_delete != 'Y'  and il.location_barcode = #{location_barcode}
+		and il.physical_warehouse_id = #{physical_warehouse_id}
+    </select>
+    
+    <select id="selectByTagCodeV2" parameterType="string" resultType="map">
+		select il.*
+		from wms.label_accept il
+		where il.location_barcode = #{location_barcode}
+    </select>
+    
+    
+    <!-- 推荐库位 -->
+    <select id="selectLocationByProduct" parameterType="map" resultType="string">
+    	select l.location_barcode from 
+		wms.product_location pl
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		where pl.product_id = #{product_id} and l.is_delete != 'Y' and l.physical_warehouse_id = #{physical_warehouse_id}
+		and l.can_mix_product = 1 and l.can_mix_batch = 1 and l.is_empty = 'N' and pl.qty_total > 0
+		and pl.warehouse_id = #{warehouse_id}
+		<if test="location_type != '' and location_type != null">
+			and l.location_type = #{location_type}
+		</if>
+		<if test="location_type == '' or location_type == null">
+			and l.location_type in ('STOCK_LOCATION','BOX_PICK_LOCATION','PIECE_PICK_LOCATION')
+		</if>
+    </select>
+    
+    <select id="selectLocationByEmpty"  parameterType="map" resultType="string">
+    	select  l.location_barcode from 
+		wms.location l 
+		where l.physical_warehouse_id = #{physical_warehouse_id} 
+		and l.is_empty = 'Y' and l.is_delete = 'N' and l.location_type = #{location_type} limit 1 
+    </select>
+    
+    <select id="selectLocationByEmptyV1"  parameterType="map" resultType="string">
+    	select  l.location_barcode from 
+		wms.location l 
+		where l.physical_warehouse_id = #{physical_warehouse_id} 
+		and l.is_empty = 'Y' and l.is_delete = 'N' and l.location_type = #{location_type} and can_mix_product =1 and can_mix_batch=1 limit 1 
+    </select>
+    
+    
+    <insert id="insertInventoryLocation" parameterType="com.leqee.wms.entity.LabelAccept">
+    	 <selectKey keyProperty="inventory_location_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+      	 </selectKey>
+      	 insert into wms.label_accept
+      	 (inventory_location_id,location_id,location_barcode,customer_id,physical_warehouse_id,warehouse_id,
+      	 product_id,is_serial,serial_no,goods_barcode,arrive_number,tray_number,validity,batch_sn,quantity,ti,hi,status_id,
+      	 created_user,created_time,last_updated_user,last_updated_time,order_id,order_goods_id,task_id
+      	 )values(
+      	 #{inventory_location_id},#{location_id},#{location_barcode},#{customer_id},#{physical_warehouse_id},#{warehouse_id},
+      	 #{product_id},#{is_serial},#{serial_no},#{goods_barcode},#{arrive_number},#{tray_number},#{validity},#{batch_sn},#{quantity},#{ti},#{hi},#{status_id},
+      	 #{created_user},now(),#{last_updated_user},now(),#{order_id},#{order_goods_id},#{task_id}
+      	 )
+    </insert>
+    
+    <insert id="insertInventoryLocationDetail" parameterType="com.leqee.wms.entity.InventoryLocationDetail">
+    	 <selectKey keyProperty="inventory_location_detail_id" resultType="java.lang.Integer">
+            select LAST_INSERT_ID()
+     	 </selectKey>
+     	 insert into wms.label_accept_detail
+     	 (inventory_location_detail_id,inventory_location_id,product_id,change_quantity,
+     	 action_type,order_id,order_goods_id,created_user,created_time)
+     	 values(
+     	 #{inventory_location_detail_id},#{inventory_location_id},#{product_id},#{change_quantity},
+     	 #{action_type},#{order_id},#{order_goods_id},#{created_user},now()
+     	 )
+    </insert>
+    
+    
+    <!-- 容器管理 -->
+    <!-- 
+    <select id="selectLocationInfoByPage" parameterType="map" resultType="map">
+    	SELECT l.location_id,l.location_barcode,w.warehouse_id,w.warehouse_name,l.created_user,l.created_time,
+		if(l.is_empty = 'Y', '空', '非空') as location_status
+		from wms.location l
+		inner join wms.warehouse w on l.physical_warehouse_id = w.physical_warehouse_id
+		where l.location_type != 'PURCHASE_SEQ' and l.is_delete = 'N' and w.is_physical = 'Y'
+		<if test="customer_id != '' and customer_id != null">
+			and l.customer_id = #{customer_id}
+		</if>
+		<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+			and l.physical_warehouse_id = #{physicalWarehouseId}
+		</if>
+		<if test="y_status != '' and y_status != null">
+			and l.is_empty = 'Y'
+		</if>
+		<if test="n_status != '' and n_status != null">
+			and l.is_empty = 'N'
+		</if>
+		<if test="locationCode != '' and locationCode != null">
+			and l.location_barcode = #{locationCode}
+		</if>
+		order by l.created_time desc
+    </select>
+     -->
+     
+    <update id="updateLocation" parameterType="map">
+    	update wms.location 
+    	<if test="is_delete != '' and is_delete != null">
+			set is_delete = 'Y'
+		</if>
+		<if test="is_empty != '' and is_empty != null">
+			set is_empty = 'N'
+		</if>
+		 where location_id = #{location_id} and is_empty = 'Y'
+    </update>
+    
+    <select id="selectInventoryLocation" parameterType="map" resultType="com.leqee.wms.entity.LabelAccept">
+    	select * from wms.label_accept where location_barcode = #{tagCode}
+    </select>
+    
+    <update id="updateInventoryLocation" parameterType="map">
+    	update wms.label_accept set location_kw_barcode = #{locationKWBarcode},
+    	last_updated_user = #{actionUser},last_updated_time = now(),status = #{status}
+    	where inventory_location_id = #{inventoryLocationId}
+    </update>
+    
+    <select id="selectInventoryNumByOne" parameterType="map" resultType="int">
+    	select IFNULL(sum(pl.qty_total),0)  as quantity from 
+		wms.product_location pl
+		inner join wms.location l on pl.location_id = l.location_id
+		where l.physical_warehouse_id = #{warehouseId} and pl.product_id = #{productId}
+		and l.location_type not in ('DEFECTIVE_LOCATION','VARIANCE_ADD_LOCATION','VARIANCE_MINUS_LOCATION','RETURN_DEFECTIVE_LOCATION') limit 1
+    </select>
+    
+    <select id="selectInventoryReserveNumByOne" parameterType="map" resultType="Integer">
+    	select IFNULL(sum(pl.qty_available),0) as available_to_reserved from wms.product_location pl
+		inner join wms.location l on pl.location_id = l.location_id
+    	where l.physical_warehouse_id = #{warehouseId} and pl.product_id = #{productId}  
+    	and l.location_type in ('STOCK_LOCATION','BOX_PICK_LOCATION','PIECE_PICK_LOCATION','PACKBOX_LOCATION','RETURN_LOCATION') limit 1
+    </select>
+    
+    <select id="selectByOrdersnByPage" parameterType="map" resultType="map">
+		select  
+		  o.order_id,p.product_name,p.barcode,p.spec,CAST(g.batch_sn AS CHAR) as batch_sn,
+		  w.warehouse_name,if(g.status_id='NORMAL','良品','不良品') as goods_status,wc.name,
+		  o.provider_order_type as type,g.goods_number,sum(ifnull(iid.change_quantity,0)) as deliver_num , 
+		  cast(g.goods_price  as decimal(10,2)) as goods_price,o.order_status,
+		  g.order_goods_id,cast(o.created_time as char) as created_time,if(iid.created_time is null ,'',cast(iid.created_time as char)) as delivery_time
+		from wms.order_info as o  
+		inner join wms.order_goods as g ON o.order_id = g.order_id  
+		inner join wms.warehouse_customer wc on wc.customer_id = o.customer_id
+		inner join wms.product as p  ON g.product_id = p.product_id    
+		inner join wms.warehouse as w ON o.warehouse_id = w.warehouse_id
+        LEFT JOIN wms.inventory_item_detail as iid on iid.order_goods_id = g.order_goods_id
+				       
+			where
+				   o.order_type = 'SUPPLIER_RETURN' 
+		    <if test="customer_id != '' and customer_id != null"> 
+					and o.customer_id = #{customer_id}
+			</if>
+			<if test="product_name != '' and product_name != null">
+					and p.product_name like CONCAT('%',#{product_name},'%' )
+			</if>
+			<if test="start != null">
+					and o.created_time >= #{start}
+			</if>
+			<if test="end != null">
+					and o.created_time <![CDATA[ <= ]]> #{end}
+			</if>
+			<if test="order_status != null and order_status !='' ">
+				and o.order_status = #{order_status}
+			</if>
+			<if test="warehouseIdList != null and warehouseIdList.size() != 0">
+	        and o.warehouse_id in
+					<foreach collection="warehouseIdList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+	     	</if>
+			group by o.order_id
+	</select>
+	<!-- 
+	<select id="selectHouseName"  resultType="String">
+	    select warehouse_name from wms.warehouse where 1=1 order by warehouse_name
+	</select>
+	 -->
+	
+	<select id="getLastedInstorageInventoryByCustomerId"  resultType="com.leqee.wms.entity.InventoryItemDetail">
+	    select * from wms.inventory_item_detail 
+	    where customer_id = #{0} and change_quantity <![CDATA[ > ]]> 0
+	    order by created_time desc limit 1
+	</select>
+	
+	
+	<!-- 查询库位信息（二期） -->
+	<select id="selectLocationV2ByPage" parameterType="map" resultType="map">
+		SELECT if(l.is_empty = 'Y', '空', '非空') as location_status,l.*,w.warehouse_id,w.warehouse_name
+		from wms.location l
+		inner join wms.warehouse w on l.physical_warehouse_id = w.physical_warehouse_id
+		where l.location_type != 'PURCHASE_SEQ'  and w.is_physical = 'Y'
+		<if test="customer_id != '' and customer_id != null">
+			and l.customer_id = #{customer_id}
+		</if>
+		<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+			and l.physical_warehouse_id = #{physicalWarehouseId}
+		</if>
+		<if test="y_status != '' and y_status != null">
+			and l.is_empty = 'Y'
+		</if>
+		<if test="n_status != '' and n_status != null">
+			and l.is_empty = 'N'
+		</if>
+		<if test="location_code != '' and location_code != null">
+			and l.location_barcode = #{location_code}
+		</if>
+		<if test="location_type != '' and location_type != null">
+			and l.location_type = #{location_type}
+		</if>
+		<if test="is_delete != '' and is_delete != null">
+			and l.is_delete = #{is_delete}
+		</if>
+		and l.location_type in ('STOCK_LOCATION','BOX_PICK_LOCATION','PIECE_PICK_LOCATION','PACKBOX_LOCATION','PACKBOX_PICK_LOCATION','RETURN_LOCATION','DEFECTIVE_LOCATION','RETURN_NORMAL_LOCATION','RETURN_DEFECTIVE_LOCATION','QUALITY_CHECK_LOCATION')
+		order by l.created_time desc
+	</select>
+	
+	
+	<select id="selectLocationV2" parameterType="map" resultType="map">
+		SELECT if(l.is_empty = 'Y', '空', '非空') as location_status,l.*,w.warehouse_id,w.warehouse_name,wc.name
+		from wms.location l
+		inner join wms.warehouse w on l.physical_warehouse_id = w.physical_warehouse_id
+		left join wms.warehouse_customer wc on wc.customer_id = l.customer_id
+		where l.location_type != 'PURCHASE_SEQ'  and w.is_physical = 'Y'
+		<if test="customer_id != '' and customer_id != null">
+			and l.customer_id = #{customer_id}
+		</if>
+		<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+			and l.physical_warehouse_id = #{physicalWarehouseId}
+		</if>
+		<if test="y_status != '' and y_status != null">
+			and l.is_empty = 'Y'
+		</if>
+		<if test="n_status != '' and n_status != null">
+			and l.is_empty = 'N'
+		</if>
+		<if test="location_code != '' and location_code != null">
+			and l.location_barcode = #{location_code}
+		</if>
+		<if test="location_type != '' and location_type != null">
+			and l.location_type = #{location_type}
+		</if>
+		<if test="is_delete != '' and is_delete != null">
+			and l.is_delete = #{is_delete}
+		</if>
+		and l.location_type in ('STOCK_LOCATION','BOX_PICK_LOCATION','PIECE_PICK_LOCATION','PACKBOX_LOCATION','PACKBOX_PICK_LOCATION','RETURN_LOCATION','DEFECTIVE_LOCATION','RETURN_NORMAL_LOCATION','RETURN_DEFECTIVE_LOCATION','QUALITY_CHECK_LOCATION')
+		order by l.created_time desc
+	</select>
+	
+	<select id="selectSequenceIsExist" parameterType="map" resultType="map">
+		select * from wms.location where physical_warehouse_id = #{physicalWarehouseId}
+		<if test="pickSeq != '' and pickSeq != null">
+			and pick_seq = #{pickSeq}
+		</if>
+		<if test="putawaySeq != '' and putawaySeq != null">
+			and putaway_seq = #{putawaySeq}
+		</if>
+		limit 1
+	</select>
+	
+	<insert id="insertLocationV2" parameterType="com.leqee.wms.entity.Location">
+		insert into wms.location (
+			location_id,physical_warehouse_id,location_barcode,area,partition_id,aisle,bay,
+			lev,location_type,circle_class,price_class,can_mix_product,can_mix_batch,not_auto_recmd,
+			max_lpn_qty,volume,weight,length,height,axis_x,axis_y,axis_z,max_prod_qty,ignore_lpn,putaway_seq,
+			pick_seq,customer_id,is_delete,is_empty,created_time,created_user,last_updated_time,last_updated_user
+		)values(
+			#{location_id},#{physical_warehouse_id},#{location_barcode},#{area},#{partition_id},#{aisle},#{bay},
+			#{lev},#{location_type},#{circle_class},#{price_class},#{can_mix_product},#{can_mix_batch},#{not_auto_recmd},
+			#{max_lpn_qty},#{volume},#{weight},#{length},#{height},#{axis_x},#{axis_y},#{axis_z},#{max_prod_qty},#{ignore_lpn},#{putaway_seq},
+			#{pick_seq},#{customer_id},'N',#{is_empty},now(),#{created_user},now(),#{last_updated_user}
+		)
+	</insert>
+	
+	<update id="updateLocationV2" parameterType="com.leqee.wms.entity.Location">
+		update wms.location set 
+			location_barcode = #{location_barcode}, area = #{area}, partition_id = #{partition_id}, aisle = #{aisle}, bay = #{bay},
+			lev = #{lev}, location_type = #{location_type},circle_class = #{circle_class},price_class = #{price_class},
+			can_mix_product =#{can_mix_product},can_mix_batch = #{can_mix_batch},not_auto_recmd = #{not_auto_recmd},
+			max_lpn_qty = #{max_lpn_qty},volume = #{volume},weight = #{weight},length = #{length},height = #{height},
+			axis_x = #{axis_x},axis_y = #{axis_y},axis_z = #{axis_z},max_prod_qty = #{max_prod_qty},ignore_lpn = #{ignore_lpn},
+			putaway_seq = #{putaway_seq},pick_seq = #{pick_seq},customer_id = #{customer_id},
+			<if test="is_delete != '' and is_delete != null">
+				is_delete = #{is_delete},
+			</if>
+			last_updated_time = now(),last_updated_user = #{last_updated_user}
+		where location_id = #{location_id}  and is_delete = 'N'
+	</update>
+	
+	<update id="updateLocationV3" parameterType="com.leqee.wms.entity.Location">
+		update wms.location set 
+			location_type = #{location_type},area = #{area}, partition_id = #{partition_id}, aisle = #{aisle}, bay = #{bay},
+			lev = #{lev}, circle_class = #{circle_class},price_class = #{price_class},
+			can_mix_product =#{can_mix_product},can_mix_batch = #{can_mix_batch},not_auto_recmd = #{not_auto_recmd},
+			max_lpn_qty = #{max_lpn_qty},volume = #{volume},weight = #{weight},length = #{length},height = #{height},
+			axis_x = #{axis_x},axis_y = #{axis_y},axis_z = #{axis_z},max_prod_qty = #{max_prod_qty},ignore_lpn = #{ignore_lpn},
+			putaway_seq = #{putaway_seq},pick_seq = #{pick_seq},customer_id = #{customer_id},
+			last_updated_time = now(),last_updated_user = #{last_updated_user}
+		where location_barcode = #{location_barcode}  and is_delete = 'N' and physical_warehouse_id = #{physical_warehouse_id}
+	</update>
+	
+	<update id="deleteLocationV2" parameterType="int">
+		update wms.location set is_delete = 'Y',last_updated_time = now() where location_id = #{loc_id} and is_empty = 'Y'
+	</update>
+	
+	<update id="recoverLocationV2" parameterType="int">
+		update wms.location set is_delete = 'N',last_updated_time = now() where location_id = #{loc_id}
+	</update>
+	
+	<select id="selectKwBarcodeInPick" parameterType="map" resultType="String">
+		select location_kw_barcode from wms.label_accept where product_id = #{product_id} 
+		and customer_id = #{customer_id} 
+		and warehouse_id = #{warehouse_id} and location_kw_barcode != ''
+		order by validity asc limit 1
+	</select>
+	
+	<select id="selectProductLocationNumWhenPick" parameterType="map" resultType="Integer">
+		select pl.location_id from wms.batch_pick bp
+		inner join wms.task t on bp.batch_pick_id = t.batch_pick_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		where bp.batch_pick_id = #{batchPickId} and bp.physical_warehouse_id = #{physicalWarehouseId}
+	</select>
+	
+	<update id="updateProductLocationNumWhenPick" parameterType="map">
+		update wms.batch_pick bp
+		inner join wms.task t on bp.batch_pick_id = t.batch_pick_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		set pl.qty_total = pl.qty_total - t.quantity 
+		,pl.last_updated_user = #{actionUser},pl.last_updated_time = now()
+		where bp.batch_pick_id = #{batchPickId} and bp.physical_warehouse_id = #{physicalWarehouseId}
+	</update>
+	
+	<insert id="insertProductLocationWhenPick" parameterType="map">
+		insert into wms.product_location
+		(product_id,location_id,qty_total,qty_available,
+		     	 	product_location_status,qty_freeze,status,validity,batch_sn,serial_number,
+		     	 	created_user,created_time,last_updated_user,last_updated_time)
+		select pl.product_id,#{locationId},t.quantity,t.quantity,
+		pl.product_location_status,0,pl.status,pl.validity,pl.batch_sn,pl.serial_number,
+		#{actionUser},now(),#{actionUser},now() FROM
+		wms.batch_pick bp
+		inner join wms.task t on bp.batch_pick_id = t.batch_pick_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		where bp.batch_pick_id = #{batchPickId} and bp.physical_warehouse_id = #{physicalWarehouseId}
+	</insert>
+	
+	<insert id="insertProductLocationDetailWhenPick" parameterType="map">
+		insert into wms.product_location_detail
+		(pl_id,change_quantity,task_id,description,
+					created_user,created_time,last_updated_user,last_updated_time)
+		select pl.pl_id,t.quantity,t.task_id,"打印波次单-拣货",#{actionUser},now(),#{actionUser},now() FROM
+		wms.batch_pick bp
+		inner join wms.task t on bp.batch_pick_id = t.batch_pick_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id
+		where bp.batch_pick_id = #{batchPickId} and bp.physical_warehouse_id = #{physicalWarehouseId}
+	</insert>
+	
+	<!--获取缺货耗材清单 -->
+	<select id="getNotEnoughPackboxList" resultType="map">
+		SELECT 
+		    tmp.product_id,
+		    tmp.barcode,
+		    tmp.product_name,
+		    wc.name,
+		    w.warehouse_name,
+		    (tmp.need_number - SUM(IFNULL(ii.quantity, 0))) AS lack_number
+		FROM
+		    (SELECT 
+		        p.product_id,
+		            p.customer_id,
+		            p.barcode,
+		            p.product_name,
+		            oi.warehouse_id,
+		            COUNT(1) AS need_number
+		    FROM
+		        wms.shipment s
+		    INNER JOIN wms.product p ON p.product_id = s.packbox_product_id
+		    INNER JOIN wms.order_info oi ON s.order_id = oi.order_id
+		    WHERE
+		        s.packbox_is_out = 'N' and p.is_delete = 'N'
+		            AND oi.order_time > '2016-06-05'
+		            AND oi.order_status = 'FULFILLED'
+		    GROUP BY p.product_id , oi.warehouse_id) AS tmp
+		        INNER JOIN
+		    wms.warehouse w ON w.warehouse_id = tmp.warehouse_id
+		        INNER JOIN
+		    wms.warehouse_customer wc ON wc.customer_id = tmp.customer_id
+		        LEFT JOIN
+		    wms.inventory_item ii ON ii.product_id = tmp.product_id
+		        AND ii.warehouse_id = tmp.warehouse_id
+		GROUP BY tmp.product_id , tmp.warehouse_id
+		HAVING lack_number > 0;
+	</select>
+	
+	<!-- 根据订单获取预定记录中待出库的记录 by hzhang1 -->
+	<select id="selectDeliverOrderReserverInfo" resultType="map">
+		select orim.*,oi.customer_id,oi.warehouse_id from
+		wms.order_info oi
+		inner join wms.order_reserve_inventory_mapping orim on oi.order_id = orim.order_id
+		where 1
+		<if test="orderId != '' and orderId != null">
+			and oi.order_id = #{orderId}
+		</if>
+		<if test="orderGoodsId != '' and orderGoodsId != null">
+			and og.order_goods_id = #{orderGoodsId}
+		</if>
+	</select>
+	
+	<!-- 根据预定信息扣减item数量 by hzhang1 -->
+	<update id="updateInventoryItemByReserveMapping">
+		update wms.inventory_item set quantity  = quantity - #{quantity} ,last_updated_user = 'system',
+		last_updated_time = now()
+		where inventory_item_id = #{inventoryItemId} 
+		and quantity <![CDATA[ >= ]]> #{quantity}
+		limit 1
+	</update>
+	
+	<select id="selectSaleOrderPickTask" parameterType="Integer" resultType="map">
+		select t.task_id,pl.location_id,pl.product_id,pl.qty_total,pl.qty_available,
+		t.quantity,pl.pl_id from wms.order_process op
+		inner join wms.task t on op.batch_pick_id = t.batch_pick_id
+		inner join wms.product_location pl on t.to_pl_id = pl.pl_id
+		where op.order_id = #{orderId} and op.order_type = 'SALE' and t.quantity > 0
+		order by pl.product_id
+	</select>
+	
+	<select id="selectBybarcode" parameterType="map" resultType="map">
+		select *,p.validity,p.product_name as month from wms.order_goods og 
+		inner join wms.product p on og.product_id =p.product_id 
+		where p.barcode = #{barcode} and og.customer_id =#{customer_id} and og.order_id =#{order_id} limit 1
+	</select>
+	
+	<select id="selectLocationByProductValidityNormal" parameterType="map" resultType="String" >
+		select l.location_barcode from wms.location l 
+		left join wms.product_location pl  on pl.location_id = l.location_id
+	    where pl.product_id = #{product_id} and pl.validity = #{validity} and pl.batch_sn = #{batchSn} and 
+	    l.location_type = 'RETURN_LOCATION' and l.is_delete = 'N'  and pl.warehouse_id = #{warehouse_id}  
+	    and l.physical_warehouse_id = #{physical_warehouse_id} 
+	</select>
+	
+	<select id="selectLocationByCanMixBatchNormal" parameterType="String" resultType="String" >
+		select l.location_barcode from wms.location l 
+		left join wms.product_location pl  on pl.location_id = l.location_id where
+	    l.physical_warehouse_id = #{0} 
+		and l.is_empty = 'N' and l.is_delete = 'N' and l.location_type = 'RETURN_LOCATION' and can_mix_batch =1 and pl.product_id = #{1}
+	</select>
+	
+	<select id="selectLocationByProductValidityDefective" parameterType="map" resultType="String" >
+		select l.location_barcode from wms.location l 
+		left join wms.product_location pl  on pl.location_id = l.location_id
+	    where pl.product_id = #{product_id} and pl.validity = #{validity} and  pl.batch_sn = #{batchSn}   and pl.warehouse_id = #{warehouse_id}  and
+	    l.location_type = 'QUALITY_CHECK_LOCATION' and l.is_delete = 'N'
+	    and l.physical_warehouse_id = #{physical_warehouse_id}
+	</select>
+	
+	<select id="selectLocationByCanMixBatchDefective" parameterType="String" resultType="String" >
+		select l.location_barcode from wms.location l  
+		left join wms.product_location pl  on pl.location_id = l.location_id  where
+	    l.physical_warehouse_id = #{0} 
+		and l.is_empty = 'N' and l.is_delete = 'N' and l.location_type = 'QUALITY_CHECK_LOCATION' and can_mix_batch =1 and pl.product_id = #{1}
+	</select>
+	
+	<update id="updateProductLocation">
+		update wms.product_location set qty_total = qty_total - #{quantity}
+		where pl_id = #{plId} and qty_total <![CDATA[ >= ]]> #{quantity} limit 1
+	</update>
+	
+	<update id="updateProductLocationForPackBox">
+		update wms.product_location set qty_total = qty_total - #{quantity},
+		qty_available = qty_available - #{quantity}
+		where pl_id = #{plId} and qty_total <![CDATA[ >= ]]> #{quantity} limit 1
+	</update>
+	
+	<select id="getLabelAcceptListByOrderId" resultType="com.leqee.wms.entity.LabelAccept">
+		select * from wms.label_accept where order_id = #{order_id}
+	</select>
+	
+	 <update id="updateTaskIdByList">
+  		update wms.label_accept set task_id = case inventory_location_id
+		<foreach collection="list" item="item2" index="index" open=" when "
+			separator="when " close="  ">
+			${item2.inventory_location_id} then ${item2.task_id}
+		</foreach>
+		END
+		where inventory_location_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.inventory_location_id}
+		</foreach>
+     </update>
+     
+     <select id="selectSkuInventory" resultType="map">
+     	select p.customer_id,wc.name,p.barcode,pl.pl_id,p.product_name,pl.qty_total,pl.qty_available,l.location_barcode,l.location_type,
+     	CONVERT(pl.validity,char(64)) as validity,pl.status,pl.product_location_status,qty_freeze,pl.batch_sn,w.warehouse_name
+     	from wms.product_location pl
+     	inner join wms.product p on pl.product_id = p.product_id
+     	inner join wms.location l on pl.location_id = l.location_id
+     	inner join wms.warehouse_customer wc on p.customer_id = wc.customer_id
+     	inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+     	where l.physical_warehouse_id = #{physicalWarehouseId} and p.barcode = #{barcode} and pl.qty_total > 0
+     	and l.location_type not in ('TRANSIT_LOCATION','VARIANCE_ADD_LOCATION','VARIANCE_MINUS_LOCATION','VARIANCE_ADD_STOCK_LOCATION','VARIANCE_MINUS_STOCK_LOCATION')
+     	<if test="customerId != '' and customerId != null">
+     		and p.customer_id = #{customerId}
+     	</if>
+     	<if test="flag != '' and flag != null">
+     		and pl.qty_freeze > 0
+     	</if>
+     </select>
+     
+     <select id="selectSkuInventoryInTransit" resultType="map">
+     	select p.customer_id,wc.name,p.barcode,pl.pl_id,p.product_name,sum(pl.qty_total) as qty_total,sum(pl.qty_available ) as qty_available,l.location_barcode,l.location_type,
+     	CONVERT(pl.validity,char(64)) as validity,pl.status,pl.product_location_status,sum(pl.qty_freeze) as qty_freeze,pl.batch_sn,w.warehouse_name
+     	from wms.product_location pl
+     	inner join wms.product p on pl.product_id = p.product_id
+     	inner join wms.location l on pl.location_id = l.location_id
+     	inner join wms.warehouse_customer wc on p.customer_id = wc.customer_id
+     	inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+     	where l.physical_warehouse_id = #{physicalWarehouseId} and p.barcode = #{barcode} and pl.qty_total > 0
+     	and l.location_type in ('TRANSIT_LOCATION')
+     	<if test="customerId != '' and customerId != null">
+     		and p.customer_id = #{customerId}
+     	</if>
+     	<if test="flag != '' and flag != null">
+     		and pl.qty_freeze > 0
+     	</if>
+     	group by pl.product_id
+     </select>
+     
+     <select id="selectLocationInventory" resultType="map">
+     	select p.customer_id,p.barcode,pl.pl_id,p.product_name,pl.qty_total,pl.qty_available,l.location_barcode,l.location_type,
+     	CONVERT(pl.validity,char(64)) as validity,pl.status,pl.product_location_status,qty_freeze,pl.batch_sn,w.warehouse_name
+		from wms.product_location pl 
+		inner join wms.product p on pl.product_id = p.product_id
+		inner join wms.location l on pl.location_id = l.location_id
+		inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		where l.physical_warehouse_id = #{physicalWarehouseId} and l.location_barcode = #{locationBarcode}
+		and l.is_delete = 'N' and pl.qty_total > 0
+		and l.location_type not in ('VARIANCE_ADD_LOCATION','VARIANCE_MINUS_LOCATION','VARIANCE_ADD_STOCK_LOCATION','VARIANCE_MINUS_STOCK_LOCATION')
+		<if test="flag != '' and flag != null">
+     		and pl.qty_freeze > 0
+     	</if>
+     </select>
+     
+     <!-- 查询库位库存 by hzhang1 -->
+     <select id="selectProductLocationForInventory" parameterType="map" resultType="map">
+     	select pl.*,wc.name,l.location_barcode,l.location_type,p.product_name,p.validity as validity_,p.validity_unit,
+     	p.barcode ,w.warehouse_name
+     	from wms.product_location pl
+     	inner join wms.product p on p.product_id = pl.product_id
+     	inner join wms.warehouse_customer wc on p.customer_id = wc.customer_id
+     	inner join wms.location l on l.location_id = pl.location_id
+     	inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+     	where l.physical_warehouse_id = #{physical_warehouse_id}
+     	<if test="customer_id != '' and customer_id != null">
+     		and p.customer_id = #{customer_id}
+     	</if>
+     	<if test="customers != null and customers.size() != 0">
+			and p.customer_id in
+			<foreach collection="customers" item="item" open="("
+				separator="," close=")">
+				#{item.customer_id}
+			</foreach>
+		</if>
+     	<if test="barcode != '' and barcode != null">
+     		and p.barcode = #{barcode}
+     	</if>
+     	<if test="goods_name != '' and goods_name != null">
+     		and p.product_name like CONCAT('%',#{goods_name},'%' )
+     	</if>
+     	<if test="status_id != '' and status_id != null">
+     		and pl.status = #{status_id}
+     	</if>
+     	<if test="batch_sn != '' and batch_sn != null">
+     		and pl.batch_sn = #{batch_sn}
+     	</if>
+     	<if test="warehouse_id != '' and warehouse_id != null">
+     		and pl.warehouse_id = #{warehouse_id}
+     	</if>
+     	<if test="location_barcode != '' and location_barcode != null">
+     		and l.location_barcode = #{location_barcode}
+     	</if>
+     	<if test="from_location_barcode != '' and from_location_barcode != null and to_location_barcode != '' and to_location_barcode != null">
+     		and l.location_barcode >= #{from_location_barcode} and l.location_barcode <![CDATA[ <= ]]> #{to_location_barcode}
+     	</if>
+     	<if test="location_type != '' and location_type != null">
+     		and l.location_type = #{location_type}
+     	</if>
+     	<if test="is_show_urikitamono != '' and is_show_urikitamono != null and is_show_urikitamono == 'Y'.toString()">
+     		and pl.qty_total > 0
+     	</if>
+     	<if test="is_show_urikitamono != '' and is_show_urikitamono != null and is_show_urikitamono == 'N'.toString()">
+     		and pl.qty_total = 0
+     	</if>
+     	<if test="is_exception != '' and is_exception != null and is_exception == 'Y'.toString()">
+     		and pl.product_location_status != 'NORMAL'
+     	</if>
+     	<if test="is_exception != '' and is_exception != null and is_exception == 'N'.toString()">
+     		and pl.product_location_status = 'NORMAL'
+     	</if>
+     	and pl.qty_total > 0
+     	and l.is_delete = 'N' and l.location_type in ('STOCK_LOCATION','BOX_PICK_LOCATION','PIECE_PICK_LOCATION','PACKBOX_LOCATION','PACKBOX_PICK_LOCATION','RETURN_LOCATION','DEFECTIVE_LOCATION','RETURN_NORMAL_LOCATION','RETURN_DEFECTIVE_LOCATION','QUALITY_CHECK_LOCATION')
+     	order by l.location_barcode
+     </select>
+     
+     
+     <select id="selectProductLocationForTrasitInventory" parameterType="map" resultType="map">
+     	select sum(pl.qty_total) as qty_total,pl.*,wc.name,l.location_type,p.product_name,p.validity as validity_,p.validity_unit,
+     	p.barcode,w.warehouse_name
+     	from wms.product_location pl
+     	inner join wms.product p on p.product_id = pl.product_id
+     	inner join wms.warehouse_customer wc on p.customer_id = wc.customer_id
+     	inner join wms.warehouse w on w.warehouse_id = pl.warehouse_id
+     	inner join wms.location l on l.location_id = pl.location_id
+     	where l.physical_warehouse_id = #{physical_warehouse_id}
+     	and l.location_type in ('TRANSIT_LOCATION')
+     	<if test="customer_id != '' and customer_id != null">
+     		and p.customer_id = #{customer_id}
+     	</if>
+     	<if test="customers != null and customers.size() != 0">
+			and p.customer_id in
+			<foreach collection="customers" item="item" open="("
+				separator="," close=")">
+				#{item.customer_id}
+			</foreach>
+		</if>
+     	<if test="barcode != '' and barcode != null">
+     		and p.barcode = #{barcode}
+     	</if>
+     	<if test="goods_name != '' and goods_name != null">
+     		and p.product_name like CONCAT('%',#{goods_name},'%' )
+     	</if>
+     	<if test="location_barcode != '' and location_barcode != null">
+     		and l.location_barcode = #{location_barcode}
+     	</if>
+     	<if test="from_location_barcode != '' and from_location_barcode != null and to_location_barcode != '' and to_location_barcode != null">
+     		and l.location_barcode >= #{from_location_barcode} and l.location_barcode <![CDATA[ <= ]]> #{to_location_barcode}
+     	</if>
+     	and pl.qty_total > 0
+     	group by pl.product_id
+     </select>
+     
+     
+     <select id="selectProductLocationForTrasitInventoryOrderCancel"  parameterType="map" resultType="map">
+     	select pl.product_id,sum(pl.qty_total) as qty_total ,wc.name,p.barcode,p.product_name,'TRANSIT_LOCATION' as location_type 
+		from wms.batch_pick bp
+		inner join wms.order_process op on bp.batch_pick_id = op.batch_pick_id
+		inner join wms.task t on t.batch_pick_id = bp.batch_pick_id
+		inner join wms.product_location pl on pl.pl_id = t.to_pl_id
+		inner join wms.product p on pl.product_id = p.product_id
+		inner join wms.warehouse_customer wc on p.customer_id = wc.customer_id
+		where bp.physical_warehouse_id = #{physical_warehouse_id} and op.status = 'CANCEL' and bp.print_count > 0 
+     	<if test="customer_id != '' and customer_id != null">
+     		and op.customer_id = #{customer_id}
+     	</if>
+     	<if test="barcode != '' and barcode != null">
+     		and p.barcode = #{barcode}
+     	</if>
+     	<if test="goods_name != '' and goods_name != null">
+     		and p.product_name like CONCAT('%',#{goods_name},'%' )
+     	</if>
+     	and op.created_time >=date_add(now(),interval - 30 day)
+     	and pl.qty_total > 0
+     	group by pl.product_id
+     </select>
+     
+     <!-- 更新库位库存生产日期 by hzhang1 -->
+     <update id="updateProductLocationValidity">
+     	update wms.product_location set validity = #{validity} ,last_updated_user = #{actionUser},
+     	<if test="validity_status != '' and validity_status != null">
+     		validity_status = #{validity_status},
+     	</if>
+     	last_updated_time = now()
+     	where pl_id = #{plId} limit 1
+     </update>
+     
+     <update id="updateProductLocationBatchSn">
+     	update wms.product_location set batch_sn = #{batch_sn} ,last_updated_user = #{actionUser},
+     	last_updated_time = now()
+     	where pl_id = #{plId} limit 1
+     </update>
+     
+     <select id="selectDifferentItemByCustomerId"  resultType="map">
+		 SELECT
+				wc.name,
+				p.barcode,
+				p.product_name,
+				p.product_id,
+				w.warehouse_name,
+				IFNULL(SUM(imd.quantity), 0) AS item_sum,
+				imd.status,
+				temp.qty_sum,
+				(IFNULL(SUM(imd.quantity), 0) - IFNULL(temp.qty_sum,0)
+				) AS diff
+			FROM
+				wms.inventory_item imd
+			INNER JOIN  wms.warehouse_customer wc on wc.customer_id = imd.customer_id 
+			INNER JOIN wms.product p on p.product_id = imd.product_id and p.is_delete = 'N'
+			INNER JOIN wms.warehouse w on w.warehouse_id = imd.warehouse_id
+			LEFT JOIN (
+				SELECT
+					p.customer_id,
+					pl.product_id,
+					pl.warehouse_id,
+					(IFNULL(SUM(pl.qty_total), 0)-sum(if(l.location_type in('VARIANCE_ADD_LOCATION','VARIANCE_ADD_STOCK_LOCATION') ,pl.qty_total,0))*2) AS qty_sum,
+					pl.status,l.physical_warehouse_id
+				FROM
+					wms.product_location pl
+				INNER JOIN wms.location l ON l.location_id =pl.location_id
+			INNER JOIN wms.product p ON p.product_id = pl.product_id and p.is_delete = 'N'
+			WHERE 1 ${con}
+					<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+	    					and l.physical_warehouse_id = #{physicalWarehouseId}
+	    			</if>
+	    			<if test="customerId != '' and customerId != null">
+	    					and p.customer_id = #{customerId}
+	    			</if>
+				GROUP BY
+					pl.product_id,
+					pl.status,
+					pl.warehouse_id
+			) AS temp ON temp.product_id = imd.product_id
+			AND imd.status = temp.status
+			AND imd.warehouse_id = temp.warehouse_id
+			WHERE 1 ${con}
+					<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+	    					and imd.physical_warehouse_id = #{physicalWarehouseId}
+	    			</if>
+	    			<if test="customerId != '' and customerId != null">
+	    					and imd.customer_id = #{customerId}
+	    			</if>
+			GROUP BY
+				imd.product_id,
+				imd.status,
+				imd.warehouse_id
+			HAVING
+				diff != 0
+			UNION
+			SELECT
+				wc.name,
+				p.barcode,
+				p.product_name,
+				p.product_id,
+				w.warehouse_name,
+				IFNULL(SUM(imd.quantity), 0) AS item_sum,
+				imd.status,
+				temp.qty_sum,
+				(IFNULL(SUM(imd.quantity), 0) - IFNULL(temp.qty_sum,0)
+				) AS diff
+			FROM
+				wms.inventory_item imd
+			INNER JOIN  wms.warehouse_customer wc on wc.customer_id = imd.customer_id 
+			INNER JOIN wms.product p on p.product_id = imd.product_id
+			INNER JOIN wms.warehouse w on w.warehouse_id = imd.warehouse_id
+			RIGHT JOIN (
+				SELECT
+					p.customer_id,
+					pl.product_id,
+					pl.warehouse_id,
+					(IFNULL(SUM(pl.qty_total), 0)-sum(if(l.location_type in('VARIANCE_ADD_LOCATION','VARIANCE_ADD_STOCK_LOCATION'),pl.qty_total,0))*2) AS qty_sum,
+					pl.status,l.physical_warehouse_id
+				FROM
+					wms.product_location pl
+				INNER JOIN wms.location l ON l.location_id =pl.location_id
+			INNER JOIN wms.product p ON p.product_id = pl.product_id
+				WHERE 1 ${con}
+					<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+	    					and l.physical_warehouse_id = #{physicalWarehouseId}
+	    			</if>
+	    			<if test="customerId != '' and customerId != null">
+	    					and p.customer_id = #{customerId}
+	    			</if>
+				GROUP BY
+					pl.product_id,
+					pl.status,
+					pl.warehouse_id
+			) AS temp ON temp.product_id = imd.product_id
+			AND imd.status = temp.status
+			and imd.warehouse_id = temp.warehouse_id
+			WHERE 1 ${con}
+					<if test="physicalWarehouseId != '' and physicalWarehouseId != null">
+	    					and imd.physical_warehouse_id = #{physicalWarehouseId}
+	    			</if>
+	    			<if test="customerId != '' and customerId != null">
+	    					and imd.customer_id = #{customerId}
+	    			</if>
+			GROUP BY
+				imd.product_id,
+				imd.status,
+				imd.warehouse_id
+			HAVING
+				diff != 0;
+     </select>
+     
+     
+     <select id="selectImportProductLocation" resultType="map">
+     	select tpl.*,l.location_barcode,p.product_name,wc.name from wms.tmp_product_location tpl
+     	inner join wms.location l on l.location_id = tpl.location_id
+     	inner join wms.product p on p.product_id = tpl.product_id
+     	inner join wms.warehouse_customer wc on wc.customer_id = tpl.customer_id
+     	where  tpl.physical_warehouse_id = #{physicalWarehouseId}
+     	<if test="customerId != '' and customerId != null">
+     		and tpl.customer_id = #{customerId} 
+     	</if>
+     	<if test="flag != '' and flag != null and flag == 'N'.toString()">
+     		and tpl.transfer_status = 'N'
+     	</if>
+     </select>
+     
+      
+     
+     
+     <select id="selectItemByProductId" resultType="com.leqee.wms.entity.InventoryItem">
+     	select * from wms.inventory_item where physical_warehouse_id = #{physicalWarehouseId}
+     	and product_id = #{productId} and status = #{status}
+     </select>
+     
+     
+     <select id="selectTmpProductLocationByTmpList" resultType="map">
+     	select product_id,status,sum(quantity) as quantity from wms.tmp_product_location 
+		where tmp_pl_id in 
+     	<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.tmp_pl_id}
+		</foreach>
+		GROUP BY product_id ,status
+     </select>
+     
+     
+     <select id="selectItemByCustomerId2PhysicalWarehouseId" resultType="map">
+     	select product_id,status,sum(quantity) as quantity from wms.inventory_item
+     	where customer_id = #{customerId} and physical_warehouse_id = #{physicalWarehouseId}
+     	GROUP BY product_id ,status
+     </select>
+     
+     <select id="selectProductLocationByProductId" resultType="map">
+     	select product_id,status,sum(qty_total) as quantity from wms.product_location pl
+     	inner join wms.location l on l.location_id = pl.location_id 
+		where pl.product_id = #{productId} and l.physical_warehouse_id = #{physicalWarehouseId}
+		and l.location_type not in ('VARIANCE_ADD_LOCATION','VARIANCE_MINUS_LOCATION','VARIANCE_ADD_STOCK_LOCATION','VARIANCE_MINUS_STOCK_LOCATION')
+		GROUP BY pl.product_id ,pl.status
+     </select>
+     
+      <update id="updateLocationQuantity" parameterType="Integer">
+  		UPDATE wms.product_location set qty_total = qty_total+#{1},qty_available = qty_available + #{1}
+		where pl_id =#{0}
+     </update>
+     
+      <update id="updateTransactionLocationQuantity" parameterType="Integer">
+  		UPDATE wms.product_location set qty_total = qty_total-#{1}
+		where pl_id =#{0}
+     </update>
+     
+     
+    
+     
+     <select id="selectPurchaseLableInfo" resultType="map">
+     	select la.location_barcode,p.barcode,p.product_name as goods_name,la.batch_sn,la.quantity,la.status_id,la.validity from wms.label_accept la
+		inner join wms.product p on p.product_id = la.product_id
+		where la.location_barcode = #{purchaseLable} and la.physical_warehouse_id = #{physicalWarehouseId}
+     </select>
+     
+      <select id="getOrderCancelList" resultType="map">
+     	SELECT
+			wc.name,
+			op.order_id,
+			p.barcode,
+			p.product_name,
+			og.order_goods_id,
+			og.goods_number,
+			og.goods_number -IFNULL(SUM(pld.change_quantity),0) as diff
+		FROM
+			wms.order_process op
+		INNER JOIN wms.order_info oi ON oi.order_id = op.order_id
+		INNER JOIN wms.batch_pick bp ON bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.order_goods og ON og.order_id = op.order_id
+		INNER JOIN wms.product p ON p.product_id = og.product_id
+		INNER JOIN wms.warehouse_customer wc ON wc.customer_id = op.customer_id
+		LEFT JOIN wms.product_location_detail pld ON pld.order_goods_id = og.order_goods_id and pld.change_quantity > 0
+		where   
+		 op.status ='CANCEL'  and p.product_type in ('GOODS','PREPACKAGE')  and  
+		 op.created_time<![CDATA[> ]]> #{created_time} and  op.created_time<![CDATA[< ]]> #{delivery_time} and bp.print_count <![CDATA[> ]]> 0
+		 <if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="customerString != '' and customerString != null">
+	    		and p.customer_id in ${customerString}
+	     </if>
+	     <if test="orderId != '' and orderId != null">
+	    		and oi.order_id = #{orderId}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>
+	     <if test="warehouse_id != '' and warehouse_id != null">
+	    		and og.warehouse_id = #{warehouse_id}
+	     </if>
+	     GROUP BY og.order_goods_id
+	     HAVING diff > 0
+     </select>
+     <select id="selectAllInventoryItem" resultType="com.leqee.wms.entity.InventoryItem">
+	     select *
+	     from wms.inventory_item 
+	     where product_id in 
+	     <foreach collection="list" item="item" index="index" open="("
+				separator="," close=")">
+				#{item}
+		 </foreach>
+     </select>
+     <select id="selectAllReservedMapper" resultType="com.leqee.wms.entity.OrderReserveInventoryMapping">
+	     select mapping_id,order_goods_id,inventory_item_id,quantity
+	     from wms.order_reserve_inventory_mapping 
+	     where order_goods_id in 
+	     <foreach collection="list" item="item" index="index" open="("
+				separator="," close=")">
+				#{item}
+		 </foreach>
+     </select>
+     <update id="updateInventoryItemByVariance">
+		UPDATE wms.inventory_item
+		SET quantity = CASE inventory_item_id
+		<foreach collection="list" item="item0" index="index" open=" when "
+			separator="when " close="  ">
+			${item0.inventory_item_id} then quantity -
+			${item0.quantity}
+		</foreach>
+		END
+		where inventory_item_id in
+		<foreach collection="list" item="item" index="index" open="("
+			separator="," close=")">
+			#{item.inventory_item_id}
+		</foreach>
+	</update>
+	<!-- <select id="getInventoryItemsByCustomerId" resultType="com.leqee.wms.entity.InventoryItem">
+	    SELECT 
+	    ii.inventory_item_id,
+	    ii.created_time,
+	    ii.product_id,
+	    ii.customer_id,
+	    ii.warehouse_id,
+	    ii.status,
+	    ii.quantity-IFNULL(
+	      (SELECT 
+	        IFNULL(SUM(im.quantity), 0) 
+	      FROM
+	        wms.order_reserve_inventory_mapping im 
+	        INNER JOIN wms.order_process op 
+	          ON im.order_id = op.order_id 
+	      WHERE im.inventory_item_id = ii.inventory_item_id 
+	        AND op.status NOT IN ('FULFILLED', 'CANCEL')),
+	      0
+	    ) AS quantity,
+	    IFNULL(ii.validity ,'1970-01-01 00:00:00')  AS validity
+	  FROM
+	    wms.inventory_item ii 
+	  WHERE ii.customer_id = #{customer_id}
+
+	  HAVING quantity >0
+	  ORDER BY validity,created_time
+	</select>   old sql-->
+	<select id="getInventoryItemsByCustomerId" resultType="com.leqee.wms.entity.InventoryItem">
+	SELECT 
+	    ii.inventory_item_id,
+	    ii.created_time,
+	    ii.product_id,
+	    ii.customer_id,
+	    ii.warehouse_id,
+	    ii.status,
+	    ii.quantity - IFNULL(q.quantity, 0) AS quantity,
+	    IFNULL(ii.validity, '1970-01-01 00:00:00') AS validity
+	FROM wms.inventory_item ii
+	LEFT JOIN
+	    (SELECT im.inventory_item_id, SUM(im.quantity) AS quantity
+		    FROM wms.order_reserve_inventory_mapping im
+		    INNER JOIN wms.order_process op ON im.order_id = op.order_id
+			    AND op.status NOT IN ('FULFILLED' , 'CANCEL') 
+			    AND op.customer_id=#{customer_id}
+	    	GROUP BY im.inventory_item_id) q 
+	    	ON q.inventory_item_id = ii.inventory_item_id
+	WHERE ii.customer_id = #{customer_id}
+	     <!-- 
+		  AND ii.product_id IN 
+		     <foreach collection="list" item="product_id" index="index" open="("
+				separator="," close=")">
+				#{product_id}
+			</foreach>
+		  -->
+	HAVING quantity > 0
+	ORDER BY validity , created_time
+	</select>
+
+
+	<select id="selectReservedQty2OrderGoodsNumber" resultType="map">
+		select sum(m.quantity) as quantity,og.goods_number from wms.order_reserve_inventory_mapping m
+		inner join wms.order_goods og on m.order_goods_id = og.order_goods_id
+		where og.order_goods_id = #{order_goods_id}
+		group BY og.order_goods_id
+		having quantity != goods_number
+	</select>
+	
+	
+	<select id="selectReservedQty2OrderGoodsOmsNumber" resultType="map">
+		select sum(m.quantity) as quantity,og.goods_number from wms.order_reserve_inventory_mapping m
+		inner join wms.order_goods_oms og on m.order_goods_oms_id = og.order_goods_id
+		where og.order_goods_id = #{order_goods_id}
+		group BY og.order_goods_id
+		having quantity != goods_number
+	</select>
+	
+	<select id="getOrderCancelListByOrderId"  parameterType="Integer" resultType="map">
+     	SELECT
+			op.order_id,
+			p.barcode,
+			p.product_name,
+			og.order_goods_id,
+			og.product_id,
+			og.goods_number,
+			og.goods_number -IFNULL(SUM(pld.change_quantity),0) as diff
+		FROM
+			wms.order_process op
+		INNER JOIN wms.order_info oi ON oi.order_id = op.order_id
+		INNER JOIN wms.batch_pick bp ON bp.batch_pick_id = op.batch_pick_id
+		INNER JOIN wms.order_goods og ON og.order_id = op.order_id
+		INNER JOIN wms.product p ON p.product_id = og.product_id
+		INNER JOIN wms.warehouse_customer wc ON wc.customer_id = op.customer_id
+		LEFT JOIN wms.product_location_detail pld ON pld.order_goods_id = og.order_goods_id and pld.change_quantity > 0
+		where   
+		 op.status ='CANCEL'  and p.product_type in ('GOODS','PREPACKAGE')  and  
+		 bp.print_count <![CDATA[> ]]> 0 and oi.order_id = #{order_id}
+	     GROUP BY og.order_goods_id
+	     HAVING diff > 0
+     </select>
+     
+     
+     
+     <select id="selectMoveListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity,t.created_time,t.last_updated_time,l2.location_barcode as in_location_barcode
+		,l1.location_barcode as out_location_barcode,pl.batch_sn,w.warehouse_name,
+		u.username,u.realname
+		from wms.task t 
+		LEFT JOIN wms.sys_user u on u.id = t.first_bind_user_id
+		INNER JOIN wms.product p on p.product_id =t.product_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id 
+		INNER JOIN wms.location l1 on l1.location_id = pl.location_id
+		INNER JOIN wms.location l2 on l2.location_id = t.to_location_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		where t.task_type = 'MOVE' 
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and t.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and t.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and t.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and t.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="in_location_barcode != '' and in_location_barcode != null">
+	    		and l2.location_barcode = #{in_location_barcode}
+	     </if>
+	      <if test="out_location_barcode != '' and out_location_barcode != null">
+	    		and l1.location_barcode = #{out_location_barcode}
+	     </if>
+	     <if test="warehouse_id != '' and warehouse_id != null">
+	    		and pl.warehouse_id = #{warehouse_id}
+	     </if>
+	</select>
+	
+	  <select id="selectRecheckListByPage" parameterType="map" resultType="map">
+		SELECT 
+		wc.name,
+		p.barcode,p.product_name,op.oms_order_sn,
+		op.order_id,  SUM(og.goods_number) as total,ao.created_time as recheck_time, ao.created_user, 
+		u.username,u.realname,w.warehouse_name,
+		bp.batch_pick_sn
+		FROM wms.order_process op
+		INNER JOIN wms.user_action_order ao on op.order_id = ao.order_id  
+		LEFT JOIN wms.sys_user u on u.username = ao.created_user
+		INNER JOIN wms.warehouse w on w.warehouse_id = op.warehouse_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+    	INNER JOIN wms.order_goods og on og.order_id = op.order_id 
+		INNER JOIN  wms.product p on p.product_id = og.product_id  and p.product_type!='PACKBOX'
+		where ao.action_note = '订单复核完成' and op.order_type ='SALE' 
+	     
+		<if test="customer_id != '' and customer_id != null">
+	    		and wc.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and u.username = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and w.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and ao.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and ao.created_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_pick_id != '' and batch_pick_id != null">
+	    		and bp.batch_pick_sn = #{batch_pick_id}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and op.order_id = #{order_id}
+	     </if>
+	      <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and op.oms_order_sn = #{oms_order_sn}
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and og.warehouse_id = #{warehouse_id}
+	     </if>
+	   	GROUP BY op.order_id, og.product_id
+	</select>
+	
+	 <select id="selectBhListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity,t.created_time,t.last_updated_time,l2.location_barcode as in_location_barcode
+		,l1.location_barcode as out_location_barcode,if(t.task_level='1','一般补货','紧急补货') as task_level,
+		u.username,u.realname,pl.batch_sn,w.warehouse_name
+		from wms.task t 
+		LEFT JOIN wms.sys_user u on u.id = t.first_bind_user_id 
+		INNER JOIN wms.product p on p.product_id =t.product_id 
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id  
+		INNER JOIN wms.location l1 on l1.location_id = pl.location_id 
+		INNER JOIN wms.location l2 on l2.location_id = t.to_location_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id 
+		INNER JOIN wms.warehouse w on w.warehouse_id = pl.warehouse_id
+		WHERE  t.task_type = 'REPLENISHMENT' and t.task_level in (1,3)
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and u.username = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and t.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and t.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and t.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="in_location_barcode != '' and in_location_barcode != null">
+	    		and l2.location_barcode = #{in_location_barcode}
+	     </if>
+	      <if test="out_location_barcode != '' and out_location_barcode != null">
+	    		and l1.location_barcode = #{out_location_barcode}
+	     </if>
+	     <if test="bhType != '' and bhType != null">
+	    		and t.task_level = #{bhType}
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and pl.warehouse_id = #{warehouse_id}
+	     </if>
+	</select>
+	
+	<select id="selectPickListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity as total,bp.created_time,bp.bind_time,
+		bp.batch_pick_sn,u.username,u.realname,l.location_barcode,w.warehouse_name
+		 from wms.batch_pick bp
+		LEFT JOIN wms.sys_user u on u.id = bp.bind_user_id  
+    	INNER JOIN wms.task t on bp.batch_pick_id =t.batch_pick_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id
+	    INNER JOIN wms.product_location pl on t.from_pl_id =pl.pl_id
+	    INNER JOIN wms.warehouse w on w.warehouse_id = pl.warehouse_id 
+	    INNER JOIN wms.location l on l.location_id = pl.location_id
+		INNER JOIN wms.product p on p.product_id =t.product_id
+		where bp.print_count>0 
+		
+		<if test="customer_id != '' and customer_id != null">
+	    		and t.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and u.username = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and bp.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and bp.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and bp.bind_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_pick_id != '' and batch_pick_id != null">
+	    		and bp.batch_pick_sn = #{batch_pick_id}
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and pl.warehouse_id = #{warehouse_id}
+	     </if>
+
+	</select>
+	
+	<select id="selectMaintainListByPage" parameterType="map" resultType="map">
+		SELECT *,SUM(temp.num) as total from (
+		SELECT  wc.name,p.barcode,p.product_name,if(ti.num>0,'盘盈','盘亏') as order_type ,ti.num,p.product_id,
+				ti.created_time,ti.last_update_time as last_updated_time ,ti.created_user,w.warehouse_name 
+		from wms.task_improve ti 
+		INNER JOIN wms.product p on ti.product_id = p.product_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = ti.warehouse_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id and p.customer_id!=2
+		where 1
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and ti.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and ti.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and ti.last_update_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="maintain_type == 'VARIANCE_ADD'">
+	    		and ti.num <![CDATA[> ]]>0
+	     </if>
+	      <if test="maintain_type == 'VARIANCE_MINUS'">
+	    		and ti.num <![CDATA[<= ]]>0
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and ti.warehouse_id = #{warehouse_id}
+	     </if>
+	    
+		) as temp 
+		GROUP BY temp.product_id,temp.order_type
+	</select>
+	
+	
+	<select id="selectRukuListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(iid.change_quantity) as total,oi.order_id,
+		IF(ISNULL(la.`created_time`),oi.`last_updated_time`,la.`created_time`) as created_time,oi.last_updated_time,if(oi.order_type='PURCHASE','采购入库','退货入库')as order_type,oi.oms_order_sn,IFNULL(oi.batch_order_sn, '-') as batch_order_sn
+		,iid.created_user,u.realname,ii.batch_sn,w.warehouse_name
+		 from wms.order_info oi 
+		INNER JOIN wms.order_goods og on og.order_id = oi.order_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = og.warehouse_id 
+		INNER JOIN wms.product p on p.product_id = og.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.inventory_item_detail iid on iid.order_id = oi.order_id and og.order_goods_id =iid.order_goods_id
+		INNER JOIN wms.inventory_item  ii on iid.inventory_item_id = ii.inventory_item_id
+		LEFT  JOIN wms.`label_accept` la ON oi.`order_id`=la.`order_id`
+		LEFT JOIN wms.sys_user u on u.username = iid.created_user 
+		where    oi.order_type in('PURCHASE','RETURN')
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and iid.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and iid.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and iid.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_sn != '' and batch_sn != null">
+	    		and oi.batch_order_sn = #{batch_sn}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="order_type != '' and order_type != null">
+	    		and oi.order_type = #{order_type}
+	     </if>
+	     <if test="order_status != '' and order_status != null">
+	    		and oi.order_status = #{order_status}
+	     </if>
+	     <if test="order_status == null">
+	    		and oi.order_status in ('FULFILLED','ON_SHELF','ABORTED')
+	     </if>
+	     <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	      <if test="product_batch_sn != '' and product_batch_sn != null">
+	    		and ii.batch_sn = #{product_batch_sn}
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and og.warehouse_id = #{warehouse_id}
+	     </if>
+	     group by oi.order_id,og.product_id,ii.batch_sn
+	</select>
+	
+	
+	<select id="selectGroundingPurchaseListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(pll.change_quantity) as total,l.location_barcode ,
+		pll.last_updated_time,oi.order_type,oi.oms_order_sn,pll.created_user,u.realname,oi.order_id,pl.batch_sn,w.warehouse_name
+		 from wms.order_info oi 
+		INNER JOIN wms.product_location_detail pll on pll.order_id =oi.order_id and pll.change_quantity>0
+		INNER JOIN wms.product_location pl  on pl.pl_id =pll.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		INNER JOIN wms.product p on p.product_id = pl.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = pl.warehouse_id 
+		LEFT JOIN wms.sys_user u on u.username = pll.created_user
+		where  1
+		<if test="order_type != '' and order_type != null">
+	    		 and oi.order_type = #{order_type}
+	     </if>
+	     <if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and pll.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and pll.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and pll.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	     <if test="order_status != '' and order_status != null">
+	    		and oi.order_status = #{order_status}
+	     </if>
+	     <if test="order_status == null">
+	    		and oi.order_status in ('FULFILLED','ON_SHELF','ABORTED')
+	     </if>
+	      <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	      <if test="product_batch_sn != '' and product_batch_sn != null">
+	    		and pl.batch_sn = #{product_batch_sn}
+	     </if>
+	      <if test="warehouse_id != '' and warehouse_id != null">
+	    		and pl.warehouse_id = #{warehouse_id}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id,pl.batch_sn 
+	</select>
+	
+	<select id="selectGroundingReturnListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(pll.change_quantity) as total,l.location_barcode,
+		oi.last_updated_time,oi.order_type,oi.oms_order_sn,pll.created_user,u.realname,oi.order_id
+		 from wms.order_info oi 
+		INNER JOIN wms.product_location_detail pll on pll.order_id =oi.order_id
+		INNER JOIN wms.product_location pl  on pl.pl_id =pll.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		INNER JOIN wms.product p on p.product_id = iid.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		LEFT JOIN wms.sys_user u on u.username = pll.created_user
+		where oi.order_type ='RETURN' and oi.order_status ='FULFILLED'
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and pll.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and oi.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and oi.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	      <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id 
+	</select>
+	
+	<select id="selectGroundingCancelListByPage" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(iid.change_quantity) as total,l.location_barcode,
+		oi.last_updated_time, if(oi.order_type='sale','取消上架','退货入库') as order_type,oi.oms_order_sn,iid.created_user,u.realname,oi.order_id
+		 from wms.order_info oi 
+		INNER JOIN wms.order_goods og on og.order_id =oi.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		LEFT  JOIN wms.product_location_detail iid on iid.order_id =oi.order_id and iid.order_goods_id = og.order_goods_id and iid.change_quantity>0
+		INNER JOIN wms.product_location pl  on pl.pl_id =iid.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		LEFT JOIN wms.sys_user u on u.username = iid.created_user
+		where oi.order_type ='SALE' and oi.order_status ='CANCEL' and iid.order_id is not null
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and iid.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and oi.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and oi.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	      <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id 
+	</select>
+	
+	
+	<!--用于资料查询导出功能  -->
+	<select id="selectMoveList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity,t.created_time,t.last_updated_time,l2.location_barcode as in_location_barcode
+		,l1.location_barcode as out_location_barcode,
+		u.username,u.realname
+		from wms.task t 
+		LEFT JOIN wms.sys_user u on u.id = t.first_bind_user_id
+		INNER JOIN wms.product p on p.product_id =t.product_id
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id 
+		INNER JOIN wms.location l1 on l1.location_id = pl.location_id
+		INNER JOIN wms.location l2 on l2.location_id = t.to_location_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id
+		where t.task_type = 'MOVE' 
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and t.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and t.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and t.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and t.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="in_location_barcode != '' and in_location_barcode != null">
+	    		and l2.location_barcode = #{in_location_barcode}
+	     </if>
+	      <if test="out_location_barcode != '' and out_location_barcode != null">
+	    		and l1.location_barcode = #{out_location_barcode}
+	     </if>
+	</select>
+	
+	  <select id="selectRecheckList" parameterType="map" resultType="map">
+		SELECT 
+		wc.name,
+		p.barcode,p.product_name,
+		op.order_id,  SUM(og.goods_number) as total,op.recheck_time,op.created_time, ao.created_user, 
+		u.username,u.realname,
+		bp.batch_pick_sn
+		FROM wms.order_process op
+		INNER JOIN wms.user_action_order ao on op.order_id = ao.order_id  
+		LEFT JOIN wms.sys_user u on u.username = ao.created_user
+		INNER JOIN wms.warehouse w on w.warehouse_id = op.warehouse_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+		INNER JOIN wms.batch_pick bp on bp.batch_pick_id = op.batch_pick_id
+    	INNER JOIN wms.order_goods og on og.order_id = op.order_id 
+		INNER JOIN  wms.product p on p.product_id = og.product_id  and p.product_type!='PACKBOX'
+		where ao.action_note = '订单复核完成' and op.order_type ='SALE' 
+	     
+		<if test="customer_id != '' and customer_id != null">
+	    		and wc.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and u.username = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and w.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and op.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and op.recheck_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_pick_id != '' and batch_pick_id != null">
+	    		and bp.batch_pick_sn = #{batch_pick_id}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and op.order_id = #{order_id}
+	     </if>
+	   	GROUP BY op.order_id, og.product_id
+	</select>
+	
+	 <select id="selectBhList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity,t.created_time,t.last_updated_time,l2.location_barcode as in_location_barcode
+		,l1.location_barcode as out_location_barcode,if(t.task_level='1','一般补货','紧急补货') as task_level,
+		u.username,u.realname
+		from wms.task t 
+		LEFT JOIN wms.sys_user u on u.id = t.first_bind_user_id 
+		INNER JOIN wms.product p on p.product_id =t.product_id 
+		INNER JOIN wms.product_location pl on pl.pl_id = t.from_pl_id  
+		INNER JOIN wms.location l1 on l1.location_id = pl.location_id 
+		INNER JOIN wms.location l2 on l2.location_id = t.to_location_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id 
+		WHERE  t.task_type = 'REPLENISHMENT' and t.task_level in(1,3)
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and t.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and t.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and t.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and t.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="in_location_barcode != '' and in_location_barcode != null">
+	    		and l2.location_barcode = #{in_location_barcode}
+	     </if>
+	      <if test="out_location_barcode != '' and out_location_barcode != null">
+	    		and l1.location_barcode = #{out_location_barcode}
+	     </if>
+	     <if test="bhType != '' and bhType != null">
+	    		and t.task_level = #{bhType}
+	     </if>
+	</select>
+	
+	<select id="selectPickList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,t.quantity as total,bp.created_time,bp.bind_time,
+		bp.batch_pick_sn,u.username,u.realname,l.location_barcode
+		 from wms.batch_pick bp
+		LEFT JOIN wms.sys_user u on u.id = bp.bind_user_id  
+    	INNER JOIN wms.task t on bp.batch_pick_id =t.batch_pick_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = t.customer_id 
+	    INNER JOIN wms.product_location pl on t.from_pl_id =pl.pl_id
+	    INNER JOIN wms.location l on l.location_id = pl.location_id
+		INNER JOIN wms.product p on p.product_id =t.product_id
+		where bp.print_count>0 
+		
+		<if test="customer_id != '' and customer_id != null">
+	    		and t.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and u.username = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and bp.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and bp.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and bp.bind_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_pick_id != '' and batch_pick_id != null">
+	    		and bp.batch_pick_sn = #{batch_pick_id}
+	     </if>
+
+	</select>
+	
+	<select id="selectMaintainList" parameterType="map" resultType="map">
+		SELECT  wc.name,p.barcode,p.product_name,if(ti.num>0,'盘盈','盘亏') as order_type ,SUM(ti.num) as total,
+		ti.created_time,ti.last_update_time,ti.created_user from wms.task_improve ti 
+		INNER JOIN wms.product p on ti.product_id = p.product_id
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = p.customer_id and p.customer_id!=2
+		<if test="customer_id != '' and customer_id != null">
+	    		and p.customer_id = #{customer_id}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and ti.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and ti.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and ti.last_update_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	        <if test="maintain_type == 'VARIANCE_ADD'">
+	    		and ti.num <![CDATA[> ]]>0
+	     </if>
+	      <if test="maintain_type == 'VARIANCE_MINUS'">
+	    		and ti.num <![CDATA[<= ]]>0
+	     </if>
+	     	GROUP BY p.product_id,order_type
+	</select>
+	
+	
+	<select id="selectRukuList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(iid.change_quantity) as total,oi.order_id,
+		IF(ISNULL(la.`created_time`),oi.`last_updated_time`,la.`created_time`) as created_time,oi.last_updated_time,if(oi.order_type='PURCHASE','采购入库','退货入库')as order_type,oi.oms_order_sn,IFNULL(oi.batch_order_sn, '-') as batch_order_sn
+		,iid.created_user,u.realname,ii.batch_sn
+		 from wms.order_info oi 
+		INNER JOIN wms.order_goods og on og.order_id = oi.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		INNER JOIN wms.inventory_item_detail iid on iid.order_id = oi.order_id and og.order_goods_id =iid.order_goods_id
+		INNER JOIN wms.inventory_item  ii on iid.inventory_item_id = ii.inventory_item_id
+		LEFT  JOIN wms.`label_accept` la ON oi.`order_id`=la.`order_id`
+		LEFT JOIN wms.sys_user u on u.username = iid.created_user 
+		where    oi.order_type in('PURCHASE','RETURN')
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and iid.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and iid.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and iid.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="batch_sn != '' and batch_sn != null">
+	    		and oi.batch_order_sn = #{batch_sn}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="order_type != '' and order_type != null">
+	    		and oi.order_type = #{order_type}
+	     </if>
+	     <if test="order_status != '' and order_status != null">
+	    		and oi.order_status = #{order_status}
+	     </if>
+	     <if test="order_status == null">
+	    		and oi.order_status in ('FULFILLED','ON_SHELF','ABORTED')
+	     </if>
+	     <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	      <if test="product_batch_sn != '' and product_batch_sn != null">
+	    		and ii.batch_sn = #{product_batch_sn}
+	     </if>
+	     group by oi.order_id,og.product_id,ii.batch_sn
+	</select>
+	
+	
+	<select id="selectGroundingPurchaseList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(pll.change_quantity) as total,l.location_barcode ,
+		pll.last_updated_time,oi.order_type,oi.oms_order_sn,pll.created_user,u.realname,oi.order_id,pl.batch_sn
+		 from wms.order_info oi 
+		INNER JOIN wms.product_location_detail pll on pll.order_id =oi.order_id and pll.change_quantity>0
+		INNER JOIN wms.product_location pl  on pl.pl_id =pll.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		INNER JOIN wms.product p on p.product_id = pl.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		LEFT JOIN wms.sys_user u on u.username = pll.created_user
+		where  1
+		<if test="order_type != '' and order_type != null">
+	    		 and oi.order_type = #{order_type}
+	     </if>
+	     <if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and pll.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and pll.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and pll.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.order_id = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	     <if test="order_status != '' and order_status != null">
+	    		and oi.order_status = #{order_status}
+	     </if>
+	     <if test="order_status == null">
+	    		and oi.order_status in ('FULFILLED','ON_SHELF','ABORTED')
+	     </if>
+	      <if test="oms_order_sn != '' and oms_order_sn != null">
+	    		and oi.oms_order_sn = #{oms_order_sn}
+	     </if>
+	      <if test="product_batch_sn != '' and product_batch_sn != null">
+	    		and pl.batch_sn = #{product_batch_sn}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id,pl.batch_sn 
+	</select>
+	
+	<select id="selectGroundingReturnList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(iid.change_quantity) as total,l.location_barcode,
+		oi.last_updated_time,oi.order_type,oi.oms_order_sn,iid.created_user,u.realname
+		 from wms.order_info oi 
+		INNER JOIN wms.inventory_item_detail iid on iid.order_id =oi.order_id
+		INNER JOIN wms.product_location_detail pll on pll.order_id =oi.order_id
+		INNER JOIN wms.product_location pl  on pl.pl_id =pll.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		INNER JOIN wms.product p on p.product_id = iid.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		LEFT JOIN wms.sys_user u on u.username = iid.created_user
+		where oi.order_type ='RETURN' and oi.order_status ='FULFILLED'
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and la.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and oi.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and oi.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.oms_order_sn = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id
+	</select>
+	
+	<select id="selectGroundingCancelList" parameterType="map" resultType="map">
+		SELECT wc.name,p.barcode,p.product_name,SUM(iid.change_quantity) as total,l.location_barcode,
+		oi.last_updated_time, if(oi.order_type='sale','取消上架','退货入库') as order_type,oi.oms_order_sn,iid.created_user,u.realname
+		 from wms.order_info oi 
+		INNER JOIN wms.order_goods og on og.order_id =oi.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id 
+		INNER JOIN wms.warehouse_customer wc on wc.customer_id = oi.customer_id
+		LEFT  JOIN wms.product_location_detail iid on iid.order_id =oi.order_id and iid.order_goods_id = og.order_goods_id and iid.change_quantity>0
+		INNER JOIN wms.product_location pl  on pl.pl_id =iid.pl_id
+		INNER JOIN wms.location l on pl.location_id = l.location_id
+		LEFT JOIN wms.sys_user u on u.username = iid.created_user
+		where oi.order_type ='SALE' and oi.order_status ='CANCEL' and iid.order_id is not null
+		<if test="customer_id != '' and customer_id != null">
+	    		and oi.customer_id = #{customer_id}
+	     </if>
+	     <if test="created_user != '' and created_user != null">
+	    		and iid.created_user = #{created_user}
+	     </if>
+	     <if test="physical_warehouse_id != '' and physical_warehouse_id != null">
+	    		and oi.physical_warehouse_id = #{physical_warehouse_id}
+	     </if>
+	      <if test="barcode != '' and barcode != null">
+	    		and p.barcode = #{barcode}
+	     </if>  
+	      <if test="created_time != '' and created_time != null">
+	    		and oi.created_time <![CDATA[>= ]]> #{created_time}
+	     </if>
+	      <if test="delivery_time != '' and delivery_time != null">
+	    		and oi.last_updated_time <![CDATA[<= ]]> #{delivery_time}
+	     </if>
+	      <if test="order_id != '' and order_id != null">
+	    		and oi.oms_order_sn = #{order_id}
+	     </if>
+	     <if test="location_barcode != '' and location_barcode != null">
+	    		and l.location_barcode = #{location_barcode}
+	     </if>
+	     GROUP BY oi.order_id,p.product_id 
+	</select>
+	
+	<!-- 1.超强查询：WMS订单号，OMS订单号
+		 2.强查询： 商品条码，批次号 仅受限于出库时间
+		 3.一般查询:考虑所有条件 -->
+	<select id="selectStockOutListByPage" parameterType="map" resultType="map">
+		SELECT op.order_id,op.oms_order_sn,wc.`name`,oi.shop_name,p.barcode,p.product_name,ifnull(b.batch_sn,'') as batch_sn,w.warehouse_name,
+		sum(if(p.is_maintain_batch_sn='Y' and order_goods_batch_id is not null,b.num,og.goods_number)) as number,op.inventory_out_time
+		from wms.order_process op 
+		STRAIGHT_JOIN wms.order_info oi on oi.order_id = op.order_id
+		INNER JOIN wms.order_goods og on og.order_id = op.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		STRAIGHT_JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+		LEFT JOIN wms.order_goods_batch b on b.order_goods_id = og.order_goods_id
+		where oi.physical_warehouse_id = #{physical_warehouse_id} and p.product_type!='PACKBOX' and p.is_delete = 'N'
+		<if test="order_id != '' and order_id != null">
+	    	and op.order_id = #{order_id}
+	    </if>
+	    <if test="oms_order_sn != '' and oms_order_sn != null">
+	    	and op.oms_order_sn = #{oms_order_sn}
+	    </if>
+	    <if test="warehouse_id != '' and warehouse_id != null">
+	    	and oi.warehouse_id = #{warehouse_id}
+	    </if>
+	    
+	   	<if test="oms_order_sn == null and order_id == null">
+	   		<if test="barcode != '' and barcode != null">
+				and p.barcode = #{barcode}
+			</if>
+			AND op.inventory_out_time >= #{start_time} 
+			<if test="end_time != '' and end_time  != null">
+				and op.inventory_out_time <![CDATA[<= ]]>#{end_time}
+			</if>
+			<if test="batch_sn != '' and batch_sn != null">
+				AND b.batch_sn = #{batch_sn}
+			</if>
+			<if test="barcode == null and batch_sn == null">
+				<if test="customerIdList != null and customerIdList.size() != 0">
+		        	and op.customer_id in
+					<foreach collection="customerIdList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+		     	</if>
+			</if>
+		</if>
+		GROUP BY op.order_id,og.product_id,b.batch_sn
+	</select>
+     
+     <select id="selectStockOutList" parameterType="map" resultType="map">
+     	SELECT op.order_id,op.oms_order_sn,wc.`name`,oi.shop_name,p.barcode,p.product_name,ifnull(b.batch_sn,'') as batch_sn,w.warehouse_name,
+		sum(if(p.is_maintain_batch_sn='Y' and order_goods_batch_id is not null,b.num,og.goods_number)) as number,op.inventory_out_time
+		from wms.order_process op 
+		STRAIGHT_JOIN wms.order_info oi on oi.order_id = op.order_id
+		INNER JOIN wms.order_goods og on og.order_id = op.order_id
+		INNER JOIN wms.product p on p.product_id = og.product_id
+		INNER JOIN wms.warehouse w on w.warehouse_id = oi.warehouse_id
+		STRAIGHT_JOIN wms.warehouse_customer wc on wc.customer_id = op.customer_id
+		LEFT JOIN wms.order_goods_batch b on b.order_goods_id = og.order_goods_id
+		where oi.physical_warehouse_id = #{physical_warehouse_id} and p.product_type!='PACKBOX' and p.is_delete = 'N'
+		<if test="order_id != '' and order_id != null">
+	    	and op.order_id = #{order_id}
+	    </if>
+	    <if test="oms_order_sn != '' and oms_order_sn != null">
+	    	and op.oms_order_sn = #{oms_order_sn}
+	    </if>
+	    <if test="warehouse_id != '' and warehouse_id != null">
+	    	and oi.warehouse_id = #{warehouse_id}
+	    </if>
+	    
+	   	<if test="oms_order_sn == null and order_id == null">
+	   		<if test="barcode != '' and barcode != null">
+				and p.barcode = #{barcode}
+			</if>
+			AND op.inventory_out_time >= #{start_time} 
+			<if test="end_time != '' and end_time  != null">
+				and op.inventory_out_time <![CDATA[<= ]]>#{end_time}
+			</if>
+			<if test="batch_sn != '' and batch_sn != null">
+				AND b.batch_sn = #{batch_sn}
+			</if>
+			<if test="barcode == null and batch_sn == null">
+				<if test="customerIdList != null and customerIdList.size() != 0">
+		        	and op.customer_id in
+					<foreach collection="customerIdList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+		     	</if>
+			</if>
+		</if>
+		GROUP BY op.order_id,og.product_id,b.batch_sn
+     </select>
+</mapper>
